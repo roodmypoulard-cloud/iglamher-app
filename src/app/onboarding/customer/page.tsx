@@ -11,7 +11,7 @@ export default function CustomerOnboarding() {
         <p className="mt-1 text-sm text-ink-muted">A few details so we can personalize your beauty.</p>
       </div>
       <form action={finishCustomerOnboardingAction} className="space-y-4 rounded-[16px] border border-border bg-surface p-6">
-        <Field label="Full name" id="fullName" type="text" autoComplete="name" placeholder="Your name" required />
+        <Field label="Full name" id="fullName" type="text" autoComplete="name" placeholder="Your name" />
         <Field label="Phone" id="phone" type="tel" autoComplete="tel" placeholder="(555) 555-5555" />
         <Field label="City" id="city" type="text" placeholder="Los Angeles" defaultValue="Los Angeles" />
         <fieldset className="space-y-2">
