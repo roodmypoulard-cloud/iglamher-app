@@ -2,6 +2,8 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
+import { getAccountContext } from "@/lib/profile/account";
+import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
 import { Shell, SectionHeader } from "@/components/marketplace/Shell";
 import { EmptyState } from "@/components/ui/states";
 import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, UserIcon, StarIcon } from "@/components/ui/icons";
@@ -47,11 +49,22 @@ export default async function AccountPage() {
   const bookings = await getMyCustomerBookings();
   const upcoming = bookings.filter((b) => isActive(b.status));
   const past = bookings.filter((b) => !isActive(b.status));
+  const account = await getAccountContext();
 
   return (
     <Shell>
       <h1 className="font-display text-3xl font-bold leading-tight">My account</h1>
       <p className="mt-1 text-sm text-ink-muted">Bookings, receipts and settings.</p>
+
+      {account?.canSwitch && (
+        <div className="mt-5 rounded-[16px] border border-border bg-surface p-4">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Mode</p>
+          <ModeSwitcher activeMode={account.activeMode} />
+          <Link href="/pro/profile" className="mt-3 inline-block text-sm font-semibold text-rose hover:underline">
+            Go to professional dashboard →
+          </Link>
+        </div>
+      )}
 
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {LINKS.map(({ href, label, Icon }) => (

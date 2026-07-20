@@ -21,13 +21,18 @@ export async function signUpAction(_prev: ActionState, formData: FormData): Prom
   if (limited) return { error: limited };
 
   const parsed = signUpSchema.safeParse({
-    fullName: formData.get("fullName"),
+    firstName: formData.get("firstName"),
+    lastName: formData.get("lastName"),
     email: formData.get("email"),
+    phone: formData.get("phone") ?? "",
     password: formData.get("password"),
-    role: formData.get("role") ?? "customer",
+    confirmPassword: formData.get("confirmPassword"),
+    accountType: formData.get("accountType") ?? "customer",
+    acceptTerms: formData.get("acceptTerms") ?? false,
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  const { fullName, email, password, role } = parsed.data;
+  const { firstName, lastName, email, phone, password, accountType } = parsed.data;
+  const fullName = `${firstName} ${lastName}`.trim();
 
   const supabase = await createClient();
   const { data, error } = await supabase.auth.signUp({
@@ -69,13 +74,32 @@ export async function signUpAction(_prev: ActionState, formData: FormData): Prom
     userId = si.session.user.id;
   }
 
-  // Persist the selected role before redirecting. New users are 'customer' by the
-  // DB trigger; self-upgrade to 'professional' is permitted by prevent_role_escalation.
-  if (role === "professional" && userId) {
-    await supabase.from("profiles").update({ role: "professional" }).eq("id", userId);
+  // Persist role + account type + profile before redirecting. A professional/both
+  // account needs role='professional' (self-upgrade permitted by the role trigger)
+  // so pro features unlock; a 'both' account starts in customer mode and can switch.
+  // These writes no-op gracefully until migration 0016 adds the columns.
+  if (userId) {
+    const isPro = accountType === "professional" || accountType === "both";
+    if (isPro) {
+      await supabase.from("profiles").update({ role: "professional" }).eq("id", userId);
+    }
+    await supabase
+      .from("profiles")
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        full_name: fullName,
+        phone: phone || null,
+        account_type: accountType,
+        active_mode: accountType === "professional" ? "professional" : "customer",
+      })
+      .eq("id", userId);
   }
 
-  redirect(role === "professional" ? "/onboarding/professional" : "/onboarding/customer");
+  // Route by account type. 'both' starts with professional onboarding, then can
+  // switch modes; customer goes straight to the lightweight customer onboarding.
+  const dest = accountType === "customer" ? "/onboarding/customer" : "/onboarding/professional";
+  redirect(dest);
 }
 
 /** Finish the lightweight customer onboarding and enter the marketplace. */
