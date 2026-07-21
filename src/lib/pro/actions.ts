@@ -155,7 +155,9 @@ export async function saveProfileAction(_prev: ActionState, formData: FormData):
       languages: list(v.languages),
       specialties: list(v.specialties),
       instagram_handle: v.instagramHandle || null,
-      cancellation_policy: v.cancellationPolicy || null,
+      // cancellation_policy is jsonb NOT NULL default '{}'; only write it when the
+      // pro provides text, wrapped as a JSON value (never null → not-null violation).
+      ...(v.cancellationPolicy ? { cancellation_policy: { text: v.cancellationPolicy } } : {}),
     })
     .eq("user_id", gate.userId);
   if (error) return { error: error.message };
