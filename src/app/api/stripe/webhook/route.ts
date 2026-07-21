@@ -90,13 +90,22 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
         })
         .eq("id", bookingId)
         .eq("status", "pending_payment")
-        .select("professional_id, total_cents, platform_fee_cents")
+        .select("professional_id, customer_id, total_cents, platform_fee_cents")
         .maybeSingle();
       await admin.from("booking_status_events").insert({ booking_id: bookingId, status: "confirmed", note: "Payment succeeded (webhook)" });
       await admin.from("conversations").update({ is_unlocked: true }).eq("booking_id", bookingId);
 
       // Record the provider's pending earning (idempotent via unique(booking_id,kind)).
-      const row = b as { professional_id?: string; total_cents?: number; platform_fee_cents?: number } | null;
+      const row = b as { professional_id?: string; customer_id?: string; total_cents?: number; platform_fee_cents?: number } | null;
+      // Booking-confirmed notifications (best-effort; only fires on the pending→confirmed transition).
+      if (row?.professional_id && row?.customer_id) {
+        try {
+          await admin.from("notifications").insert([
+            { user_id: row.customer_id, type: "booking", title: "Booking confirmed", body: "Your payment went through and your appointment is confirmed.", data: { bookingId } },
+            { user_id: row.professional_id, type: "booking", title: "New booking", body: "You have a new confirmed booking.", data: { bookingId } },
+          ]);
+        } catch { /* best-effort */ }
+      }
       if (row?.professional_id) {
         const netCents = payoutAmountCents(row.total_cents ?? 0, row.platform_fee_cents ?? 0);
         await admin.from("earnings_ledger").upsert(

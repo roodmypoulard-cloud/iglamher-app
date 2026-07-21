@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/marketplace/Shell";
 import { BackButton } from "@/components/ui/BackButton";
 import { BookingLifecycleActions } from "@/components/booking/BookingLifecycleActions";
+import { ReviewForm } from "@/components/booking/ReviewForm";
+import { TipForm } from "@/components/booking/TipForm";
 import { ChevronRight } from "@/components/ui/icons";
 import { getBookingDetail } from "@/lib/booking/data";
 import { formatPrice } from "@/lib/format";
@@ -94,6 +96,20 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <BookingLifecycleActions bookingId={b.id} status={b.status} viewerRole={b.viewerRole} />
+
+      {b.status === "completed" && (
+        <section className="mt-6 space-y-4">
+          {b.viewerRole === "customer" && !b.tipped && <TipForm bookingId={b.id} baseCents={b.subtotalCents} />}
+          {!b.reviewedByViewer && (
+            <ReviewForm bookingId={b.id} direction={b.viewerRole === "customer" ? "customer_to_pro" : "pro_to_customer"} />
+          )}
+          {b.reviewedByViewer && (
+            <p className="rounded-[14px] border border-success/30 bg-success/10 px-4 py-3 text-sm font-semibold text-success">
+              Thanks — your review has been posted.
+            </p>
+          )}
+        </section>
+      )}
 
       {b.professionalSlug && b.viewerRole === "customer" && (
         <Link

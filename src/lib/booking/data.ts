@@ -47,10 +47,13 @@ export async function getMyCustomerBookings(): Promise<BookingSummary[]> {
 export interface BookingDetail extends BookingSummary {
   endsAt: string;
   totalCents: number;
+  subtotalCents: number;
   amountDueNowCents: number;
   paymentStatus: string;
   professionalSlug?: string;
   viewerRole: "customer" | "professional";
+  reviewedByViewer: boolean;
+  tipped: boolean;
 }
 
 /** Load one booking (customer OR professional party only). Returns null if it
@@ -64,13 +67,24 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   const { data } = await supabase
     .from("bookings")
     .select(
-      "id,status,service_name_snapshot,starts_at,ends_at,total_cents,amount_due_now_cents,professional_id,customer_id,professional:professional_profiles!bookings_professional_id_fkey(business_name,slug)",
+      "id,status,service_name_snapshot,starts_at,ends_at,total_cents,subtotal_cents,amount_due_now_cents,professional_id,customer_id,professional:professional_profiles!bookings_professional_id_fkey(business_name,slug)",
     )
     .eq("id", id)
     .maybeSingle();
   if (!data) return null;
   const r = data as unknown as Record<string, unknown>;
   if (r.customer_id !== auth.user.id && r.professional_id !== auth.user.id) return null;
+
+  const viewerRole = r.professional_id === auth.user.id ? "professional" : "customer";
+  // Has the viewer already reviewed (in their direction)? Has a tip been left?
+  // Degrades to false if migrations 0020/0021 aren't applied.
+  const dir = viewerRole === "professional" ? "pro_to_customer" : "customer_to_pro";
+  let reviewedByViewer = false;
+  let tipped = false;
+  const { data: rev } = await supabase.from("reviews").select("id").eq("booking_id", id).eq("direction", dir).maybeSingle();
+  reviewedByViewer = Boolean(rev);
+  const { data: tip } = await supabase.from("tips").select("id").eq("booking_id", id).maybeSingle();
+  tipped = Boolean(tip);
 
   // Payment status: prefer the payments row; fall back to booking-status-derived.
   let paymentStatus = "unpaid";
@@ -90,10 +104,13 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     ...mapRow(r),
     endsAt: String(r.ends_at ?? ""),
     totalCents: Number(r.total_cents ?? 0),
+    subtotalCents: Number(r.subtotal_cents ?? r.total_cents ?? 0),
     amountDueNowCents: Number(r.amount_due_now_cents ?? 0),
     paymentStatus,
     professionalSlug: pro?.slug,
-    viewerRole: r.professional_id === auth.user.id ? "professional" : "customer",
+    viewerRole,
+    reviewedByViewer,
+    tipped,
   };
 }
 

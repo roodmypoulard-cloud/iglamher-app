@@ -173,6 +173,19 @@ export async function updateBookingStatusAction(
   if (error) return { ok: false, error: error.message };
   await supabase.from("booking_status_events").insert({ booking_id: bookingId, status: move.to, actor_id: auth.user.id, note: reason ?? null });
 
+  // Lifecycle notifications (best-effort, via service role).
+  try {
+    const notify = (userId: string, title: string, body: string) =>
+      admin.from("notifications").insert({ user_id: userId, type: "booking", title, body, data: { bookingId } });
+    if (move.to === "in_progress") await notify(b.customer_id, "Appointment started", "Your provider has started your service.");
+    else if (move.to === "completed") {
+      await notify(b.customer_id, "Appointment completed", "Your service is complete — add a tip and leave a review.");
+      await notify(b.professional_id, "Appointment completed", "Nice work! You can now review your client.");
+    } else if (move.to.startsWith("cancelled") || move.to === "no_show") {
+      await notify(move.actor === "customer" ? b.professional_id : b.customer_id, "Booking cancelled", "A booking was cancelled.");
+    }
+  } catch { /* notifications are best-effort */ }
+
   if (move.to === "completed") {
     // iGlam Rewards (idempotent).
     await awardBookingPoints(b.customer_id, bookingId, b.subtotal_cents);
