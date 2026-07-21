@@ -11,7 +11,7 @@ import { useEffect, useRef, useState } from "react";
 export function useHideOnScroll(opts?: { threshold?: number; topGuard?: number; idleMs?: number; locked?: boolean }): boolean {
   const threshold = opts?.threshold ?? 10; // ignore tiny/accidental moves
   const topGuard = opts?.topGuard ?? 80; // always visible near the top
-  const idleMs = opts?.idleMs ?? 200; // reveal ~200ms after scrolling stops
+  const idleMs = opts?.idleMs ?? 150; // reveal ~150ms after scrolling stops
   const locked = opts?.locked ?? false;
 
   const [scrollHidden, setScrollHidden] = useState(false);
