@@ -3,7 +3,7 @@ import { getStripe, isStripeConfigured } from "@/lib/payments/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { captureError, log } from "@/lib/observability/logger";
-import { transferBookingPayout, reverseBookingPayout, payoutAmountCents } from "@/lib/payments/payouts";
+import { reverseBookingPayout, payoutAmountCents } from "@/lib/payments/payouts";
 
 // ============================================================
 // Stripe webhook — the SOURCE OF TRUTH for payment state (not the browser).
@@ -95,14 +95,11 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
           },
           { onConflict: "booking_id,kind" },
         );
-        // Split funds to the professional's connected account (separate charges +
-        // transfers). Best-effort: records failed/pending, never blocks confirmation.
-        const payout = await transferBookingPayout(admin, {
-          bookingId,
-          professionalId: row.professional_id,
-          netCents,
-        });
-        log.info("webhook.payout", { bookingId, status: payout.status });
+        // Payout is DEFERRED to service completion (the remaining balance is
+        // captured then). The deposit is held by the platform now — we only record
+        // the pending earning here and never transfer at deposit time (which would
+        // over-pay, since only the deposit has been collected).
+        log.info("webhook.deposit_collected", { bookingId, netCents });
       }
       log.info("webhook.payment_succeeded", { bookingId });
       return;
