@@ -4,8 +4,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
 import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
+import { PhoneVerification } from "@/components/profile/PhoneVerification";
 import {
-  updatePersonalInfoAction, changeEmailAction, changePasswordAction, changePhoneAction,
+  updatePersonalInfoAction, changeEmailAction, changePasswordAction,
   saveNotificationPrefsAction, saveLanguageAction, saveAppearanceAction, downloadMyDataAction,
   pauseAccountAction, deactivateAccountAction, reactivateAccountAction, deleteAccountAction,
   type SettingsState,
@@ -15,6 +16,7 @@ import { startProviderOnboardingAction } from "@/lib/pro/onboarding-actions";
 type Provider = "email" | "google" | "apple";
 type Props = {
   personal: { firstName: string; lastName: string; phone: string; email: string };
+  phoneVerified: boolean;
   accountType: "customer" | "professional" | "both";
   activeMode: "customer" | "professional";
   accountStatus: "active" | "paused" | "deactivated";
@@ -131,7 +133,24 @@ export function AccountSettingsClient(props: Props) {
       <Card icon={I.user} title="Personal Information">
         <Row label="Name" value={`${props.personal.firstName} ${props.personal.lastName}`.trim() || "—"} onClick={() => setDialog("personal")} />
         <Row label="Email" value={props.personal.email} onClick={() => setDialog("email")} />
-        <Row label="Phone" value={props.personal.phone || "Add"} onClick={() => setDialog("phone")} />
+        <Row
+          label="Phone"
+          value={
+            props.personal.phone ? (
+              <span className="flex items-center gap-1.5">
+                {props.personal.phone}
+                {props.phoneVerified && (
+                  <span className="flex items-center gap-0.5 rounded-full bg-success/15 px-1.5 py-0.5 text-[10px] font-bold text-success">
+                    <Icon d={I.check} className="h-3 w-3" /> Verified
+                  </span>
+                )}
+              </span>
+            ) : (
+              "Add"
+            )
+          }
+          onClick={() => setDialog("phone")}
+        />
         <Row label="Password" value="••••••••" onClick={() => setDialog("password")} />
       </Card>
 
@@ -257,7 +276,7 @@ export function AccountSettingsClient(props: Props) {
             <input name="firstName" defaultValue={props.personal.firstName} placeholder="First name" required className={input} />
             <input name="lastName" defaultValue={props.personal.lastName} placeholder="Last name" required className={input} />
           </div>
-          <input name="phone" defaultValue={props.personal.phone} placeholder="Phone (optional)" className={input} />
+          <p className="text-[12px] text-ink-muted">Your phone number is managed under Phone (with verification).</p>
           <Msg s={msg} />
           <button type="submit" disabled={pending} className="w-full rounded-full rose-gradient py-3 text-sm font-semibold text-[#2A1712] disabled:opacity-60">Save changes</button>
         </form>
@@ -272,12 +291,8 @@ export function AccountSettingsClient(props: Props) {
         </form>
       </Modal>
 
-      <Modal open={dialog === "phone"} onClose={close} title="Change phone number">
-        <form action={runForm(changePhoneAction)} className="space-y-3">
-          <input name="phone" type="tel" defaultValue={props.personal.phone} placeholder="(555) 555-5555" className={input} />
-          <Msg s={msg} />
-          <button type="submit" disabled={pending} className="w-full rounded-full rose-gradient py-3 text-sm font-semibold text-[#2A1712] disabled:opacity-60">Update phone</button>
-        </form>
+      <Modal open={dialog === "phone"} onClose={close} title={props.phoneVerified ? "Phone number" : "Verify phone number"}>
+        <PhoneVerification initialPhone={props.personal.phone} verified={props.phoneVerified} onDone={() => setTimeout(close, 1200)} />
       </Modal>
 
       <Modal open={dialog === "password"} onClose={close} title="Change password">

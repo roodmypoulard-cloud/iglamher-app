@@ -39,6 +39,12 @@ export default async function SettingsPage() {
   const np = (prefs ?? {}) as Record<string, boolean>;
   const ctx = await getAccountContext();
 
+  // Verified only when the profile phone matches the auth-confirmed phone (GoTrue
+  // stores it without a leading '+', so compare on digits). Never trust the flag
+  // alone — an unverified edit via personal info must not read as verified.
+  const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
+  const phoneVerified = Boolean(user.phone_confirmed_at) && digits(p.phone).length > 0 && digits(user.phone) === digits(p.phone);
+
   const identities = (user.identities ?? []).map((i) => i.provider) as string[];
   const metaProviders = ((user.app_metadata?.providers as string[] | undefined) ?? []);
   const providers = Array.from(new Set([...identities, ...metaProviders, "email"])).filter((x): x is Provider =>
@@ -59,6 +65,7 @@ export default async function SettingsPage() {
           phone: p.phone ?? "",
           email: user.email ?? "",
         }}
+        phoneVerified={phoneVerified}
         accountType={ctx?.accountType ?? "customer"}
         activeMode={ctx?.activeMode ?? "customer"}
         accountStatus={(p.account_status as "active" | "paused" | "deactivated") ?? "active"}

@@ -23,22 +23,23 @@ async function requireUser() {
 const nameSchema = z.object({
   firstName: z.string().trim().min(1, "Enter your first name").max(60),
   lastName: z.string().trim().min(1, "Enter your last name").max(60),
-  phone: z.string().trim().max(30).optional().or(z.literal("")),
 });
 
+// Phone is intentionally NOT updated here — it is changed only via the verified
+// phone flow (changePhoneAction remains for API compatibility but the UI routes
+// phone changes through OTP verification).
 export async function updatePersonalInfoAction(_p: SettingsState, formData: FormData): Promise<SettingsState> {
   const gate = await requireUser();
   if ("error" in gate) return { error: gate.error };
   const parsed = nameSchema.safeParse({
     firstName: formData.get("firstName"),
     lastName: formData.get("lastName"),
-    phone: formData.get("phone") ?? "",
   });
   if (!parsed.success) return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  const { firstName, lastName, phone } = parsed.data;
+  const { firstName, lastName } = parsed.data;
   const { error } = await gate.supabase
     .from("profiles")
-    .update({ first_name: firstName, last_name: lastName, full_name: `${firstName} ${lastName}`.trim(), phone: phone || null })
+    .update({ first_name: firstName, last_name: lastName, full_name: `${firstName} ${lastName}`.trim() })
     .eq("id", gate.user.id);
   if (error) return { error: error.message };
   revalidatePath("/profile/settings");
