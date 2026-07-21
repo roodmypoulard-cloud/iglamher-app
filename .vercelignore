@@ -1,0 +1,6 @@
+# Never upload local env files — production must use Vercel dashboard env vars only.
+# (A shipped .env.local was shadowing the dashboard STRIPE_SECRET_KEY with a stale
+#  sk_test_ key.)
+.env
+.env.*
+!.env.example
