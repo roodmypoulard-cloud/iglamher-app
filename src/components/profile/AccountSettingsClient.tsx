@@ -292,7 +292,7 @@ export function AccountSettingsClient(props: Props) {
       </Modal>
 
       <Modal open={dialog === "phone"} onClose={close} title={props.phoneVerified ? "Phone number" : "Verify phone number"}>
-        <PhoneVerification initialPhone={props.personal.phone} verified={props.phoneVerified} onDone={() => setTimeout(close, 1200)} />
+        <PhoneVerification initialPhone={props.personal.phone} verified={props.phoneVerified} onVerified={() => { router.refresh(); setTimeout(close, 1500); }} />
       </Modal>
 
       <Modal open={dialog === "password"} onClose={close} title="Change password">

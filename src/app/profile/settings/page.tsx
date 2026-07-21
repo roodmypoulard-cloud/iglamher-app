@@ -27,10 +27,11 @@ export default async function SettingsPage() {
     .maybeSingle();
   const { data: status } = await supabase
     .from("profiles")
-    .select("account_status, language, appearance")
+    .select("account_status, language, appearance, phone_verified")
     .eq("id", user.id)
     .maybeSingle();
   const p = { ...(base ?? {}), ...(status ?? {}) } as Record<string, string | null>;
+  const phoneVerifiedFlag = Boolean((status as { phone_verified?: boolean } | null)?.phone_verified);
   const { data: prefs } = await supabase
     .from("notification_preferences")
     .select("email, sms, push")
@@ -39,11 +40,9 @@ export default async function SettingsPage() {
   const np = (prefs ?? {}) as Record<string, boolean>;
   const ctx = await getAccountContext();
 
-  // Verified only when the profile phone matches the auth-confirmed phone (GoTrue
-  // stores it without a leading '+', so compare on digits). Never trust the flag
-  // alone — an unverified edit via personal info must not read as verified.
-  const digits = (s: string | null | undefined) => (s ?? "").replace(/\D/g, "");
-  const phoneVerified = Boolean(user.phone_confirmed_at) && digits(p.phone).length > 0 && digits(user.phone) === digits(p.phone);
+  // Verified reflects the profiles.phone_verified flag, which is set ONLY after an
+  // OTP is confirmed (migration 0019; false/absent → not verified).
+  const phoneVerified = phoneVerifiedFlag && Boolean(p.phone);
 
   const identities = (user.identities ?? []).map((i) => i.provider) as string[];
   const metaProviders = ((user.app_metadata?.providers as string[] | undefined) ?? []);
