@@ -62,7 +62,10 @@ export async function POST(req: Request) {
 async function handleEvent(admin: Admin, event: { type: string; data: { object: unknown } }) {
   switch (event.type) {
     case "payment_intent.succeeded": {
-      const pi = event.data.object as { id: string; metadata?: { bookingId?: string }; amount?: number };
+      const pi = event.data.object as {
+        id: string; amount?: number; customer?: string | null; payment_method?: string | null;
+        metadata?: { bookingId?: string; kind?: string };
+      };
       const bookingId = pi.metadata?.bookingId;
       if (!bookingId) return;
 
@@ -70,10 +73,21 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
         { booking_id: bookingId, status: "succeeded", amount_cents: pi.amount ?? 0, stripe_payment_intent_id: pi.id },
         { onConflict: "stripe_payment_intent_id" },
       );
-      // Only confirm if still pending (guards out-of-order / late delivery).
+      // The balance capture (at completion) also fires this event — just record the
+      // payment above; confirmation + payout are handled in the completion action.
+      if (pi.metadata?.kind === "balance_hold") { log.info("webhook.balance_captured", { bookingId }); return; }
+
+      // Deposit: save the customer + card for the day-of balance hold, then confirm.
+      const { data: bk } = await admin.from("bookings").select("total_cents, amount_due_now_cents").eq("id", bookingId).maybeSingle();
+      const totals = bk as { total_cents?: number; amount_due_now_cents?: number } | null;
+      const balanceCents = Math.max(0, (totals?.total_cents ?? 0) - (totals?.amount_due_now_cents ?? 0));
       const { data: b } = await admin
         .from("bookings")
-        .update({ status: "confirmed", confirmed_at: new Date().toISOString(), stripe_payment_intent_id: pi.id })
+        .update({
+          status: "confirmed", confirmed_at: new Date().toISOString(), stripe_payment_intent_id: pi.id,
+          stripe_customer_id: pi.customer ?? null, stripe_payment_method_id: pi.payment_method ?? null,
+          balance_cents: balanceCents,
+        })
         .eq("id", bookingId)
         .eq("status", "pending_payment")
         .select("professional_id, total_cents, platform_fee_cents")

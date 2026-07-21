@@ -6,6 +6,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { transferBookingPayout } from "@/lib/payments/payouts";
+import { holdBookingBalance, captureBookingBalance, releaseBookingBalance } from "@/lib/payments/balance";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getServiceWithProfessional } from "@/lib/data/professionals";
 import { computeBooking, type PriceBreakdown } from "./pricing";
@@ -139,9 +140,9 @@ export async function updateBookingStatusAction(
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, error: "Please sign in." };
 
-  const { data: booking } = await supabase.from("bookings").select("status, customer_id, professional_id, subtotal_cents, platform_fee_cents").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("bookings").select("status, customer_id, professional_id, subtotal_cents, total_cents, amount_due_now_cents, platform_fee_cents").eq("id", bookingId).maybeSingle();
   if (!booking) return { ok: false, error: "Booking not found." };
-  const b = booking as { status: BookingStatus; customer_id: string; professional_id: string; subtotal_cents: number; platform_fee_cents: number };
+  const b = booking as { status: BookingStatus; customer_id: string; professional_id: string; subtotal_cents: number; total_cents: number; amount_due_now_cents: number; platform_fee_cents: number };
 
   const isParty =
     (move.actor === "customer" && b.customer_id === auth.user.id) ||
@@ -150,6 +151,15 @@ export async function updateBookingStatusAction(
 
   if (!canTransition(b.status, move.to, move.actor)) {
     return { ok: false, error: `Cannot ${action} a ${b.status} booking.` };
+  }
+
+  const admin = createAdminClient();
+
+  // Day-of balance HOLD when the pro starts the job — authorize the remaining
+  // balance on the saved card to confirm funds. Blocks the start if it can't.
+  if (action === "start") {
+    const hold = await holdBookingBalance(admin, bookingId);
+    if (!hold.ok) return { ok: false, error: hold.error };
   }
 
   const patch: Record<string, unknown> = { status: move.to };
@@ -163,25 +173,21 @@ export async function updateBookingStatusAction(
   if (error) return { ok: false, error: error.message };
   await supabase.from("booking_status_events").insert({ booking_id: bookingId, status: move.to, actor_id: auth.user.id, note: reason ?? null });
 
-  // iGlam Rewards: award loyalty points to the customer on completion (idempotent).
   if (move.to === "completed") {
+    // iGlam Rewards (idempotent).
     await awardBookingPoints(b.customer_id, bookingId, b.subtotal_cents);
-
-    // Provider payout at service completion. Paid out of funds ACTUALLY COLLECTED
-    // (sum of succeeded payments) minus the platform fee — so it can never exceed
-    // what the platform holds, even before online balance capture is added. Runs
-    // via the admin client; records pending until the pro finishes Connect.
-    const admin = createAdminClient();
-    const { data: paid } = await admin
-      .from("payments")
-      .select("amount_cents")
-      .eq("booking_id", bookingId)
-      .eq("status", "succeeded");
-    const collected = ((paid as { amount_cents: number }[] | null) ?? []).reduce((s, p) => s + (p.amount_cents ?? 0), 0);
+    // CAPTURE the held balance (debit the card), then pay the provider. Payout is
+    // computed from funds actually collected (deposit + captured balance) minus the
+    // platform fee, so it can never exceed what the platform holds.
+    const cap = await captureBookingBalance(admin, bookingId);
+    const collected = (b.amount_due_now_cents ?? 0) + (cap.captured ?? 0);
     const netCents = Math.max(0, collected - (b.platform_fee_cents ?? 0));
     if (netCents > 0) {
       await transferBookingPayout(admin, { bookingId, professionalId: b.professional_id, netCents });
     }
+  } else if (move.to.startsWith("cancelled") || move.to === "no_show") {
+    // Release the balance hold (never captured).
+    await releaseBookingBalance(admin, bookingId);
   }
   return { ok: true, status: move.to };
 }

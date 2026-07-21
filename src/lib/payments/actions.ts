@@ -50,7 +50,10 @@ export async function createCheckoutSessionAction(bookingId: string): Promise<Ch
         },
       ],
       metadata: { bookingId: b.id },
-      payment_intent_data: { metadata: { bookingId: b.id } },
+      // Save the card so we can hold + charge the remaining balance on the day of
+      // the job (deposit is captured now; balance is authorized at "Start").
+      customer_creation: "always",
+      payment_intent_data: { metadata: { bookingId: b.id }, setup_future_usage: "off_session" },
       customer_email: auth.user.email ?? undefined,
       success_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/account`,
