@@ -149,17 +149,21 @@ export async function submitProviderForReviewAction(): Promise<OnboardingState> 
   const { missing, ready } = await getPublishChecklist(userId);
   if (!ready) return { error: `Add ${missing.join(", ")} before publishing.` };
 
-  // Server-authorized publish: verified completeness + ownership → admin write.
-  const admin = createAdminClient();
-  const { error } = await admin
-    .from("professional_profiles")
-    .update({ is_active: true, review_status: "approved", onboarding_complete: true })
-    .eq("user_id", userId);
-  if (error) return { error: error.message };
-  await supabase
-    .from("profiles")
-    .update({ professional_onboarding_completed: true, onboarding_completed: true })
-    .eq("id", userId);
+  try {
+    // Server-authorized publish: verified completeness + ownership → admin write.
+    const admin = createAdminClient();
+    const { error } = await admin
+      .from("professional_profiles")
+      .update({ is_active: true, review_status: "approved", onboarding_complete: true })
+      .eq("user_id", userId);
+    if (error) return { error: error.message };
+    await supabase
+      .from("profiles")
+      .update({ professional_onboarding_completed: true, onboarding_completed: true })
+      .eq("id", userId);
+  } catch (e) {
+    return { error: `Publish failed: ${e instanceof Error ? e.message : String(e)}` };
+  }
 
   revalidatePath("/onboarding/professional");
   revalidatePath("/discover");
