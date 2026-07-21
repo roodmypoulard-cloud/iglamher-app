@@ -2,8 +2,10 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { ProfileForm } from "@/components/pro/ProfileForm";
 import { PortfolioManager } from "@/components/pro/PortfolioManager";
+import { CategorySelector } from "@/components/pro/CategorySelector";
 import { StartOnboardingButton, SubmitForReviewButton } from "@/components/pro/OnboardingActions";
 import { getProContext } from "@/lib/pro/context";
+import { getPublishChecklist } from "@/lib/pro/onboarding-actions";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 
@@ -93,7 +95,22 @@ export default async function ProfessionalOnboarding() {
     );
   }
 
-  // Draft (or rejected) — complete the profile and submit.
+  // Draft (or rejected) — complete the profile and publish.
+  const supabase = await createSupabaseServerClient();
+  const { data: cats } = await supabase
+    .from("professional_categories")
+    .select("slug, label, sort_order")
+    .order("sort_order");
+  const { data: assigned } = await supabase
+    .from("professional_category_assignments")
+    .select("category_id, professional_categories(slug)")
+    .eq("professional_id", ctx.pro.userId);
+  const categories = ((cats as { slug: string; label: string }[] | null) ?? []).map((c) => ({ slug: c.slug, label: c.label }));
+  const selectedSlugs = ((assigned as { professional_categories?: { slug?: string } }[] | null) ?? [])
+    .map((a) => a.professional_categories?.slug)
+    .filter((s): s is string => Boolean(s));
+  const { missing, ready } = await getPublishChecklist(ctx.pro.userId);
+
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-6 py-12">
       <p className="font-display text-2xl font-bold">Finish your provider profile</p>
@@ -102,11 +119,16 @@ export default async function ProfessionalOnboarding() {
           Your previous submission needs changes. Update your profile and resubmit.
         </p>
       )}
-      <p className="mt-1 text-sm text-ink-muted">Progress saves as you go. Submit when you’re ready for review.</p>
+      <p className="mt-1 text-sm text-ink-muted">Progress saves as you go. Publish when your profile is complete.</p>
 
       <section className="mt-8">
         <h2 className="mb-4 font-display text-lg font-semibold">Profile</h2>
         <ProfileForm pro={ctx.pro} />
+      </section>
+
+      <section className="mt-10">
+        <h2 className="mb-4 font-display text-lg font-semibold">What do you offer?</h2>
+        <CategorySelector categories={categories} selected={selectedSlugs} />
       </section>
 
       <section className="mt-10">
@@ -124,9 +146,20 @@ export default async function ProfessionalOnboarding() {
       </section>
 
       <div className="mt-10 border-t border-border pt-6">
-        <p className="mb-4 text-sm text-ink-muted">
-          Ready? Submitting sends your profile for admin approval. You won’t be public or bookable until approved.
-        </p>
+        {ready ? (
+          <p className="mb-4 text-sm text-ink">Your profile is complete. Publish to appear in the marketplace and take bookings.</p>
+        ) : (
+          <div className="mb-4">
+            <p className="text-sm font-semibold text-ink">Before you can publish, add:</p>
+            <ul className="mt-2 space-y-1 text-sm text-ink-muted">
+              {missing.map((m) => (
+                <li key={m} className="flex items-center gap-2">
+                  <span aria-hidden className="text-rose">○</span> {m}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
         <SubmitForReviewButton />
       </div>
     </main>

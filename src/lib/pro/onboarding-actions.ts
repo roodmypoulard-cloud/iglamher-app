@@ -10,6 +10,7 @@
 // which is the sole marketplace-visibility gate.
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { safeFilename } from "./schemas";
 
@@ -79,51 +80,88 @@ export async function startProviderOnboardingAction(): Promise<OnboardingState> 
  * least one active service and one availability window. Sets review_status =
  * 'pending_review'. Does NOT make the provider public.
  */
+/**
+ * Compute what's still missing before a professional can publish. Exported so the
+ * onboarding UI can render a live checklist.
+ */
+export async function getPublishChecklist(userId: string): Promise<{ missing: string[]; ready: boolean }> {
+  const supabase = await createSupabaseServerClient();
+  const { data: pro } = await supabase
+    .from("professional_profiles")
+    .select("business_name, bio, city")
+    .eq("user_id", userId)
+    .maybeSingle();
+  const row = pro as { business_name?: string; bio?: string | null; city?: string | null } | null;
+
+  const missing: string[] = [];
+  if (!row) return { missing: ["start your profile"], ready: false };
+  if (!row.business_name || row.business_name === "My studio") missing.push("a business name");
+  if (!row.bio || row.bio.trim().length < 20) missing.push("a short bio (20+ characters)");
+  if (!row.city) missing.push("your service area");
+
+  const { count: catCount } = await supabase
+    .from("professional_category_assignments")
+    .select("*", { count: "exact", head: true })
+    .eq("professional_id", userId);
+  if ((catCount ?? 0) < 1) missing.push("at least one category");
+
+  const { count: svcCount } = await supabase
+    .from("services")
+    .select("*", { count: "exact", head: true })
+    .eq("professional_id", userId)
+    .eq("is_active", true);
+  if ((svcCount ?? 0) < 1) missing.push("at least one service with a price");
+
+  const { count: portCount } = await supabase
+    .from("professional_portfolio_items")
+    .select("*", { count: "exact", head: true })
+    .eq("professional_id", userId);
+  if ((portCount ?? 0) < 1) missing.push("at least one portfolio photo");
+
+  const { count: availCount } = await supabase
+    .from("availability_rules")
+    .select("*", { count: "exact", head: true })
+    .eq("professional_id", userId);
+  if ((availCount ?? 0) < 1) missing.push("your availability");
+
+  return { missing, ready: missing.length === 0 };
+}
+
+/**
+ * Publish the profile to the public marketplace. Self-service, gated by the
+ * completeness checklist (no admin approval for beta). is_active is set via the
+ * admin client because the column guard blocks providers from self-activating.
+ */
 export async function submitProviderForReviewAction(): Promise<OnboardingState> {
-  if (!isLiveSupabase()) return { error: "Connect Supabase to submit for review." };
+  if (!isLiveSupabase()) return { error: "Connect Supabase to publish." };
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { error: "Please sign in." };
   const userId = auth.user.id;
 
-  const { data: pro } = await supabase
+  const { data: cur } = await supabase
     .from("professional_profiles")
-    .select("business_name, bio, city, avatar_url, review_status, is_active")
+    .select("is_active")
     .eq("user_id", userId)
     .maybeSingle();
-  const row = pro as
-    | { business_name?: string; bio?: string | null; city?: string | null; avatar_url?: string | null; review_status?: string; is_active?: boolean }
-    | null;
-  if (!row) return { error: "Start your provider profile first." };
-  if (row.is_active) return { error: "Your profile is already live." };
-  if (row.review_status === "pending_review") return { success: "Already submitted — an admin will review shortly." };
+  if ((cur as { is_active?: boolean } | null)?.is_active) return { success: "Your profile is already live." };
 
-  const missing: string[] = [];
-  if (!row.business_name || row.business_name === "My studio") missing.push("business name");
-  if (!row.bio || row.bio.trim().length < 20) missing.push("a short bio");
-  if (!row.city) missing.push("service area");
+  const { missing, ready } = await getPublishChecklist(userId);
+  if (!ready) return { error: `Add ${missing.join(", ")} before publishing.` };
 
-  const { count: serviceCount } = await supabase
-    .from("services")
-    .select("id", { count: "exact", head: true })
-    .eq("professional_id", userId)
-    .eq("is_active", true);
-  if (!serviceCount) missing.push("at least one service with a price");
-
-  const { count: availCount } = await supabase
-    .from("availability_rules")
-    .select("id", { count: "exact", head: true })
-    .eq("professional_id", userId);
-  if (!availCount) missing.push("your availability");
-
-  if (missing.length) return { error: `Please add ${missing.join(", ")} before submitting.` };
-
-  const { error } = await supabase
+  // Server-authorized publish: verified completeness + ownership → admin write.
+  const admin = createAdminClient();
+  const { error } = await admin
     .from("professional_profiles")
-    .update({ review_status: "pending_review", onboarding_complete: true })
+    .update({ is_active: true, review_status: "approved", onboarding_complete: true })
     .eq("user_id", userId);
   if (error) return { error: error.message };
+  await supabase
+    .from("profiles")
+    .update({ professional_onboarding_completed: true, onboarding_completed: true })
+    .eq("id", userId);
 
   revalidatePath("/onboarding/professional");
-  return { success: "Submitted for review. We'll email you once you're approved." };
+  revalidatePath("/discover");
+  return { success: "You're live! Your profile now appears in the marketplace." };
 }
