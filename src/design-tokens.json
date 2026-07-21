@@ -1,0 +1,51 @@
+{
+  "color": {
+    "background": "#0B0909",
+    "backgroundElevated": "#121010",
+    "surface": "#181414",
+    "surfaceHover": "#211B1A",
+    "border": "#3A2D29",
+    "textPrimary": "#FFF8F4",
+    "textSecondary": "#CDBEB7",
+    "textMuted": "#998A83",
+    "roseGold": "#D7A08F",
+    "roseGoldLight": "#F0C0B4",
+    "roseGoldDark": "#A96E5E",
+    "blush": "#E7A9AA",
+    "gold": "#C99A4B",
+    "success": "#68B487",
+    "warning": "#D9A441",
+    "danger": "#D76E73"
+  },
+  "font": {
+    "display": "Cormorant Garamond",
+    "body": "Inter"
+  },
+  "radius": {
+    "sm": 8,
+    "md": 12,
+    "card": 16,
+    "lg": 24,
+    "pill": 999
+  },
+  "spacing": [
+    4,
+    8,
+    12,
+    16,
+    20,
+    24,
+    32,
+    40,
+    48,
+    64,
+    80,
+    96
+  ],
+  "breakpoints": {
+    "sm": 640,
+    "md": 768,
+    "lg": 1024,
+    "xl": 1440
+  }
+}

@@ -1,0 +1,4 @@
+src/components/rewards/RewardsPanel.tsx:67:            placeholder="GLAM-XXXXXX"
+supabase/local/20_rls_tests.sql:100:  $s$ update public.profiles set full_name='HACKED' where id='11111111-1111-1111-1111-111111111111' $s$, 'blocked');
+supabase/functions/booking-reminders/index.ts:43:      // TODO(push): dispatch APNs/FCM here once device tokens + certs exist.
+supabase/functions/payout-processor/index.ts:37:    // TODO(stripe): create a Stripe transfer to pro.stripe_account_id here.

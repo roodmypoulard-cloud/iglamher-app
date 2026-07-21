@@ -4,7 +4,7 @@ import { Shell, SectionHeader } from "@/components/marketplace/Shell";
 import { SignOutButton } from "@/components/auth/SignOutButton";
 import { AvatarUpload } from "@/components/marketplace/AvatarUpload";
 import { AccountTypeSettings } from "@/components/profile/AccountTypeSettings";
-import { HeartIcon, CalendarIcon, ChatIcon, BellIcon } from "@/components/ui/icons";
+import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, ChevronRight } from "@/components/ui/icons";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getAccountContext } from "@/lib/profile/account";
@@ -70,17 +70,21 @@ export default async function ProfilePage() {
       </div>
 
       <SectionHeader title="Account" />
-      {ctx ? (
-        <AccountTypeSettings accountType={ctx.accountType} activeMode={ctx.activeMode} />
-      ) : (
-        <div className="card-luxe px-4 py-4 text-sm text-ink-muted">Sign in to manage your account.</div>
+      <Link
+        href="/profile/settings"
+        className="flex items-center justify-between rounded-[16px] border border-border bg-surface px-4 py-4 transition-colors hover:border-rose/50"
+      >
+        <div>
+          <p className="text-sm font-semibold text-ink">Account settings</p>
+          <p className="text-[12px] text-ink-muted">Personal info, account mode, privacy, notifications & more</p>
+        </div>
+        <ChevronRight width={18} height={18} className="text-ink-muted" />
+      </Link>
+      {ctx?.canSwitch && (
+        <div className="mt-3">
+          <AccountTypeSettings accountType={ctx.accountType} activeMode={ctx.activeMode} />
+        </div>
       )}
-
-      <SectionHeader title="Payment methods" />
-      <div className="rounded-[14px] border border-border bg-surface px-4 py-4 text-sm text-ink-muted">
-        <p>No payment method saved.</p>
-        <p className="mt-1 text-[12px]">Your card is entered securely at checkout.</p>
-      </div>
 
       <div className="pt-8">
         <SignOutButton />

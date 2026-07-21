@@ -1,0 +1,54 @@
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /about
+├ ƒ /account
+├ ƒ /account/favorites
+├ ƒ /account/rewards
+├ ƒ /admin
+├ ƒ /admin/analytics
+├ ƒ /admin/campaigns
+├ ƒ /api/health
+├ ƒ /api/recommendations
+├ ƒ /api/search/suggest
+├ ƒ /api/stripe/webhook
+├ ○ /api/wellknown/aasa
+├ ○ /api/wellknown/assetlinks
+├ ƒ /auth/callback
+├ ƒ /book/[slug]
+├ ƒ /book/success
+├ ƒ /booking
+├ ○ /bookings
+├ ƒ /categories/[slug]
+├ ƒ /discover
+├ ○ /forgot-password
+├ ○ /how-it-works
+├ ○ /legal/cancellation
+├ ○ /legal/privacy
+├ ○ /legal/terms
+├ ○ /manifest.webmanifest
+├ ○ /messages
+├ ○ /notifications
+├ ○ /offline
+├ ○ /onboarding/customer
+├ ○ /onboarding/professional
+├ ƒ /pro/availability
+├ ƒ /pro/earnings
+├ ƒ /pro/profile
+├ ƒ /pro/services
+├ ƒ /pro/services/[id]/edit
+├ ƒ /pro/services/new
+├ ƒ /professionals/[slug]
+├ ƒ /profile
+├ ○ /reset-password
+├ ƒ /search
+├ ƒ /services/[id]
+├ ƒ /signin
+└ ○ /signup
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

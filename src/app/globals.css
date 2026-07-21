@@ -1,26 +1,138 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+/* ============================================================
+   iGlamHer — Soft Luxe design system (source: design-tokens.json)
+   ============================================================ */
+@theme {
+  /* surfaces */
+  --color-bg: #0B0909;
+  --color-bg-elevated: #121010;
+  --color-surface: #181414;
+  --color-surface-hover: #211B1A;
+  --color-border: #3A2D29;
+
+  /* text */
+  --color-ink: #FFF8F4;
+  --color-ink-secondary: #CDBEB7;
+  --color-ink-muted: #998A83;
+
+  /* brand */
+  --color-rose: #D7A08F;
+  --color-rose-light: #F0C0B4;
+  --color-rose-dark: #A96E5E;
+  --color-blush: #E7A9AA;
+  --color-gold: #C99A4B;
+
+  /* status */
+  --color-success: #68B487;
+  --color-warning: #D9A441;
+  --color-danger: #D76E73;
+
+  /* radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-card: 16px;
+  --radius-lg: 24px;
+
+  /* fonts (wired via next/font in layout) */
+  --font-display: var(--font-cormorant), Georgia, serif;
+  --font-body: var(--font-inter), system-ui, sans-serif;
+
+  /* breakpoints match tokens */
+  --breakpoint-sm: 640px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1440px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
+* { -webkit-tap-highlight-color: transparent; }
+html { color-scheme: dark; }
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::-webkit-scrollbar { width: 0; height: 0; }
+
+.font-display { font-family: var(--font-display); }
+
+@utility rose-gradient {
+  background-image: linear-gradient(150deg, var(--color-rose-light), var(--color-rose));
+}
+@utility card-luxe {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fade-in { animation: fadeIn .35s ease both; }
+  .page-enter { animation: pageEnter .32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .slide-up { animation: slideUp .28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .stagger > * { animation: pageEnter .4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .stagger > *:nth-child(2) { animation-delay: .04s; }
+  .stagger > *:nth-child(3) { animation-delay: .08s; }
+  .stagger > *:nth-child(4) { animation-delay: .12s; }
+  .stagger > *:nth-child(5) { animation-delay: .16s; }
+  .stagger > *:nth-child(6) { animation-delay: .20s; }
+  .shimmer {
+    background: linear-gradient(100deg, var(--color-surface) 30%, var(--color-surface-hover) 50%, var(--color-surface) 70%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  .heart-pop { animation: heartPop .42s cubic-bezier(0.34, 1.56, 0.64, 1); transform-box: fill-box; transform-origin: center; }
+  .hero-rise { animation: heroRise .6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+  .fade-up-1, .fade-up-2, .fade-up-3, .fade-up-4, .fade-up-5 {
+    animation: heroRise .65s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .fade-up-1 { animation-delay: .05s; }
+  .fade-up-2 { animation-delay: .13s; }
+  .fade-up-3 { animation-delay: .22s; }
+  .fade-up-4 { animation-delay: .32s; }
+  .fade-up-5 { animation-delay: .42s; }
+  /* Slow cinematic Ken Burns drift on the hero image — GPU transform, 60fps */
+  .ken-burns { animation: kenBurns 26s ease-in-out infinite alternate; will-change: transform; }
+  /* Gentle breathing glow on the primary CTA arrow */
+  .arrow-pulse { animation: arrowPulse 3.4s ease-in-out infinite; }
+}
+@keyframes kenBurns { from { transform: scale(1.03); } to { transform: scale(1.1); } }
+@keyframes arrowPulse {
+  0%, 100% { box-shadow: 0 6px 16px rgba(215,160,143,0.42); }
+  50% { box-shadow: 0 8px 26px rgba(215,160,143,0.72); }
+}
+
+/* Apple-style soft layered shadow — light, never muddy */
+@utility shadow-luxe {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.16), 0 8px 22px rgba(0,0,0,0.26), 0 26px 60px rgba(0,0,0,0.20);
+}
+@keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pageEnter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes heroRise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+@keyframes heartPop {
+  0% { transform: scale(1); }
+  30% { transform: scale(1.35); }
+  55% { transform: scale(0.9); }
+  78% { transform: scale(1.08); }
+  100% { transform: scale(1); }
+}
+
+/* Unified "one photoshoot" treatment — subtle, consistent warmth/contrast across all provider & category imagery. */
+.img-luxe { filter: saturate(1.04) contrast(1.02) brightness(1.005); }
+:focus-visible { outline: 2px solid var(--color-rose); outline-offset: 2px; }
+
+/* Appearance: Light theme override (additive; dark remains the default).
+   Applied when the user picks Light in Account Settings → data-theme="light". */
+:root[data-theme="light"] {
+  --color-bg: #FBF7F5;
+  --color-bg-elevated: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-surface-hover: #F4ECE8;
+  --color-border: #E7DAD3;
+  --color-ink: #241A17;
+  --color-ink-secondary: #5B4E48;
+  --color-ink-muted: #8A7A72;
 }

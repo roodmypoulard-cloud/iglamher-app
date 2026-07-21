@@ -1,36 +1,69 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# iGlamHer
 
-## Getting Started
+Luxury beauty-services marketplace — Next.js 16 (App Router), TypeScript (strict), Tailwind v4,
+Supabase (Auth/DB/Storage/RLS). Design system: "Soft Luxe" (rose-gold on near-black, editorial serif).
 
-First, run the development server:
+## Setup
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local   # fill in Supabase keys (see below)
+npm run dev                  # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Without a Supabase project the app runs in **seed mode**: pages render from the deterministic
+dataset in `src/lib/data/seed.ts`. Mutations (favorites, service edits, availability) require a
+connected database.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...      # server-only, never commit
+```
 
-## Learn More
+## Database
 
-To learn more about Next.js, take a look at the following resources:
+Apply migrations in order in the Supabase SQL editor, then the categories seed:
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+supabase/migrations/0001_schema.sql
+supabase/migrations/0002_functions.sql
+supabase/migrations/0003_rls.sql
+supabase/migrations/0004_marketplace.sql
+supabase/seed.sql
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Enable the `pg_trgm`, `btree_gist`, and `postgis` extensions (the migrations create them; some
+hosted projects require enabling them in Database → Extensions first).
 
-## Deploy on Vercel
+Then seed test accounts + the 12-professional marketplace via the Auth admin API:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+NEXT_PUBLIC_SUPABASE_URL=... SUPABASE_SERVICE_ROLE_KEY=... npm run db:seed
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Test logins (password `Passw0rd!test`): `customer@iglamher.test`, `pro@iglamher.test`,
+`admin@iglamher.test`, plus `<slug>@pro.iglamher.test` for each seeded professional.
+
+## Scripts
+
+```bash
+npm run dev         # dev server
+npm run build       # production build
+npm run typecheck   # tsc --noEmit
+npm run lint        # eslint
+npm test            # vitest (unit)
+npm run db:seed     # seed Supabase (needs real keys)
+npx playwright test # e2e smoke (builds + starts on :3100)
+```
+
+## Architecture notes
+
+- **Search**: DB-indexed retrieval (trigram + FTS in `0004`) re-ranked in the service layer
+  (`src/lib/marketplace/ranking.ts`) — transparent weighted score, documented weights.
+- **Availability**: UTC internally, professional-timezone + DST correct (`src/lib/availability/calc.ts`).
+- **Money**: integer cents everywhere. **Timestamps**: UTC, rendered in the viewer's/pro's timezone.
+- **Auth**: roles never trusted from the browser; RLS enforces ownership in the DB.
