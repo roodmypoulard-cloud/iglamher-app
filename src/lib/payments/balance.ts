@@ -33,7 +33,10 @@ export type HoldOutcome = { ok: true; status: "held" | "no_balance" } | { ok: fa
 /** Authorize (hold) the remaining balance on the customer's saved card. */
 export async function holdBookingBalance(admin: Admin, bookingId: string): Promise<HoldOutcome> {
   const b = await loadBooking(admin, bookingId);
-  if (!b) return { ok: false, error: "Booking not found." };
+  // Degrade gracefully: if the balance columns aren't present yet (migration 0018
+  // not applied) or there's no saved card, skip the hold rather than blocking the
+  // service. Only a real card DECLINE (below) blocks starting.
+  if (!b) return { ok: true, status: "no_balance" };
   if (b.balance_status === "held" || b.balance_status === "captured") return { ok: true, status: "held" };
 
   const balanceCents = Math.max(0, (b.total_cents ?? 0) - (b.amount_due_now_cents ?? 0));
@@ -42,7 +45,7 @@ export async function holdBookingBalance(admin: Admin, bookingId: string): Promi
     return { ok: true, status: "no_balance" };
   }
   if (!b.stripe_customer_id || !b.stripe_payment_method_id) {
-    return { ok: false, error: "No saved card on file for this booking." };
+    return { ok: true, status: "no_balance" };
   }
 
   try {

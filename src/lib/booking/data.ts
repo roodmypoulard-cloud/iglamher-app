@@ -50,6 +50,7 @@ export interface BookingDetail extends BookingSummary {
   amountDueNowCents: number;
   paymentStatus: string;
   professionalSlug?: string;
+  viewerRole: "customer" | "professional";
 }
 
 /** Load one booking (customer OR professional party only). Returns null if it
@@ -92,6 +93,7 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     amountDueNowCents: Number(r.amount_due_now_cents ?? 0),
     paymentStatus,
     professionalSlug: pro?.slug,
+    viewerRole: r.professional_id === auth.user.id ? "professional" : "customer",
   };
 }
 

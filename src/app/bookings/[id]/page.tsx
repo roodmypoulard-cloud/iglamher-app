@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Shell } from "@/components/marketplace/Shell";
+import { BackButton } from "@/components/ui/BackButton";
+import { BookingLifecycleActions } from "@/components/booking/BookingLifecycleActions";
 import { ChevronRight } from "@/components/ui/icons";
 import { getBookingDetail } from "@/lib/booking/data";
 import { formatPrice } from "@/lib/format";
@@ -64,7 +66,7 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
   return (
     <Shell>
       <div className="mb-4">
-        <Link href="/bookings" className="text-sm text-rose hover:underline">← Bookings</Link>
+        <BackButton fallback="/bookings" label="Bookings" />
       </div>
 
       <div className="flex items-start justify-between gap-3">
@@ -91,7 +93,9 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
         <Row label="Booking status" value={status.label} />
       </section>
 
-      {b.professionalSlug && (
+      <BookingLifecycleActions bookingId={b.id} status={b.status} viewerRole={b.viewerRole} />
+
+      {b.professionalSlug && b.viewerRole === "customer" && (
         <Link
           href={`/professionals/${b.professionalSlug}`}
           className="mt-4 flex items-center justify-between rounded-[16px] border border-border bg-surface px-4 py-4 transition-colors hover:border-rose/50"
