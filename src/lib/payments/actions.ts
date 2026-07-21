@@ -35,26 +35,31 @@ export async function createCheckoutSessionAction(bookingId: string): Promise<Ch
   // NOTE: destination-charge split to the stylist's connected account is added
   // once professionals complete Stripe Connect onboarding. Until then the deposit
   // is captured to the platform and reconciled on payout.
-  const stripe = await getStripe();
-  const session = await stripe.checkout.sessions.create({
-    mode: "payment",
-    line_items: [
-      {
-        price_data: {
-          currency: "usd",
-          product_data: { name: `iGlamHer — ${b.service_name_snapshot}` },
-          unit_amount: b.amount_due_now_cents,
+  try {
+    const stripe = await getStripe();
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: `iGlamHer — ${b.service_name_snapshot}` },
+            unit_amount: b.amount_due_now_cents,
+          },
+          quantity: 1,
         },
-        quantity: 1,
-      },
-    ],
-    metadata: { bookingId: b.id },
-    payment_intent_data: { metadata: { bookingId: b.id } },
-    customer_email: auth.user.email ?? undefined,
-    success_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/book/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/account`,
-  });
-
-  if (!session.url) return { ok: false, error: "Could not start checkout." };
-  return { ok: true, url: session.url };
+      ],
+      metadata: { bookingId: b.id },
+      payment_intent_data: { metadata: { bookingId: b.id } },
+      customer_email: auth.user.email ?? undefined,
+      success_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/book/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/account`,
+    });
+    if (!session.url) return { ok: false, error: "Could not start checkout." };
+    return { ok: true, url: session.url };
+  } catch (e) {
+    // Never crash the page on a Stripe error — surface a clear, catchable message.
+    const msg = e instanceof Error ? e.message : "Payment could not be started.";
+    return { ok: false, error: msg };
+  }
 }
