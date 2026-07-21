@@ -39,7 +39,7 @@ function BookingRow({ b }: { b: BookingSummary }) {
   const meta = STATUS_META[b.status];
   return (
     <Link
-      href={`/professionals/${b.professionalId}`}
+      href={`/bookings/${b.id}`}
       className="flex items-center gap-3 rounded-[16px] border border-border bg-surface p-4 shadow-[0_4px_16px_rgba(0,0,0,0.18)] transition-[transform,box-shadow,border-color] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-rose/50 hover:shadow-[0_14px_30px_rgba(0,0,0,0.30)]"
     >
       <div className="min-w-0 flex-1">

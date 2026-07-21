@@ -44,6 +44,57 @@ export async function getMyCustomerBookings(): Promise<BookingSummary[]> {
   return ((data as unknown as Record<string, unknown>[]) ?? []).map(mapRow);
 }
 
+export interface BookingDetail extends BookingSummary {
+  endsAt: string;
+  totalCents: number;
+  amountDueNowCents: number;
+  paymentStatus: string;
+  professionalSlug?: string;
+}
+
+/** Load one booking (customer OR professional party only). Returns null if it
+ *  doesn't exist or the viewer isn't a party — the page shows 404 for null. */
+export async function getBookingDetail(id: string): Promise<BookingDetail | null> {
+  if (!isLiveSupabase()) return null;
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return null;
+
+  const { data } = await supabase
+    .from("bookings")
+    .select(
+      "id,status,service_name_snapshot,starts_at,ends_at,total_cents,amount_due_now_cents,professional_id,customer_id,professional:professional_profiles!bookings_professional_id_fkey(business_name,slug)",
+    )
+    .eq("id", id)
+    .maybeSingle();
+  if (!data) return null;
+  const r = data as unknown as Record<string, unknown>;
+  if (r.customer_id !== auth.user.id && r.professional_id !== auth.user.id) return null;
+
+  // Payment status: prefer the payments row; fall back to booking-status-derived.
+  let paymentStatus = "unpaid";
+  const { data: pay } = await supabase
+    .from("payments")
+    .select("status")
+    .eq("booking_id", id)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+  const payStatus = (pay as { status?: string } | null)?.status;
+  if (payStatus) paymentStatus = payStatus;
+  else if (["confirmed", "in_progress", "completed"].includes(String(r.status))) paymentStatus = "paid";
+
+  const pro = r.professional as { business_name?: string; slug?: string } | null;
+  return {
+    ...mapRow(r),
+    endsAt: String(r.ends_at ?? ""),
+    totalCents: Number(r.total_cents ?? 0),
+    amountDueNowCents: Number(r.amount_due_now_cents ?? 0),
+    paymentStatus,
+    professionalSlug: pro?.slug,
+  };
+}
+
 export async function getMyProfessionalBookings(): Promise<BookingSummary[]> {
   if (!isLiveSupabase()) return [];
   const supabase = await createSupabaseServerClient();
