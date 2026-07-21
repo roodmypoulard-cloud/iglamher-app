@@ -18,12 +18,19 @@ export default async function SettingsPage() {
   if (!auth.user) redirect("/signin?next=/profile/settings");
   const user = auth.user;
 
-  const { data: prof } = await supabase
+  // Always-present columns and 0017 columns fetched separately so the page still
+  // renders personal info even if migration 0017 hasn't been applied yet.
+  const { data: base } = await supabase
     .from("profiles")
-    .select("first_name, last_name, full_name, phone, account_status, language, appearance")
+    .select("first_name, last_name, full_name, phone")
     .eq("id", user.id)
     .maybeSingle();
-  const p = (prof ?? {}) as Record<string, string | null>;
+  const { data: status } = await supabase
+    .from("profiles")
+    .select("account_status, language, appearance")
+    .eq("id", user.id)
+    .maybeSingle();
+  const p = { ...(base ?? {}), ...(status ?? {}) } as Record<string, string | null>;
   const { data: prefs } = await supabase
     .from("notification_preferences")
     .select("email, sms, push")
