@@ -3,6 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { HomeIcon, CalendarIcon, ChatIcon, UserIcon } from "@/components/ui/icons";
 import { cn } from "@/lib/format";
+import { useHideOnScroll } from "@/lib/ui/useHideOnScroll";
 
 const LEFT = [
   { href: "/discover", label: "Home", Icon: HomeIcon },
@@ -15,6 +16,7 @@ const RIGHT = [
 
 export function BottomNav() {
   const pathname = usePathname();
+  const hidden = useHideOnScroll();
   const isActive = (href: string) => pathname === href || (href === "/discover" && pathname === "/");
 
   const tab = (href: string, label: string, Icon: typeof HomeIcon) => (
@@ -36,7 +38,11 @@ export function BottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="fixed bottom-0 left-1/2 z-30 w-full max-w-[440px] -translate-x-1/2 border-t border-border bg-bg-elevated/95 backdrop-blur-lg md:hidden"
+      className={cn(
+        "fixed bottom-0 left-1/2 z-30 w-full max-w-[440px] -translate-x-1/2 border-t border-border bg-bg-elevated/95 backdrop-blur-lg md:hidden",
+        "transition-[transform,opacity] duration-300 ease-out will-change-transform motion-reduce:transition-none",
+        hidden ? "translate-y-[135%] opacity-0" : "translate-y-0 opacity-100",
+      )}
       style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
     >
       <ul className="flex items-end px-2 pb-2 pt-2">

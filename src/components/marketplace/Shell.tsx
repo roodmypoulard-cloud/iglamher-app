@@ -28,7 +28,7 @@ export function Shell({
       {/* Bottom padding clears the fixed BottomNav + the iPhone safe-area inset so
           content is never hidden behind it (nav is mobile-only → md:pb-12). */}
       <main
-        className={cn("page-enter flex-1 px-5 pb-[calc(7rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12", header ? "pt-4" : "pt-0")}
+        className={cn("page-enter flex-1 px-5 pb-[calc(4.75rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12", header ? "pt-4" : "pt-0")}
       >
         {children}
       </main>

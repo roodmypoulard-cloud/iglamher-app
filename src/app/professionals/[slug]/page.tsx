@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Image from "next/image";
 import type { Metadata } from "next";
 import { AppHeader } from "@/components/marketplace/AppHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { ServiceCard } from "@/components/marketplace/ServiceCard";
 import { ReviewCard } from "@/components/marketplace/ReviewCard";
 import { RatingBreakdown } from "@/components/marketplace/RatingBreakdown";
@@ -68,6 +69,9 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
 
       {/* Hero — cinematic cover blended into the palette */}
       <div className="relative aspect-[16/8] w-full overflow-hidden md:aspect-[16/6] md:rounded-b-[28px]">
+        <div className="absolute left-4 top-4 z-20" style={{ paddingTop: "env(safe-area-inset-top)" }}>
+          <BackButton fallback="/discover" />
+        </div>
         <div className="ken-burns absolute inset-0">
           <Image src={pro.coverUrl || pro.avatarUrl} alt="" fill sizes="100vw" className="img-luxe object-cover" priority />
         </div>
