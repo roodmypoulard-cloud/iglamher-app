@@ -159,7 +159,7 @@ export async function submitProviderForReviewAction(): Promise<OnboardingState> 
     if (error) return { error: error.message };
     await supabase
       .from("profiles")
-      .update({ professional_onboarding_completed: true, onboarding_completed: true })
+      .update({ professional_onboarding_completed: true, onboarding_completed: true, active_mode: "professional" })
       .eq("id", userId);
   } catch (e) {
     return { error: `Publish failed: ${e instanceof Error ? e.message : String(e)}` };

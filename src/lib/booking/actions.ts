@@ -63,6 +63,23 @@ export async function createBookingDraftAction(raw: unknown): Promise<DraftResul
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, error: "Please sign in to book." };
 
+  // Account-status protection: a paused/deactivated customer cannot book, and no
+  // one can book a paused/deactivated/deleted professional. Server-enforced so it
+  // can't be bypassed via direct calls (the pro is also hidden from listings).
+  const { data: parties } = await supabase
+    .from("profiles")
+    .select("id, account_status")
+    .in("id", [auth.user.id, input.professionalId]);
+  const rows = (parties ?? []) as { id: string; account_status?: string }[];
+  const me = rows.find((r) => r.id === auth.user!.id);
+  const pro = rows.find((r) => r.id === input.professionalId);
+  if (me?.account_status && me.account_status !== "active") {
+    return { ok: false, error: "Your account is paused. Reactivate it to make a booking." };
+  }
+  if (pro?.account_status && pro.account_status !== "active") {
+    return { ok: false, error: "This professional is not currently accepting bookings." };
+  }
+
   const lineItems = breakdown.lineItems.map((l) => ({ kind: l.kind, label: l.label, amountCents: l.amountCents }));
   const { data, error } = await supabase.rpc("create_booking", {
     p_customer: auth.user.id,

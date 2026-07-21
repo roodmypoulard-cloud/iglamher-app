@@ -8,6 +8,7 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
+import { writeAudit } from "@/lib/audit/log";
 
 export type SettingsState = { error?: string; success?: string } | undefined;
 
@@ -76,32 +77,74 @@ export async function changePhoneAction(_p: SettingsState, formData: FormData): 
   return { success: "Phone number updated." };
 }
 
-async function setStatus(status: "active" | "paused" | "deactivated"): Promise<{ error: string } | null> {
-  const gate = await requireUser();
-  if ("error" in gate) return { error: gate.error ?? "Please sign in." };
-  const patch: Record<string, unknown> = { account_status: status };
-  if (status === "paused") { patch.paused_until = new Date(Date.now() + 30 * 864e5).toISOString(); patch.deactivated_at = null; }
-  else if (status === "deactivated") { patch.deactivated_at = new Date().toISOString(); patch.paused_until = null; }
-  else { patch.paused_until = null; patch.deactivated_at = null; }
-  const { error } = await gate.supabase.from("profiles").update(patch).eq("id", gate.user.id);
-  if (error) return { error: error.message };
-  revalidatePath("/profile/settings");
-  return null;
+// Booking statuses that block pausing/deleting (still in flight).
+const ACTIVE_BOOKING_STATUSES = ["pending_payment", "confirmed", "change_requested", "in_progress", "disputed"];
+
+/** Count in-flight bookings where the user is customer OR professional. */
+async function countActiveBookings(supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>, userId: string): Promise<number> {
+  const { count } = await supabase
+    .from("bookings")
+    .select("id", { count: "exact", head: true })
+    .or(`customer_id.eq.${userId},professional_id.eq.${userId}`)
+    .in("status", ACTIVE_BOOKING_STATUSES);
+  return count ?? 0;
+}
+
+/** Show/hide the user's professional profile in the marketplace (admin write:
+ *  the column guard blocks self-setting is_active). Only restores if published. */
+async function setProVisibility(userId: string, visible: boolean) {
+  const admin = createAdminClient();
+  if (visible) {
+    await admin.from("professional_profiles").update({ is_active: true }).eq("user_id", userId).eq("review_status", "approved");
+  } else {
+    await admin.from("professional_profiles").update({ is_active: false }).eq("user_id", userId);
+  }
 }
 
 export async function pauseAccountAction(): Promise<SettingsState> {
-  const r = await setStatus("paused");
-  if (r) return r;
-  return { success: "Account paused for 30 days. You can reactivate anytime." };
+  const gate = await requireUser();
+  if ("error" in gate) return { error: gate.error };
+  const upcoming = await countActiveBookings(gate.supabase, gate.user.id);
+  if (upcoming > 0) {
+    return { error: `You have ${upcoming} active booking${upcoming > 1 ? "s" : ""}. Complete, cancel, or reschedule them before pausing.` };
+  }
+  const now = new Date();
+  const { error } = await gate.supabase
+    .from("profiles")
+    .update({ account_status: "paused", paused_at: now.toISOString(), pause_expires_at: new Date(now.getTime() + 30 * 864e5).toISOString(), deactivated_at: null })
+    .eq("id", gate.user.id);
+  if (error) return { error: error.message };
+  await setProVisibility(gate.user.id, false);
+  await writeAudit({ actorId: gate.user.id, action: "account.pause", entity: "user", entityId: gate.user.id, metadata: { days: 30 } });
+  revalidatePath("/profile/settings");
+  return { success: "Account paused for 30 days. Your profile is hidden; reactivate anytime." };
 }
+
 export async function deactivateAccountAction(): Promise<SettingsState> {
-  const r = await setStatus("deactivated");
-  if (r) return r;
-  return { success: "Account deactivated. Reactivate anytime to restore access." };
+  const gate = await requireUser();
+  if ("error" in gate) return { error: gate.error };
+  const { error } = await gate.supabase
+    .from("profiles")
+    .update({ account_status: "deactivated", deactivated_at: new Date().toISOString(), paused_at: null, pause_expires_at: null })
+    .eq("id", gate.user.id);
+  if (error) return { error: error.message };
+  await setProVisibility(gate.user.id, false);
+  await writeAudit({ actorId: gate.user.id, action: "account.deactivate", entity: "user", entityId: gate.user.id });
+  revalidatePath("/profile/settings");
+  return { success: "Account deactivated. Your profile is hidden; reactivate anytime to restore access." };
 }
+
 export async function reactivateAccountAction(): Promise<SettingsState> {
-  const r = await setStatus("active");
-  if (r) return r;
+  const gate = await requireUser();
+  if ("error" in gate) return { error: gate.error };
+  const { error } = await gate.supabase
+    .from("profiles")
+    .update({ account_status: "active", paused_at: null, pause_expires_at: null, deactivated_at: null })
+    .eq("id", gate.user.id);
+  if (error) return { error: error.message };
+  await setProVisibility(gate.user.id, true);
+  await writeAudit({ actorId: gate.user.id, action: "account.reactivate", entity: "user", entityId: gate.user.id });
+  revalidatePath("/profile/settings");
   return { success: "Welcome back — your account is active again." };
 }
 
@@ -160,13 +203,108 @@ export async function downloadMyDataAction(): Promise<{ error?: string; data?: s
   return { data: JSON.stringify(payload, null, 2) };
 }
 
-/** Permanently delete the account. Cascades all owned rows via auth.users FK. */
-export async function deleteAccountAction(): Promise<SettingsState> {
+/** Reasons a user cannot delete yet — must be resolved first. */
+export async function getDeletionEligibilityAction(): Promise<{ canDelete: boolean; blockers: string[] }> {
+  const gate = await requireUser();
+  if ("error" in gate) return { canDelete: false, blockers: ["Please sign in."] };
+  const { supabase, user } = gate;
+  const blockers: string[] = [];
+
+  const active = await countActiveBookings(supabase, user.id);
+  if (active > 0) blockers.push(`${active} active booking${active > 1 ? "s" : ""} — complete or cancel them first`);
+
+  const admin = createAdminClient();
+  const { count: pendingPayouts } = await admin
+    .from("payout_transfers")
+    .select("id", { count: "exact", head: true })
+    .eq("professional_id", user.id)
+    .in("status", ["pending", "failed"]);
+  if ((pendingPayouts ?? 0) > 0) blockers.push(`${pendingPayouts} pending payout${pendingPayouts! > 1 ? "s" : ""} — wait until settled`);
+
+  const { data: disputed } = await supabase
+    .from("bookings")
+    .select("id", { head: false })
+    .or(`customer_id.eq.${user.id},professional_id.eq.${user.id}`)
+    .eq("status", "disputed")
+    .limit(1);
+  if ((disputed?.length ?? 0) > 0) blockers.push("an active dispute — resolve it first");
+
+  const { count: processingRefunds } = await admin
+    .from("refunds")
+    .select("id", { count: "exact", head: true })
+    .in("status", ["processing", "pending"]);
+  if ((processingRefunds ?? 0) > 0) blockers.push(`${processingRefunds} refund(s) still processing`);
+
+  return { canDelete: blockers.length === 0, blockers };
+}
+
+/**
+ * Permanently delete the account. Requires re-authentication (password) and the
+ * literal "DELETE". Financial records are FK-protected (bookings/payments use ON
+ * DELETE RESTRICT), so we SOFT-delete + anonymize the profile, purge personal
+ * data + storage, disable login, and revoke sessions. Server-side only.
+ */
+export async function deleteAccountAction(password: string, confirmText: string): Promise<SettingsState> {
   const gate = await requireUser();
   if ("error" in gate) return { error: gate.error };
+  const { supabase, user } = gate;
+  if (confirmText !== "DELETE") return { error: 'Type "DELETE" to confirm.' };
+
+  // Re-authenticate (password users). OAuth-only users have no password grant;
+  // being in an authenticated session is their re-auth.
+  if (user.email) {
+    const { error: reauth } = await supabase.auth.signInWithPassword({ email: user.email, password });
+    if (reauth) return { error: "Password is incorrect." };
+  }
+
+  const { canDelete, blockers } = await getDeletionEligibilityAction();
+  if (!canDelete) return { error: `Can't delete yet: ${blockers.join("; ")}.` };
+
   const admin = createAdminClient();
-  const { error } = await admin.auth.admin.deleteUser(gate.user.id);
-  if (error) return { error: error.message };
-  await gate.supabase.auth.signOut();
-  redirect("/");
+  const uid = user.id;
+
+  // 1) Purge personal data (soft-delete keeps FK-protected financial rows).
+  await Promise.all([
+    admin.from("favorites").delete().eq("customer_id", uid),
+    admin.from("addresses").delete().eq("user_id", uid),
+    admin.from("notification_preferences").delete().eq("user_id", uid),
+    admin.from("professional_portfolio_items").delete().eq("professional_id", uid),
+    admin.from("services").delete().eq("professional_id", uid),
+    admin.from("availability_rules").delete().eq("professional_id", uid),
+    admin.from("availability_exceptions").delete().eq("professional_id", uid),
+    admin.from("professional_category_assignments").delete().eq("professional_id", uid),
+    admin.from("blocked_dates").delete().eq("professional_id", uid),
+  ]);
+
+  // 2) Purge portfolio media from Storage.
+  try {
+    const { data: files } = await admin.storage.from("portfolio").list(uid);
+    if (files?.length) await admin.storage.from("portfolio").remove(files.map((f) => `${uid}/${f.name}`));
+  } catch { /* storage best-effort */ }
+
+  // 3) Anonymize + hide professional profile (bookings/payments stay, FK-linked).
+  await admin.from("professional_profiles").update({
+    is_active: false, business_name: "Deleted provider", bio: null, headline: null,
+    instagram_handle: null, avatar_url: null, cover_url: null,
+  }).eq("user_id", uid);
+
+  // 4) Anonymize the personal profile (remove identity; retain the row for FKs).
+  const nowIso = new Date().toISOString();
+  await admin.from("profiles").update({
+    account_status: "deleted", full_name: "Deleted User", first_name: null, last_name: null,
+    phone: null, avatar_url: null,
+    deletion_requested_at: nowIso, deleted_at: nowIso, anonymized_at: nowIso,
+  }).eq("id", uid);
+
+  await writeAudit({ actorId: uid, action: "account.delete", entity: "user", entityId: uid, metadata: { anonymized: true } });
+
+  // 5) Disable login + revoke sessions: scramble the auth email/password and ban.
+  await admin.auth.admin.updateUserById(uid, {
+    email: `deleted-${uid}@deleted.iglamher.invalid`,
+    password: crypto.randomUUID() + crypto.randomUUID(),
+    ban_duration: "876000h",
+  });
+
+  await supabase.auth.signOut();
+  redirect("/?deleted=1");
 }

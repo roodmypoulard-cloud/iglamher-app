@@ -123,6 +123,7 @@ export function AccountSettingsClient(props: Props) {
   }[props.accountStatus];
 
   const [delText, setDelText] = useState("");
+  const [delPassword, setDelPassword] = useState("");
 
   return (
     <div className="space-y-4">
@@ -288,33 +289,52 @@ export function AccountSettingsClient(props: Props) {
         </form>
       </Modal>
 
-      <ConfirmDialog open={dialog === "pause"} onClose={close} title="Pause account for 30 days?"
-        body="Your profile is hidden and you won't receive bookings for 30 days. You can reactivate anytime."
+      <ConfirmDialog open={dialog === "pause"} onClose={close} title="Pause account for 30 days?" tone="yellow"
+        body="Your profile is hidden from Discover, Search, and booking for 30 days. Existing bookings stay intact and you can reactivate anytime — it also reactivates automatically after 30 days."
         confirm="Pause account" pending={pending} onConfirm={() => runAction(pauseAccountAction)} msg={msg} />
-      <ConfirmDialog open={dialog === "deactivate"} onClose={close} title="Deactivate account?" danger
-        body="Your profile is hidden and you're signed out of active use. Your data is kept and you can reactivate anytime."
+      <ConfirmDialog open={dialog === "deactivate"} onClose={close} title="Deactivate account?" tone="orange"
+        body="Your profile is hidden everywhere and you stop receiving bookings — with no automatic expiry. Your data is fully preserved and login stays available; press Reactivate anytime to return."
         confirm="Deactivate" pending={pending} onConfirm={() => runAction(deactivateAccountAction)} msg={msg} />
-      <ConfirmDialog open={dialog === "reactivate"} onClose={close} title="Reactivate account?"
+      <ConfirmDialog open={dialog === "reactivate"} onClose={close} title="Reactivate account?" tone="rose"
         body="Welcome back! This restores your profile and access immediately."
         confirm="Reactivate" pending={pending} onConfirm={() => runAction(reactivateAccountAction)} msg={msg} />
 
       <Modal open={dialog === "delete"} onClose={close} title="Permanently delete account">
-        <p className="text-sm text-ink-muted">This <strong className="text-danger">cannot be undone</strong>. All your data — profile, bookings, messages — is permanently removed. Type <strong>DELETE</strong> to confirm.</p>
-        <input value={delText} onChange={(e) => setDelText(e.target.value)} placeholder="DELETE" className={`${input} mt-3`} />
-        <Msg s={msg} />
-        <div className="mt-4 flex gap-2">
-          <button type="button" onClick={close} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold text-ink">Cancel</button>
-          <button type="button" disabled={pending || delText !== "DELETE"} onClick={() => runAction(deleteAccountAction, false)}
-            className="flex-1 rounded-full bg-danger py-3 text-sm font-semibold text-white disabled:opacity-40">{pending ? "Deleting…" : "Delete forever"}</button>
+        <div className="space-y-3">
+          <p className="rounded-[10px] border border-danger/40 bg-danger/10 px-3 py-2.5 text-sm text-danger">
+            This permanently removes your account and personal information. <strong>This action cannot be undone.</strong>
+          </p>
+          <p className="text-[13px] text-ink-muted">Your profile, portfolio, services, availability, favorites, and contact info are deleted. Financial records required by law are anonymized and retained.</p>
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-ink-muted">Confirm your password</label>
+            <input type="password" value={delPassword} onChange={(e) => setDelPassword(e.target.value)} placeholder="Your password" className={input} />
+          </div>
+          <div>
+            <label className="mb-1 block text-[12px] font-semibold text-ink-muted">Type DELETE to confirm</label>
+            <input value={delText} onChange={(e) => setDelText(e.target.value)} placeholder="DELETE" className={input} />
+          </div>
+          <Msg s={msg} />
+          <div className="flex gap-2 pt-1">
+            <button type="button" onClick={close} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold text-ink">Cancel</button>
+            <button type="button" disabled={pending || delText !== "DELETE" || !delPassword}
+              onClick={() => start(async () => { const r = await deleteAccountAction(delPassword, delText); setMsg(r ?? { error: "Deletion failed." }); })}
+              className="flex-1 rounded-full bg-danger py-3 text-sm font-semibold text-white disabled:opacity-40">{pending ? "Deleting…" : "Delete forever"}</button>
+          </div>
         </div>
       </Modal>
     </div>
   );
 }
 
-function ConfirmDialog({ open, onClose, title, body, confirm, pending, onConfirm, danger, msg }: {
-  open: boolean; onClose: () => void; title: string; body: string; confirm: string; pending: boolean; onConfirm: () => void; danger?: boolean; msg: SettingsState;
+function ConfirmDialog({ open, onClose, title, body, confirm, pending, onConfirm, tone = "rose", msg }: {
+  open: boolean; onClose: () => void; title: string; body: string; confirm: string; pending: boolean; onConfirm: () => void; tone?: "rose" | "yellow" | "orange" | "red"; msg: SettingsState;
 }) {
+  const toneCls = {
+    rose: "rose-gradient text-[#2A1712]",
+    yellow: "bg-warning text-[#2A1712]",
+    orange: "bg-[#E0873C] text-white",
+    red: "bg-danger text-white",
+  }[tone];
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <p className="text-sm text-ink-muted">{body}</p>
@@ -322,7 +342,7 @@ function ConfirmDialog({ open, onClose, title, body, confirm, pending, onConfirm
       <div className="mt-4 flex gap-2">
         <button type="button" onClick={onClose} className="flex-1 rounded-full border border-border py-3 text-sm font-semibold text-ink">Cancel</button>
         <button type="button" disabled={pending} onClick={onConfirm}
-          className={`flex-1 rounded-full py-3 text-sm font-semibold disabled:opacity-60 ${danger ? "bg-danger text-white" : "rose-gradient text-[#2A1712]"}`}>{pending ? "Working…" : confirm}</button>
+          className={`flex-1 rounded-full py-3 text-sm font-semibold disabled:opacity-60 ${toneCls}`}>{pending ? "Working…" : confirm}</button>
       </div>
     </Modal>
   );
