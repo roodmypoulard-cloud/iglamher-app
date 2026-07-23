@@ -65,3 +65,11 @@ live: /recommended 200, header + info card render, honest "on the way" empty
 state until user taps Recommend in /admin (no recommended pros in prod yet).
 Full gates green incl 52 e2e. USER NEXT: tap Recommend on pros in /admin to
 populate the live shelf; Stripe 1099 toggle still open.
+
+--- STATUS ---
+[2026-07-23] CATEGORY RAIL FINAL — user approved ("yes good"). Full-width real
+glam photo circles (brand/categories/*.jpg via SmartImage fill), perfect
+aspect-square, rose-ring selected glow, "Wardrobe Stylist" display label
+(DISPLAY map in CategoryRail; DB name stays "Stylist"). Deployed + live-verified
+(Wardrobe Stylist + categories/hair.jpg present in prod HTML). All gates green.
+Find Your Glam is DONE pending user populating the shelf via /admin Recommend.

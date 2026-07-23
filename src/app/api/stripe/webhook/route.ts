@@ -6,6 +6,7 @@ import { captureError, log } from "@/lib/observability/logger";
 import { reverseBookingPayout, payoutAmountCents } from "@/lib/payments/payouts";
 import { ensureBookingConversationUnlocked } from "@/lib/messaging/unlock";
 import { emailUserBestEffort } from "@/lib/integrations/notifications";
+import { syncRecommendationSubscription, recordRecommendationInvoice } from "@/lib/payments/recommendation-subscription";
 
 // ============================================================
 // Stripe webhook — the SOURCE OF TRUTH for payment state (not the browser).
@@ -195,6 +196,25 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
       // Claw back the pro's payout proportional to the refund (reverses the transfer).
       await reverseBookingPayout(admin, { bookingId, refundedCents: charge.amount_refunded ?? 0 });
       log.info("webhook.charge_refunded", { bookingId, fullyRefunded });
+      return;
+    }
+
+    // ---- $2.99/mo Featured Recommendations subscription lifecycle ----
+    // checkout.session.completed for subscriptions carries no line items here;
+    // the subscription.* events that follow are the source of truth.
+    case "customer.subscription.created":
+    case "customer.subscription.updated":
+    case "customer.subscription.deleted": {
+      const sub = event.data.object as import("stripe").Stripe.Subscription;
+      await syncRecommendationSubscription(admin, sub);
+      return;
+    }
+    case "invoice.paid": {
+      await recordRecommendationInvoice(admin, event.data.object as import("stripe").Stripe.Invoice, "paid");
+      return;
+    }
+    case "invoice.payment_failed": {
+      await recordRecommendationInvoice(admin, event.data.object as import("stripe").Stripe.Invoice, "failed");
       return;
     }
 
