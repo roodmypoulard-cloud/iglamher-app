@@ -75,6 +75,28 @@ export async function listMyCardsAction(): Promise<{ cards: SavedCard[] } | { er
       !("deleted" in customer) && typeof customer.invoice_settings?.default_payment_method === "string"
         ? customer.invoice_settings.default_payment_method
         : null;
+
+    // Dedupe: saving the same physical card twice creates two PaymentMethods
+    // with the same card fingerprint. Keep one per fingerprint — prefer the
+    // default, else the oldest — and detach the extras (best-effort, so a
+    // detach failure never breaks listing).
+    const keepByFingerprint = new Map<string, (typeof methods.data)[number]>();
+    const dupes: string[] = [];
+    for (const m of [...methods.data].sort((a, b) => a.created - b.created)) {
+      const fp = m.card?.fingerprint;
+      if (!fp) continue;
+      const kept = keepByFingerprint.get(fp);
+      if (!kept) keepByFingerprint.set(fp, m);
+      else if (m.id === defaultId) {
+        dupes.push(kept.id);
+        keepByFingerprint.set(fp, m);
+      } else dupes.push(m.id);
+    }
+    if (dupes.length) {
+      await Promise.allSettled(dupes.map((id) => stripe.paymentMethods.detach(id)));
+      methods.data = methods.data.filter((m) => !dupes.includes(m.id));
+    }
+
     const cards: SavedCard[] = methods.data
       .filter((m) => m.card)
       .map((m) => ({
