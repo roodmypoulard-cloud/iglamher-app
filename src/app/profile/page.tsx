@@ -70,7 +70,9 @@ export default async function ProfilePage() {
   const email = o?.email ?? "";
   const c = o?.counts ?? { favorites: 0, upcomingBookings: 0, conversations: 0, pendingReviews: 0, savedCards: 0, activePromotions: 0 };
   const canSwitch = Boolean(o?.account?.canSwitch);
-  const viewProfileHref = o?.proSlug ? `/professionals/${o.proSlug}` : "/profile/settings";
+  // Public pro page only when it actually renders (active). Everyone else —
+  // customers and not-yet-approved applicants — sees their own info in settings.
+  const viewProfileHref = o?.proSlug && o.proActive ? `/professionals/${o.proSlug}` : "/profile/settings";
 
   const row1: Tile[] = [
     { href: "/account/favorites", label: "Favorites", Icon: HeartIcon, sub: `${c.favorites} saved` },
@@ -101,6 +103,10 @@ export default async function ProfilePage() {
                   <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-rose">
                     {accountTypeLabel(o?.account?.accountType)}
                     {o?.isVerified && <VerifiedIcon width={15} height={15} className="flex-none" />}
+                    {/* Gold check = ID-verified customer (distinct from the rose pro badge). */}
+                    {o?.idVerified && !o?.isVerified && (
+                      <VerifiedIcon width={15} height={15} className="flex-none text-gold" aria-label="Identity verified" />
+                    )}
                   </p>
                 </div>
                 <Link

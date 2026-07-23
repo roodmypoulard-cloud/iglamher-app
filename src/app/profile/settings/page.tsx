@@ -2,9 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shell } from "@/components/marketplace/Shell";
 import { AccountSettingsClient } from "@/components/profile/AccountSettingsClient";
+import { IdVerificationCard } from "@/components/profile/IdVerificationCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getAccountContext } from "@/lib/profile/account";
+import { getMyIdVerificationAction } from "@/lib/profile/id-verification";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Settings · iGlamHer" };
@@ -39,6 +41,7 @@ export default async function SettingsPage() {
     .maybeSingle();
   const np = (prefs ?? {}) as Record<string, boolean>;
   const ctx = await getAccountContext();
+  const idVerification = await getMyIdVerificationAction();
 
   // Verified reflects the profiles.phone_verified flag, which is set ONLY after an
   // OTP is confirmed (migration 0019; false/absent → not verified).
@@ -73,6 +76,10 @@ export default async function SettingsPage() {
         language={p.language ?? "en"}
         providers={providers}
       />
+
+      <div className="mt-4">
+        <IdVerificationCard initial={idVerification} />
+      </div>
     </Shell>
   );
 }

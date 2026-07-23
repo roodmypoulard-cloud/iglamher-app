@@ -41,7 +41,8 @@ export function EasyBookingSheet({ open, onClose }: { open: boolean; onClose: ()
         onClick={() => {
           haptic();
           onClose();
-          router.push("/discover");
+          // Real booking entry: pick a category → pros in it (recommended first) → book.
+          router.push("/categories");
         }}
         className="mt-6 min-h-[44px] w-full rounded-full rose-gradient py-3.5 text-sm font-semibold text-[#2A1712] transition-transform duration-150 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
       >

@@ -56,7 +56,15 @@ function CardForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      <PaymentElement options={{ layout: "tabs" }} />
+      {/* Card fields only — no wallet-brand tabs or Stripe terms block inside the
+          iframe; our own "Secured by Stripe" footer line carries the disclosure. */}
+      <PaymentElement
+        options={{
+          layout: "tabs",
+          terms: { card: "never" },
+          wallets: { applePay: "never", googlePay: "never" },
+        }}
+      />
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <button
         type="submit"

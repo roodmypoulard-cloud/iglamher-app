@@ -177,3 +177,12 @@ Each: interface + env-gated wrapper + working local fallback + documented integr
 - **404 semantics**: routes with loading.tsx stream, so browsers get 200 + the
   not-found UI; generateMetadata on /professionals/[slug] calls notFound()
   pre-stream so crawlers still get a real 404. E2E specs assert the UI, not status.
+- **Recommended pros / $2.99 subscription (2026-07-23)**: category pages show a
+  "Recommended · Sponsored" section first, sourced from the existing
+  `professional_profiles.is_featured` flag (admin-guarded since 0005cg/0026;
+  toggled via setProfessionalFeaturedAction). Decision: do NOT build Stripe
+  Billing for the $2.99/mo recommendation sub yet — admins flip `is_featured`
+  manually when a pro pays. TODO when volume justifies: Stripe Price ($2.99/mo)
+  + checkout + `customer.subscription.updated/deleted` webhook syncing
+  `is_featured`. Ranking already weighs `featured`, so search/discover order is
+  consistent with the category page.

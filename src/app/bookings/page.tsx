@@ -69,14 +69,25 @@ export default async function BookingsPage() {
 
   return (
     <Shell>
-      <h1 className="font-display text-[26px] font-bold leading-tight">Your bookings</h1>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="font-display text-[26px] font-bold leading-tight">Your bookings</h1>
+        <Link
+          href="/categories"
+          className="flex min-h-[38px] flex-none items-center gap-1.5 rounded-full rose-gradient px-4 text-[13px] font-bold text-[#2A1712] active:scale-[0.98]"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" aria-hidden>
+            <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" />
+          </svg>
+          New booking
+        </Link>
+      </div>
 
       {bookings.length === 0 ? (
         <div className="mt-6">
           <EmptyState
             title="No bookings yet"
             body="When you book a beauty pro, your upcoming and past appointments show up here with reminders and receipts."
-            action={{ label: "Find a pro", href: "/discover" }}
+            action={{ label: "Book a pro", href: "/categories" }}
           />
         </div>
       ) : (

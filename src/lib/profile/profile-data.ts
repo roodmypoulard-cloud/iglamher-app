@@ -20,7 +20,9 @@ export interface ProfileOverview {
   location: string | null;
   isPro: boolean;
   isVerified: boolean;
+  idVerified: boolean; // customer_profiles.is_id_verified — gold customer checkmark, NOT the pro badge
   proSlug: string | null;
+  proActive: boolean; // approved + publicly visible — /professionals/[slug] renders
   proComplete: boolean; // pro profile exists AND was submitted for review
   account: AccountContext | null;
   counts: {
@@ -61,9 +63,10 @@ export async function getProfileOverview(): Promise<ProfileOverview | null> {
   const userId = auth.user.id;
   const email = auth.user.email ?? "";
 
-  const [profileRow, proRow, account, bookings, conversations, favorites, reviewedIds, cardsRes, campaigns] = await Promise.all([
+  const [profileRow, proRow, custRow, account, bookings, conversations, favorites, reviewedIds, cardsRes, campaigns] = await Promise.all([
     supabase.from("profiles").select("full_name, avatar_url").eq("id", userId).maybeSingle(),
-    supabase.from("professional_profiles").select("slug, city, is_verified, review_status, submitted_at").eq("user_id", userId).maybeSingle(),
+    supabase.from("professional_profiles").select("slug, city, is_verified, is_active, review_status, submitted_at").eq("user_id", userId).maybeSingle(),
+    supabase.from("customer_profiles").select("is_id_verified").eq("user_id", userId).maybeSingle(),
     getAccountContext().catch(() => null),
     getMyCustomerBookings().catch((): BookingSummary[] => []),
     getMyConversations().catch((): ConversationSummary[] => []),
@@ -74,7 +77,7 @@ export async function getProfileOverview(): Promise<ProfileOverview | null> {
   ]);
 
   const p = profileRow.data as { full_name: string | null; avatar_url: string | null } | null;
-  const pro = proRow.data as { slug: string | null; city: string | null; is_verified: boolean | null; review_status: string | null; submitted_at: string | null } | null;
+  const pro = proRow.data as { slug: string | null; city: string | null; is_verified: boolean | null; is_active: boolean | null; review_status: string | null; submitted_at: string | null } | null;
 
   const upcomingBookings = bookings.filter((b) => isActive(b.status)).length;
   const pendingReviews = bookings.filter((b) => b.status === "completed" && !reviewedIds.has(b.id)).length;
@@ -93,7 +96,11 @@ export async function getProfileOverview(): Promise<ProfileOverview | null> {
     location: pro?.city ?? null,
     isPro,
     isVerified: Boolean(pro?.is_verified),
+    idVerified: Boolean((custRow.data as { is_id_verified?: boolean } | null)?.is_id_verified),
     proSlug: pro?.slug ?? null,
+    // The public /professionals/[slug] page only renders active pros — an
+    // applicant's slug would 404, so the profile header must not link it.
+    proActive: Boolean(pro?.is_active),
     proComplete,
     account,
     counts: {

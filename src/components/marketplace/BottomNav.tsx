@@ -1,7 +1,10 @@
 "use client";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
-import { HomeIcon, CalendarIcon, ChatIcon, UserIcon } from "@/components/ui/icons";
+import { HomeIcon, CalendarIcon, ChatIcon } from "@/components/ui/icons";
+import { Avatar } from "@/components/ui/Avatar";
+import { getViewerIdentityAction, type ViewerIdentity } from "@/lib/profile/identity";
 import { cn } from "@/lib/format";
 import { useHideOnScroll } from "@/lib/ui/useHideOnScroll";
 
@@ -9,15 +12,24 @@ const LEFT = [
   { href: "/discover", label: "Home", Icon: HomeIcon },
   { href: "/bookings", label: "Bookings", Icon: CalendarIcon },
 ];
-const RIGHT = [
-  { href: "/messages", label: "Messages", Icon: ChatIcon },
-  { href: "/profile", label: "Profile", Icon: UserIcon },
-];
+const MESSAGES = { href: "/messages", label: "Messages", Icon: ChatIcon };
 
 export function BottomNav() {
   const pathname = usePathname();
   const hidden = useHideOnScroll();
   const isActive = (href: string) => pathname === href || (href === "/discover" && pathname === "/");
+
+  // Profile tab shows the signed-in customer's photo (initials fallback via Avatar).
+  const [identity, setIdentity] = useState<ViewerIdentity | null>(null);
+  useEffect(() => {
+    let alive = true;
+    getViewerIdentityAction()
+      .then((id) => alive && setIdentity(id))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const tab = (href: string, label: string, Icon: typeof HomeIcon) => (
     <li key={href} className="flex-1">
@@ -70,7 +82,29 @@ export function BottomNav() {
           </span>
         </li>
 
-        {RIGHT.map((t) => tab(t.href, t.label, t.Icon))}
+        {tab(MESSAGES.href, MESSAGES.label, MESSAGES.Icon)}
+
+        {/* Profile — circular customer photo instead of a generic glyph. */}
+        <li className="flex-1">
+          <Link
+            href="/profile"
+            aria-current={isActive("/profile") ? "page" : undefined}
+            className={cn(
+              "flex flex-col items-center gap-1 py-1 text-[10px] font-semibold transition-colors duration-200",
+              isActive("/profile") ? "text-rose" : "text-ink-muted hover:text-ink-secondary",
+            )}
+          >
+            <span
+              className={cn(
+                "grid h-[22px] w-[22px] place-items-center overflow-hidden rounded-full",
+                isActive("/profile") && "ring-2 ring-rose",
+              )}
+            >
+              <Avatar name={identity?.name} src={identity?.avatarUrl} size={22} />
+            </span>
+            Profile
+          </Link>
+        </li>
       </ul>
     </nav>
   );

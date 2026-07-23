@@ -25,6 +25,9 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   const cat = categories.find((c) => c.slug === category);
   if (!cat) notFound();
 
+  const recommended = pros.filter((p) => p.isFeatured);
+  const rest = pros.filter((p) => !p.isFeatured);
+
   return (
     <Shell wide back="/categories">
       <TrackView event="category_viewed" props={{ category }} />
@@ -42,12 +45,27 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
         <SortSelect />
       </div>
 
-      <ProfessionalGrid
-        pros={pros}
-        favoritedIds={favoritedIds}
-        emptyTitle={`No ${cat.name.toLowerCase()} pros yet`}
-        emptyBody="Check back soon — we're adding professionals across LA every week."
-      />
+      {/* Recommended (subscribed/featured) pros lead the category; everyone else follows. */}
+      {recommended.length > 0 && (
+        <section className="mb-6">
+          <h2 className="mb-3 font-display text-lg font-bold">
+            Recommended <span className="ml-1 align-middle text-[11px] font-semibold uppercase tracking-[0.12em] text-rose">Sponsored</span>
+          </h2>
+          <ProfessionalGrid pros={recommended} favoritedIds={favoritedIds} emptyTitle="" emptyBody="" />
+        </section>
+      )}
+
+      {recommended.length > 0 && rest.length > 0 && (
+        <h2 className="mb-3 font-display text-lg font-bold">All professionals</h2>
+      )}
+      {(rest.length > 0 || recommended.length === 0) && (
+        <ProfessionalGrid
+          pros={rest}
+          favoritedIds={favoritedIds}
+          emptyTitle={`No ${cat.name.toLowerCase()} pros yet`}
+          emptyBody="Check back soon — we're adding professionals across LA every week."
+        />
+      )}
     </Shell>
   );
 }

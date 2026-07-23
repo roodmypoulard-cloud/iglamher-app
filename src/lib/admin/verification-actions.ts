@@ -10,6 +10,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { APPLICATION_SECTIONS, unmetApprovalRequirements } from "@/lib/pro/application";
 import { sendEmail, approvedEmail, rejectedEmail, needsInfoEmail } from "@/lib/email/send";
+import { writeAudit } from "@/lib/audit/log";
 
 export type AdminResult = { ok: true } | { ok: false; error: string };
 
@@ -286,5 +287,52 @@ export async function toggleFeaturedAction(proId: string, next: boolean): Promis
   if (error) return { ok: false, error: error.message };
   await logEvent(admin, { proId, actorId: gate.adminId, action: next ? "featured_on" : "featured_off", targetType: "professional" });
   revalidatePath("/admin/professionals");
+  return { ok: true };
+}
+
+// ---------------------------------------------------------------------------
+// CUSTOMER identity verification (KYC-lite, customer_profiles from 0006/0028).
+// Verdicts run on the service-role client (bypasses the 0028 owner guards) and
+// are audit-logged. The ID document is deleted once a verdict lands — it exists
+// only to be reviewed, never stored long-term (same policy as pro IDs).
+// ---------------------------------------------------------------------------
+
+async function purgeCustomerIdDocument(admin: Admin, userId: string): Promise<void> {
+  const { data } = await admin.from("customer_profiles").select("id_document_url").eq("user_id", userId).maybeSingle();
+  const path = (data as { id_document_url?: string | null } | null)?.id_document_url;
+  if (path) await admin.storage.from("verification-docs").remove([path]).catch(() => {});
+}
+
+export async function approveCustomerIdAction(userId: string): Promise<AdminResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("customer_profiles")
+    .update({ is_id_verified: true, verification_status: "approved" })
+    .eq("user_id", userId)
+    .eq("verification_status", "pending");
+  if (error) return { ok: false, error: error.message };
+  await purgeCustomerIdDocument(admin, userId);
+  await admin.from("customer_profiles").update({ id_document_url: null }).eq("user_id", userId);
+  await writeAudit({ actorId: gate.adminId, action: "verification.customer_id_approve", entity: "user", entityId: userId });
+  revalidatePath("/admin/applications");
+  return { ok: true };
+}
+
+export async function rejectCustomerIdAction(userId: string): Promise<AdminResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("customer_profiles")
+    .update({ is_id_verified: false, verification_status: "rejected" })
+    .eq("user_id", userId)
+    .eq("verification_status", "pending");
+  if (error) return { ok: false, error: error.message };
+  await purgeCustomerIdDocument(admin, userId);
+  await admin.from("customer_profiles").update({ id_document_url: null }).eq("user_id", userId);
+  await writeAudit({ actorId: gate.adminId, action: "verification.customer_id_reject", entity: "user", entityId: userId });
+  revalidatePath("/admin/applications");
   return { ok: true };
 }

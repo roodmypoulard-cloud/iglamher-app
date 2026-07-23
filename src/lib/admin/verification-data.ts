@@ -286,3 +286,59 @@ export async function getApplicationDetail(userId: string): Promise<ApplicationD
     })),
   };
 }
+
+// ---------------------------------------------------------------------------
+// CUSTOMER ID verification queue (customer_profiles, 0006/0028).
+// ---------------------------------------------------------------------------
+
+export interface PendingCustomerId {
+  userId: string;
+  name: string;
+  email: string;
+  documentUrl: string | null; // short-expiry signed URL (private bucket)
+  submittedAt: string | null;
+}
+
+/** Customers awaiting an ID verdict, with a signed URL for the uploaded document. */
+export async function listPendingCustomerIds(): Promise<PendingCustomerId[]> {
+  if (!isLiveSupabase()) return [];
+  const admin = createAdminClient();
+  const { data } = await admin
+    .from("customer_profiles")
+    .select("user_id, id_document_url, updated_at, profiles:user_id (full_name)")
+    .eq("verification_status", "pending")
+    .order("updated_at", { ascending: true })
+    .limit(100);
+  const rows = (data ?? []) as Array<{
+    user_id: string;
+    id_document_url: string | null;
+    updated_at: string | null;
+    profiles: { full_name: string | null } | Array<{ full_name: string | null }> | null;
+  }>;
+
+  return Promise.all(
+    rows.map(async (r) => {
+      const p = Array.isArray(r.profiles) ? r.profiles[0] : r.profiles;
+      let documentUrl: string | null = null;
+      if (r.id_document_url) {
+        const { data: signed } = await admin.storage.from(BUCKET).createSignedUrl(r.id_document_url, SIGNED_URL_TTL);
+        documentUrl = signed?.signedUrl ?? null;
+      }
+      // Email lives in auth.users, not profiles — same lookup the pro flow uses.
+      let email = "";
+      try {
+        const { data: au } = await admin.auth.admin.getUserById(r.user_id);
+        email = au.user?.email ?? "";
+      } catch {
+        /* fine — email is informational here */
+      }
+      return {
+        userId: r.user_id,
+        name: p?.full_name ?? "Member",
+        email,
+        documentUrl,
+        submittedAt: r.updated_at,
+      };
+    }),
+  );
+}

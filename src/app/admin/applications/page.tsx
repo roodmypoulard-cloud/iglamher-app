@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin/require-admin-page";
-import { getApplicationCounts, getApplicationsByTab, type AppTab } from "@/lib/admin/verification-data";
+import { getApplicationCounts, getApplicationsByTab, listPendingCustomerIds, type AppTab } from "@/lib/admin/verification-data";
+import { CustomerIdReviewRow } from "@/components/admin/CustomerIdReviewRow";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Pro applications · Admin · iGlamHer" };
@@ -35,7 +36,7 @@ export default async function AdminApplicationsPage({ searchParams }: { searchPa
   const { tab: tabParam } = await searchParams;
   const tab: AppTab = (["awaiting", "changes", "approved", "rejected"] as const).includes(tabParam as AppTab) ? (tabParam as AppTab) : "awaiting";
 
-  const [counts, rows] = await Promise.all([getApplicationCounts(), getApplicationsByTab(tab)]);
+  const [counts, rows, customerIds] = await Promise.all([getApplicationCounts(), getApplicationsByTab(tab), listPendingCustomerIds()]);
 
   return (
     <div className="mx-auto min-h-dvh w-full max-w-[1000px] px-5 py-8 md:px-8">
@@ -93,6 +94,25 @@ export default async function AdminApplicationsPage({ searchParams }: { searchPa
                   <span className="flex-none text-sm font-semibold text-rose">Review →</span>
                 </Link>
               </li>
+            ))}
+          </ul>
+        )}
+      </div>
+
+      {/* Customer ID checks — separate queue from pro applications. */}
+      <div className="mt-10">
+        <h2 className="font-display text-xl font-bold">Customer ID checks</h2>
+        <p className="mt-1 text-sm text-ink-muted">
+          Approve grants the gold verified badge; the document is deleted after the verdict either way.
+        </p>
+        {customerIds.length === 0 ? (
+          <div className="mt-4 rounded-[16px] border border-border bg-surface p-6 text-center">
+            <p className="text-sm text-ink-muted">No customer IDs waiting for review.</p>
+          </div>
+        ) : (
+          <ul className="mt-4 space-y-3">
+            {customerIds.map((c) => (
+              <CustomerIdReviewRow key={c.userId} row={c} />
             ))}
           </ul>
         )}
