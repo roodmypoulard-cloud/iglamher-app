@@ -73,8 +73,11 @@ test.describe("professional profile", () => {
   });
 
   test("returns a not-found page for an unknown slug", async ({ page }) => {
-    const response = await page.goto("/professionals/definitely-not-a-real-pro");
-    expect(response?.status()).toBe(404);
+    // The route streams (loading.tsx), so the browser status is 200 with the
+    // not-found UI in the stream; crawlers still get a real 404 because
+    // generateMetadata calls notFound() before streaming starts.
+    await page.goto("/professionals/definitely-not-a-real-pro");
+    await expect(page.getByText(/couldn['\u2019]t find/i)).toBeVisible();
   });
 });
 

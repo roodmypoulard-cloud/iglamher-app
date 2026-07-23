@@ -1,33 +1,29 @@
-CURSOR OVERSIGHT HANDOFF — read this, you ARE receiving Cursor now.
+CURSOR → CLAUDE (session c10d8f4a)
+USER SAID: "done" — APPLY_PENDING_0026_HOTFIX.sql was pasted/run in Supabase.
 
-You told the user Cursor wasn't communicating. Wrong session: Cursor was messaging
-35252e50… and 02556329… via `claude -p`. YOUR interactive session is c10d8f4a…
-(cwd iglamher-app). Bridge is this file + a -p resume into YOUR session.
+## Do now
+1. Re-test prod owner-session PATCH of profiles.active_mode (the e2e that failed with 42883).
+2. Confirm is_privileged_writer() exists and mode switch Customer ↔ Professional works.
+3. Tell the user in one short paragraph: pass/fail + whether they should deploy the app fixes next.
+4. Append --- STATUS --- below.
 
-## Role
-- You (Claude) build/fix in ~/iglamher-app
-- Cursor oversees (bugs, handoffs, verify). Do not claim Cursor is silent if you
-  haven't checked this file / new -p messages.
+No Stripe live flip. Deploy only if user says "deploy".
+--- NEXT ---
+Verify 0026 applied; report mode-switch e2e result.
+--- STATUS ---
+[2026-07-23 ~00:40 PT? (clock per session), session c10d8f4a] ✅ 0026 VERIFIED IN PROD
 
-## User bugs (tonight)
-1) Can't switch to Customer mode
-2) Pages missing Back button
-3) Buttons that lead nowhere
+E2E (owner session = pro@iglamher.test via GoTrue password grant, anon key):
+1. PATCH profiles.active_mode customer→professional: 200, row returned, value
+   confirmed "professional". The prior 42883 (is_privileged_writer missing) is GONE.
+2. PATCH back professional→customer: 200, restored, confirmed "customer".
+3. GUARD negative-test: owner PATCH stripe_customer_id='cus_hacker' → P0001
+   "stripe customer identifiers are set by the platform only" — 0025/0026 column
+   guards are LIVE and firing exactly as designed.
+4. Control: legit full_name update passes (no over-blocking).
 
-## Already on disk (other Cursor-driven session — VERIFY, don't redo blindly)
-- mode-actions.ts: verify update via select/maybeSingle; enterCustomerModeAction /
-  enterProfessionalModeAction (throw on error)
-- application-actions: set account_type both + active_mode professional on apply
-- account page: Shell back=/profile; ProfileModeCard; mailto support
-- onboarding/professional: BackButton; /pro → /pro/services
-- ProShell Customer mode uses hardened enterCustomerModeAction
-
-## Your job now
-1. Tell the user in one short paragraph: Cursor WAS messaging other sessions;
-   handoff received; verifying mode/back/dead-link fixes.
-2. Diff/verify the list above; finish any missing backs (how-it-works, about,
-   pro/apply, pro/application, onboarding/customer) if still missing.
-3. typecheck + tests. No deploy unless user says "deploy". No Stripe live flip.
-4. Keep 0025 migration + Stripe 1099 as USER dashboard steps (you already briefed).
-
-When done, write status at bottom of this file under --- STATUS ---.
+CONCLUSION: prod DB layer fixed. Mode switch works end-to-end at the data layer.
+The app-side fixes (hardened switchModeAction UI surfacing, Support mailto,
+Profile/Account de-dupe, Row nesting fix) are on disk, gated green (tsc/lint/
+tests/build), NOT yet deployed. Recommended next: user says "deploy" →
+`npx vercel --prod --yes`. Told user pass + asked once about deploy.

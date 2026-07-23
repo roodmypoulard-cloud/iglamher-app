@@ -2,11 +2,9 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
-import { getProfileOverview } from "@/lib/profile/profile-data";
-import { ProfileModeCard } from "@/components/profile/ProfileModeCard";
 import { Shell, SectionHeader } from "@/components/marketplace/Shell";
 import { EmptyState } from "@/components/ui/states";
-import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, UserIcon, StarIcon, CreditCardIcon, SparkleIcon } from "@/components/ui/icons";
+import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, UserIcon, StarIcon, CreditCardIcon } from "@/components/ui/icons";
 import { getMyCustomerBookings, type BookingSummary } from "@/lib/booking/data";
 import { statusLabel, isActive } from "@/lib/booking/status";
 import { formatPrice } from "@/lib/format";
@@ -14,14 +12,13 @@ import { formatPrice } from "@/lib/format";
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My account · iGlamHer" };
 
-const LINKS = [
+const LINKS: { href: string; label: string; Icon: typeof HeartIcon }[] = [
   { href: "/account/favorites", label: "Favorites", Icon: HeartIcon },
   { href: "/account/payment-methods", label: "Payment", Icon: CreditCardIcon },
   { href: "/account/rewards", label: "Rewards", Icon: StarIcon },
   { href: "/notifications", label: "Notifications", Icon: BellIcon },
   { href: "/messages", label: "Messages", Icon: ChatIcon },
-  { href: "/pro/apply", label: "Become a pro", Icon: SparkleIcon },
-  { href: "/profile", label: "Settings", Icon: UserIcon },
+  { href: "/profile/settings", label: "Settings", Icon: UserIcon },
 ];
 
 function BookingRow({ b }: { b: BookingSummary }) {
@@ -51,23 +48,14 @@ export default async function AccountPage() {
   const bookings = await getMyCustomerBookings();
   const upcoming = bookings.filter((b) => isActive(b.status));
   const past = bookings.filter((b) => !isActive(b.status));
-  const o = await getProfileOverview();
-  const account = o?.account ?? null;
 
   return (
     <Shell back="/profile">
       <h1 className="font-display text-3xl font-bold leading-tight">My account</h1>
       <p className="mt-1 text-sm text-ink-muted">Bookings, receipts and settings.</p>
 
-      {/* Same compact mode card as /profile — one component, identical behavior:
-          Customer/Professional switch via switchModeAction, dashboard entry via
-          enterProfessionalModeAction → /pro/services. */}
-      {account?.canSwitch && (
-        <div className="mt-5">
-          <ProfileModeCard accountType={account.accountType} activeMode={account.activeMode} proComplete={Boolean(o?.proComplete)} />
-        </div>
-      )}
-
+      {/* Customer Mode is customer-only: mode switching lives on /profile; no pro
+          shortcuts or upsells here. */}
       <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
         {LINKS.map(({ href, label, Icon }) => (
           <Link key={href} href={href} className="flex flex-col items-center gap-2 rounded-[16px] border border-border bg-surface px-3 py-4 text-center hover:border-rose/50">

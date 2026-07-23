@@ -29,7 +29,10 @@ const LOCATION_LABEL: Record<string, string> = {
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const pro = await getProfessionalBySlug(slug);
-  if (!pro) return { title: "Professional · iGlamHer" };
+  // notFound() here (pre-stream) keeps the HTTP status a real 404 — the route's
+  // loading.tsx makes the body stream, so the page body's notFound() alone
+  // would ship a 200 first.
+  if (!pro) notFound();
   return {
     title: `${pro.displayName} · ${pro.primarySpecialty} · iGlamHer`,
     description: pro.bio.slice(0, 150),

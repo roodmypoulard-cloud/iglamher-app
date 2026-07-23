@@ -1,6 +1,5 @@
 "use client";
 import { useState, useTransition } from "react";
-import Link from "next/link";
 import { switchModeAction, enterProfessionalModeAction } from "@/lib/profile/mode-actions";
 import { UserIcon, CalendarIcon, ChevronRight } from "@/components/ui/icons";
 
@@ -73,11 +72,13 @@ export function ProfileModeCard({
       </div>
       {error && <p role="alert" className="mt-2 text-[12.5px] text-danger">{error}</p>}
 
-      {/* Dashboard entry must ALSO switch into professional mode — a plain link left
-          active_mode on "customer" and the pro shell read as broken (the mode pills
-          above switch correctly; this row has to as well). Incomplete setup goes to
-          /pro/apply and doesn't need the switch. */}
-      {proComplete ? (
+      {/* Customer Mode stays customer-only: the dashboard shortcut and setup
+          reminder now live exclusively in Professional Mode (the pills above are
+          the sole crossover, and only for accounts that already have both sides).
+          In professional mode, keep the dashboard entry (it must ALSO switch
+          modes — a plain link left active_mode stale and the pro shell read as
+          broken). */}
+      {activeMode === "professional" && proComplete && (
         <form action={enterProfessionalModeAction} className="mt-2.5">
           <button
             type="submit"
@@ -93,20 +94,6 @@ export function ProfileModeCard({
             <ChevronRight width={18} height={18} className="flex-none text-rose" />
           </button>
         </form>
-      ) : (
-        <Link
-          href="/pro/apply"
-          className="mt-2.5 flex items-center gap-3 rounded-[16px] border border-rose/40 bg-gradient-to-br from-rose/[0.14] to-surface p-2.5 transition-transform active:scale-[0.99]"
-        >
-          <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-rose/15 text-rose">
-            <DashIcon />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-[13px] font-bold text-rose">Complete Professional Setup</p>
-            <p className="mt-0.5 truncate text-[11.5px] text-ink-secondary">Finish your setup to start taking bookings and get discovered</p>
-          </div>
-          <ChevronRight width={18} height={18} className="flex-none text-rose" />
-        </Link>
       )}
     </div>
   );

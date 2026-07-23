@@ -11,7 +11,7 @@ test.describe("sign in", () => {
   test("renders the form with email and password fields", async ({ page }) => {
     await page.goto("/signin");
 
-    await expect(page.getByText("Welcome back, gorgeous")).toBeVisible();
+    await expect(page.getByText(/Welcome back/)).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
@@ -62,18 +62,24 @@ test.describe("sign up", () => {
   test("renders name, email and password fields", async ({ page }) => {
     await page.goto("/signup");
 
-    await expect(page.getByLabel("Full name")).toBeVisible();
+    await expect(page.getByLabel("First name")).toBeVisible();
+    await expect(page.getByLabel("Last name")).toBeVisible();
     await expect(page.getByLabel("Email")).toBeVisible();
     await expect(page.getByLabel("Password", { exact: true })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Create account" })).toBeVisible();
+    // Submit lives on step 2 of the wizard.
+    await expect(page.getByRole("button", { name: "Continue" })).toBeVisible();
   });
 
   test("blocks submission when the password is too short", async ({ page }) => {
     await page.goto("/signup");
 
-    await page.getByLabel("Full name").fill("Test Person");
+    await page.getByLabel("First name").fill("Test");
+    await page.getByLabel("Last name").fill("Person");
     await page.getByLabel("Email").fill("test@example.com");
     await page.getByLabel("Password", { exact: true }).fill("short");
+    await page.getByLabel("Confirm password").fill("short");
+    await page.getByRole("checkbox").check();
+    await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "Create account" }).click();
 
     await expect(page).toHaveURL(/\/signup/);

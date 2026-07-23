@@ -3,7 +3,6 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { cn } from "@/lib/format";
 import { useNotifications } from "@/lib/notifications/provider";
-import { ViewerAvatar } from "./ViewerAvatar";
 import { DesktopNav } from "./DesktopNav";
 import styles from "./HeroLuxury.module.css";
 
@@ -46,7 +45,18 @@ export function DiscoverTopbar({ logoSrc = "/brand/logo-word.png" }: { logoSrc?:
             </svg>
             {unreadCount > 0 && <span className={styles.badge}>{unreadCount > 9 ? "9+" : unreadCount}</span>}
           </Link>
-          <ViewerAvatar size={34} />
+          {/* Account & settings entry — rose-gold menu; profile lives on the bottom-nav Profile tab. */}
+          <Link
+            href="/profile/settings"
+            aria-label="Account settings menu"
+            className="menu-gold grid h-[34px] w-[34px] flex-none place-items-center rounded-full border border-rose/30 bg-surface/60"
+          >
+            <span aria-hidden className="flex w-[16px] flex-col gap-[4px]">
+              <span className="menu-gold-bar" />
+              <span className="menu-gold-bar" />
+              <span className="menu-gold-bar" />
+            </span>
+          </Link>
         </div>
       </header>
     </div>

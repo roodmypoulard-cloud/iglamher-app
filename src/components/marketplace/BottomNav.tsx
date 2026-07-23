@@ -48,17 +48,22 @@ export function BottomNav() {
       <ul className="flex items-end px-2 pb-2 pt-2">
         {LEFT.map((t) => tab(t.href, t.label, t.Icon))}
 
-        {/* Raised primary action — find & book */}
-        <li className="flex flex-1 justify-center">
+        {/* Raised primary action — Create Job (Customer Job Marketplace) */}
+        <li className="flex flex-1 flex-col items-center">
           <Link
-            href="/search"
-            aria-label="Find a professional"
-            className="-mt-6 grid h-14 w-14 place-items-center rounded-full rose-gradient text-[#2A1712] shadow-[0_10px_26px_rgba(215,160,143,0.4)] transition-transform duration-200 active:scale-95"
+            href="/requests"
+            aria-label="Create a job request"
+            className="fab-gold -mt-6 grid h-14 w-14 place-items-center rounded-full text-[#2A1712]"
           >
+            <span aria-hidden className="fab-gold-halo" />
+            <span aria-hidden className="fab-gold-shine" />
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" />
             </svg>
           </Link>
+          <span aria-hidden className="mt-1 text-[10px] font-semibold text-rose">
+            Create
+          </span>
         </li>
 
         {RIGHT.map((t) => tab(t.href, t.label, t.Icon))}

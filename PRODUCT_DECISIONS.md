@@ -149,3 +149,31 @@ Each: interface + env-gated wrapper + working local fallback + documented integr
   of "wired but dormant" functionality with no code changes.
 - For voice, evaluate Twilio vs LiveKit for cost + number-masking before building.
 - For fraud + identity, evaluate FingerprintJS + Stripe Identity/Persona.
+
+## Customer Mode refinement + Job Marketplace (2026-07-23)
+- **Customer Mode is pro-free**: removed "Complete Professional Setup", "You're a
+  Pro!", "Become a pro" tile (/account), and the pro-dashboard shortcuts from all
+  customer surfaces. The Professional Profile settings card now renders only in
+  Professional Mode. KEPT one discreet "Become a beauty professional" entry in
+  Account Settings → Account Mode (settings = account management; removing every
+  conversion path would kill pro-supply acquisition — flag if it should go too).
+- **Header**: top-right avatar replaced by a rose-gold hamburger (AppHeader +
+  DiscoverTopbar) → /profile/settings. Profile itself lives on the bottom-nav
+  Profile tab. ViewerAvatar.tsx is now orphaned (kept one release for safety).
+- **Create-Job FAB**: bottom-nav center "+" is now the Job Marketplace entry
+  (/requests) — metallic rose-gold, glow + periodic shine, press animation
+  (`fab-gold` utilities; motion gated on prefers-reduced-motion). The old
+  "+ → /search" behavior is covered by Discover's search bar.
+- **Customer Job Marketplace** (migration 0027, `lib/requests/`, `/requests[/new|/[id]]`):
+  customers post beauty job requests (8 categories, description, ≤4 inspiration
+  photos → public `portfolio` bucket under `job-requests/{uid}/`, date, time
+  window, location, house-call flag, optional budget in cents). RLS: owner CRUD,
+  any signed-in user reads OPEN requests — Professional Mode can consume the same
+  policy later with zero schema change. Column guard: owner edits only while
+  open; only self-service transition is open→cancelled.
+- **Support**: SupportLink opens the native composer prefilled (subject + app
+  version/platform/screen); visibility-based fallback sheet with copy button when
+  no mail handler exists. Used in Account Settings + Profile tile.
+- **404 semantics**: routes with loading.tsx stream, so browsers get 200 + the
+  not-found UI; generateMetadata on /professionals/[slug] calls notFound()
+  pre-stream so crawlers still get a real 404. E2E specs assert the UI, not status.

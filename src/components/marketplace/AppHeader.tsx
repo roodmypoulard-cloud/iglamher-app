@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { ViewerAvatar } from "@/components/marketplace/ViewerAvatar";
 import { DesktopNav } from "@/components/marketplace/DesktopNav";
 
 export function AppHeader() {
@@ -33,7 +32,18 @@ export function AppHeader() {
       <DesktopNav className="mx-auto" />
       <div className="flex flex-none items-center gap-4">
         <NotificationBell />
-        <ViewerAvatar size={32} />
+        {/* Account & settings entry — profile itself lives on the bottom-nav Profile tab. */}
+        <Link
+          href="/profile/settings"
+          aria-label="Account settings menu"
+          className="menu-gold grid h-10 w-10 place-items-center rounded-full border border-rose/30 bg-surface/60"
+        >
+          <span aria-hidden className="flex w-[18px] flex-col gap-[4.5px]">
+            <span className="menu-gold-bar" />
+            <span className="menu-gold-bar" />
+            <span className="menu-gold-bar" />
+          </span>
+        </Link>
       </div>
     </header>
   );

@@ -8,6 +8,7 @@ import { cn } from "@/lib/format";
 const LINKS = [
   { href: "/discover", label: "Discover" },
   { href: "/bookings", label: "Bookings" },
+  { href: "/requests", label: "Requests" },
   { href: "/messages", label: "Messages" },
   { href: "/account/favorites", label: "Favorites" },
 ];

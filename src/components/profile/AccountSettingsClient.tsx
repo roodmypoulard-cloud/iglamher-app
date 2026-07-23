@@ -6,6 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
 import { PhoneVerification } from "@/components/profile/PhoneVerification";
 import { PaymentMethodsClient } from "@/components/payments/PaymentMethodsClient";
+import { SupportLink } from "@/components/support/SupportLink";
 import {
   updatePersonalInfoAction, changeEmailAction, changePasswordAction,
   saveNotificationPrefsAction, saveLanguageAction, saveAppearanceAction, downloadMyDataAction,
@@ -64,17 +65,24 @@ function Card({ icon, title, children }: { icon: string; title: string; children
     </section>
   );
 }
-function Row({ label, value, onClick, danger }: { label: string; value?: ReactNode; onClick?: () => void; danger?: boolean }) {
-  const cls = `flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors ${onClick ? "hover:bg-surface-hover" : ""}`;
+function Row({ label, value, onClick, href, danger }: { label: string; value?: ReactNode; onClick?: () => void; href?: string; danger?: boolean }) {
+  const interactive = Boolean(onClick || href);
+  const cls = `flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors ${interactive ? "hover:bg-surface-hover" : ""}`;
   const inner = (
     <>
       <span className={`text-sm font-medium ${danger ? "text-danger" : "text-ink"}`}>{label}</span>
       <span className="flex items-center gap-2 text-sm text-ink-muted">
         {value}
-        {onClick && <Icon d={I.chevron} className="text-ink-muted" />}
+        {interactive && <Icon d={I.chevron} className="text-ink-muted" />}
       </span>
     </>
   );
+  if (href) {
+    // Row renders its own anchor — never nest it inside another link/button.
+    return href.startsWith("/")
+      ? <Link href={href} className={cls}>{inner}</Link>
+      : <a href={href} className={cls}>{inner}</a>;
+  }
   return onClick ? <button type="button" className={cls} onClick={onClick}>{inner}</button> : <div className={cls}>{inner}</div>;
 }
 const input = "w-full rounded-[10px] border border-border bg-bg px-3.5 py-2.5 text-sm text-ink focus:border-rose focus:outline-none";
@@ -171,8 +179,9 @@ export function AccountSettingsClient(props: Props) {
         )}
       </Card>
 
-      {/* PROFESSIONAL PROFILE */}
-      {props.accountType !== "customer" && (
+      {/* PROFESSIONAL PROFILE — Professional Mode only. Customer Mode settings
+          stay customer-only; pros switch modes to manage their public profile. */}
+      {props.accountType !== "customer" && props.activeMode === "professional" && (
         <Card icon={I.briefcase} title="Professional Profile">
           <Row label="Edit public profile & services" onClick={() => router.push("/pro/profile")} />
           <Row label="Onboarding & publish" onClick={() => router.push("/onboarding/professional")} />
@@ -248,15 +257,23 @@ export function AccountSettingsClient(props: Props) {
 
       {/* SUPPORT */}
       <Card icon={I.life} title="Support">
-        <Row label="Help Center" onClick={() => router.push("/how-it-works")} />
-        <a href="mailto:support@iglamher.com" className="block"><Row label="Contact support" value="support@iglamher.com" onClick={() => {}} /></a>
+        {/* Opens the native composer prefilled (subject + device info); falls
+            back to a copy-address sheet when no mail client is registered. */}
+        <SupportLink className="flex w-full items-center justify-between gap-3 px-4 py-3.5 text-left transition-colors hover:bg-surface-hover">
+          <span className="text-sm font-medium text-ink">Contact support</span>
+          <span className="flex items-center gap-2 text-sm text-ink-muted">
+            support@iglamher.com
+            <Icon d={I.chevron} className="text-ink-muted" />
+          </span>
+        </SupportLink>
+        <Row label="Help Center" href="/how-it-works" />
       </Card>
 
       {/* ABOUT */}
       <Card icon={I.info} title="About">
         <Row label="Version" value="Beta 1.0" />
-        <Link href="/legal/terms" className="block"><Row label="Terms of Service" onClick={() => {}} /></Link>
-        <Link href="/legal/privacy" className="block"><Row label="Privacy Policy" onClick={() => {}} /></Link>
+        <Row label="Terms of Service" href="/legal/terms" />
+        <Row label="Privacy Policy" href="/legal/privacy" />
       </Card>
 
       {/* DANGER ZONE */}
