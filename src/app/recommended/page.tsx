@@ -154,7 +154,7 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
       {/* Category selector */}
       <div className="mt-2.5">
         <Suspense>
-          <CategoryRail categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
+          <CategoryRail categories={categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl }))} />
         </Suspense>
       </div>
 

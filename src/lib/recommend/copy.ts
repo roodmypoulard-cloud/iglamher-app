@@ -6,7 +6,7 @@ const LABELS: Record<string, string> = {
   makeup: "Makeup",
   lashes: "Lash",
   nails: "Nail",
-  stylist: "Styling",
+  stylist: "Wardrobe styling",
 };
 
 export function categoryLabelForSlug(slug: CategorySlug | string): string {

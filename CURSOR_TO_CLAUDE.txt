@@ -56,3 +56,12 @@ Gates: tsc 0, lint 0, vitest 179/179, build 0. Commit 148736c. DEPLOYED
 (standing rule): https://iglamher-app.vercel.app/recommended → 200, new 48px
 chip classes confirmed in served HTML. Still open (user):
 APPLY_PENDING_0027.sql, Stripe 1099 toggle.
+
+--- STATUS ---
+[2026-07-23] FIND YOUR GLAM SHIPPED TO PROD (03ddd97 + round-2 density commit).
+User approved after 2 density passes vs his mock (inline slim Back, 44px chips,
+merged count+sort row, compact editorial cards, 12h times). Deployed + verified
+live: /recommended 200, header + info card render, honest "on the way" empty
+state until user taps Recommend in /admin (no recommended pros in prod yet).
+Full gates green incl 52 e2e. USER NEXT: tap Recommend on pros in /admin to
+populate the live shelf; Stripe 1099 toggle still open.
