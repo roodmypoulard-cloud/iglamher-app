@@ -1,22 +1,27 @@
 "use client";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { loadStripe } from "@stripe/stripe-js";
-import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-stripe-js";
-import type { Appearance } from "@stripe/stripe-js";
+import { Elements, CardElement, useElements, useStripe } from "@stripe/react-stripe-js";
+import type { StripeCardElementOptions } from "@stripe/stripe-js";
 import { Sheet } from "@/components/ui/Modal";
 import { createSetupIntentAction } from "@/lib/payments/payment-methods";
 
-// Match the Soft Luxe dark surface so the embedded Stripe form doesn't clash.
-const appearance: Appearance = {
-  theme: "night",
-  variables: {
-    colorPrimary: "#D7A08F",
-    colorBackground: "#181414",
-    colorText: "#FFF8F4",
-    colorTextSecondary: "#CDBEB7",
-    colorDanger: "#D76E73",
-    fontFamily: "system-ui, -apple-system, sans-serif",
-    borderRadius: "10px",
+// CardElement (not PaymentElement): bare number/expiry/CVC fields with ZERO
+// Stripe chrome — no Link banner, no wallet tabs, no floating brand badge to
+// get stuck on screen. Styled to Soft Luxe via the element's own style API;
+// the input container below provides the bordered dark field.
+const cardOptions: StripeCardElementOptions = {
+  hidePostalCode: false,
+  disableLink: true,
+  style: {
+    base: {
+      color: "#FFF8F4",
+      fontFamily: "system-ui, -apple-system, sans-serif",
+      fontSize: "15px",
+      "::placeholder": { color: "#8d817b" },
+      iconColor: "#D7A08F",
+    },
+    invalid: { color: "#D76E73", iconColor: "#D76E73" },
   },
 };
 
@@ -28,19 +33,22 @@ function haptic() {
   }
 }
 
-function CardForm({ onDone }: { onDone: () => void }) {
+function CardForm({ clientSecret, onDone }: { clientSecret: string; onDone: () => void }) {
   const stripe = useStripe();
   const elements = useElements();
   const [error, setError] = useState<string | null>(null);
+  const [ready, setReady] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   async function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!stripe || !elements || submitting) return;
+    const card = elements.getElement(CardElement);
+    if (!card) return;
     setSubmitting(true);
     setError(null);
     try {
-      const result = await stripe.confirmSetup({ elements, redirect: "if_required" });
+      const result = await stripe.confirmCardSetup(clientSecret, { payment_method: { card } });
       if (result.error) {
         setError(result.error.message ?? "We couldn't save that card. Please try again.");
       } else {
@@ -56,19 +64,14 @@ function CardForm({ onDone }: { onDone: () => void }) {
 
   return (
     <form onSubmit={onSubmit} className="space-y-4">
-      {/* Card fields only — no wallet-brand tabs or Stripe terms block inside the
-          iframe; our own "Secured by Stripe" footer line carries the disclosure. */}
-      <PaymentElement
-        options={{
-          layout: "tabs",
-          terms: { card: "never" },
-          wallets: { applePay: "never", googlePay: "never" },
-        }}
-      />
+      <div className="rounded-[12px] border border-border bg-bg px-3.5 py-3.5 focus-within:border-rose">
+        <CardElement options={cardOptions} onReady={() => setReady(true)} />
+      </div>
+      {!ready && <p className="text-center text-[12px] text-ink-muted">Loading secure card fields…</p>}
       {error && <p role="alert" className="text-sm text-danger">{error}</p>}
       <button
         type="submit"
-        disabled={!stripe || submitting}
+        disabled={!stripe || !ready || submitting}
         aria-busy={submitting || undefined}
         className="min-h-[44px] w-full rounded-full rose-gradient py-3.5 text-sm font-semibold text-[#2A1712] transition-transform duration-150 active:scale-[0.98] disabled:opacity-60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/70"
       >
@@ -78,9 +81,10 @@ function CardForm({ onDone }: { onDone: () => void }) {
   );
 }
 
-/** Fetches a fresh SetupIntent on mount and renders the Stripe form. Mounts only
- *  while the sheet is open (the Sheet unmounts its children when closed), so each
- *  open gets a new SetupIntent — no stale client secret, no setState-on-close. */
+/** Fetches a fresh SetupIntent on mount and renders the card fields. Mounts only
+ *  while the sheet is open (Sheet unmounts children when closed), so each open
+ *  gets a new SetupIntent and closing unmounts Elements — which destroys the
+ *  Stripe iframes, so nothing (logo, badge, overlay) can outlive the sheet. */
 function CardSetup({ onDone }: { onDone: () => void }) {
   const [state, setState] = useState<{ clientSecret: string; publishableKey: string } | { error: string } | null>(null);
 
@@ -101,8 +105,8 @@ function CardSetup({ onDone }: { onDone: () => void }) {
   if ("error" in state) return <p role="alert" className="py-4 text-sm text-danger">{state.error}</p>;
   if (!stripePromise) return null;
   return (
-    <Elements stripe={stripePromise} options={{ clientSecret: state.clientSecret, appearance }}>
-      <CardForm onDone={onDone} />
+    <Elements stripe={stripePromise}>
+      <CardForm clientSecret={state.clientSecret} onDone={onDone} />
     </Elements>
   );
 }

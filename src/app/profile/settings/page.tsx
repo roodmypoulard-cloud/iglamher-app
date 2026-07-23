@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Shell } from "@/components/marketplace/Shell";
 import { AccountSettingsClient } from "@/components/profile/AccountSettingsClient";
-import { IdVerificationCard } from "@/components/profile/IdVerificationCard";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getAccountContext } from "@/lib/profile/account";
@@ -68,6 +67,7 @@ export default async function SettingsPage() {
           email: user.email ?? "",
         }}
         phoneVerified={phoneVerified}
+        idVerification={idVerification}
         accountType={ctx?.accountType ?? "customer"}
         activeMode={ctx?.activeMode ?? "customer"}
         accountStatus={(p.account_status as "active" | "paused" | "deactivated") ?? "active"}
@@ -76,10 +76,6 @@ export default async function SettingsPage() {
         language={p.language ?? "en"}
         providers={providers}
       />
-
-      <div className="mt-4">
-        <IdVerificationCard initial={idVerification} />
-      </div>
     </Shell>
   );
 }

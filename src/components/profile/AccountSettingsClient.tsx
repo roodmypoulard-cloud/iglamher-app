@@ -5,6 +5,8 @@ import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
 import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
 import { PhoneVerification } from "@/components/profile/PhoneVerification";
+import { IdVerificationCard } from "@/components/profile/IdVerificationCard";
+import type { IdVerificationState } from "@/lib/profile/id-verification";
 import { PaymentMethodsClient } from "@/components/payments/PaymentMethodsClient";
 import { SupportLink } from "@/components/support/SupportLink";
 import {
@@ -19,6 +21,7 @@ type Provider = "email" | "google" | "apple";
 type Props = {
   personal: { firstName: string; lastName: string; phone: string; email: string };
   phoneVerified: boolean;
+  idVerification: IdVerificationState | null;
   accountType: "customer" | "professional" | "both";
   activeMode: "customer" | "professional";
   accountStatus: "active" | "paused" | "deactivated";
@@ -162,6 +165,9 @@ export function AccountSettingsClient(props: Props) {
         />
         <Row label="Password" value="••••••••" onClick={() => setDialog("password")} />
       </Card>
+
+      {/* IDENTITY VERIFICATION — between Personal Information and Account Mode. */}
+      <IdVerificationCard initial={props.idVerification} />
 
       {/* ACCOUNT MODE */}
       <Card icon={I.swap} title="Account Mode">
