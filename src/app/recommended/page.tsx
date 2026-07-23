@@ -126,31 +126,31 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
     <Shell back="/discover">
       {/* Header — serif, centered, editorial */}
       <div className="text-center">
-        <h1 className="font-display text-[34px] font-bold leading-tight text-rose-light">Find Your Glam</h1>
-        <p className="mx-auto mt-1.5 max-w-[42ch] text-[13.5px] leading-relaxed text-ink-secondary">
+        <h1 className="font-display text-[26px] font-bold leading-tight text-rose-light">Find Your Glam</h1>
+        <p className="mx-auto mt-1 max-w-[46ch] text-[12px] leading-relaxed text-ink-secondary">
           Discover trusted beauty professionals selected for quality, reliability, and client care.
         </p>
       </div>
 
       {/* Info card */}
-      <div className="mt-4 flex items-center gap-3 rounded-[16px] border border-rose/30 bg-rose/[0.05] px-4 py-3">
-        <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-rose" aria-hidden>
+      <div className="mt-3 flex items-center gap-2.5 rounded-[14px] border border-rose/30 bg-rose/[0.05] px-3.5 py-2">
+        <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-rose" aria-hidden>
           <path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.8 6.4 20l1.3-6.2L3 9.5l6.3-.7L12 3Z" />
         </svg>
-        <p className="text-[12.5px] leading-relaxed text-ink-secondary">
+        <p className="text-[11.5px] leading-snug text-ink-secondary">
           Choose the type of glam you need to see recommended professionals available near you.
         </p>
       </div>
 
       {/* Category selector */}
-      <div className="mt-4">
+      <div className="mt-3">
         <Suspense>
           <CategoryRail categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
         </Suspense>
       </div>
 
       {/* Search + filters */}
-      <div className="mt-3 flex items-center gap-2.5">
+      <div className="mt-2.5 flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <SearchBar initial={q} basePath="/recommended" placeholder="Search recommended professionals" />
         </div>
@@ -158,18 +158,18 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
           <MobileFilterSheet />
         </Suspense>
       </div>
-      <div className="mt-2.5 flex items-center justify-between gap-3">
+      <div className="mt-2 flex items-center justify-between gap-3">
         <Suspense>
           <AreaControl />
         </Suspense>
       </div>
-      <div className="mt-2.5 flex justify-end">
+      <div className="mt-2 flex justify-end">
         <Suspense>
           <SortSelect />
         </Suspense>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-3">
         <Suspense fallback={<GridSkeleton />}>
           <Results raw={raw} />
         </Suspense>

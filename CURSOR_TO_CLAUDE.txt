@@ -1,92 +1,41 @@
 CURSOR → CLAUDE (session c10d8f4a)
-USER: make sure you follow this design for the recommendation window.
-PIXEL SOURCE OF TRUTH (open and match):
-`/Users/roodmypoulard/iglamher-app/design-refs/recommendation-window.png`
+USER: "the graphics is look too big make sure they match"
+PIXEL REF: `/Users/roodmypoulard/iglamher-app/design-refs/recommendation-window.png`
 
-STANDING RULE: when done + gates green → **deploy immediately**. Never ask "say deploy".
+STANDING RULE: gates green → commit → **deploy immediately**. Never ask say deploy.
 
-## Target route
-Rebuild **`/recommended`** ("Find Your Glam" recommendation window) to match the mock. Soft Luxe dark + rose-gold. Do NOT invent purple AI aesthetics. Reuse existing Shell/BottomNav/DiscoverTopbar patterns where they already match.
+## Problem
+On `/recommended`, graphics/UI chrome are oversized vs the mock. Scale DOWN so proportions match the PNG.
 
-## Layout to match (top → bottom)
+## Scale targets (match mock density)
 
-### Top bar
-- Back (left)
-- Center: iGlamHer wordmark + "BEAUTY ON DEMAND" tagline (same brand treatment as Discover)
-- Right: notification bell (unread badge) + hamburger → settings/menu (reuse DiscoverTopbar pattern; add Back)
+### CategoryRail (`CategoryRail.tsx`)
+- Circles are currently **64×64** — too big. Target ~**48×48** (mock-compact).
+- Icons currently 24px → ~**18–20px**.
+- Labels ~10–11px; tighter gap between chips (~gap-2.5).
+- Selected glow softer / proportional to smaller chip (don’t keep heavy 64px shadow).
 
-### Hero
-- Display title: **"Find Your Glam"** — large serif/display, rose-gold metallic feel
-- Subcopy: trusted beauty pros selected for quality, reliability, client care
-- Gold-bordered tip box with star: choose the type of glam to see recommended pros near you
+### RecommendedProCard (`RecommendedProCard.tsx`)
+- Left image too tall/wide (min-h 176, max-w 168). Match mock: roughly **square ~112–120px** (or ~32–34% width), shorter card overall.
+- FEATURED badge + heart smaller / tighter insets.
+- Name ~15–16px; specialty/location/rating slightly tighter line-height.
+- Pills + View Profile / Book Now slightly more compact (still ≥44px tap where required, or 40px if mock is denser — keep usable).
 
-### Category carousel (horizontal scroll)
-Circular icon chips: **All** (selected = soft gold glow), Makeup, Hair, Nails, Lashes, Brows, Bridal
-- Selecting a category filters the recommended list (All = unfiltered)
-- Wire to real categories where they exist; don't invent fake data
+### Hero / tip (`recommended/page.tsx`)
+- "Find Your Glam" ~**28–30px** if 34px feels huge; tip box icon ~16–18px; less vertical padding so more cards fit above the fold like the mock.
+- Search/filters row height should feel like the mock (not oversized inputs).
 
-### Search + filters row
-- Search input placeholder: **"Search recommended professionals"**
-- Filters button with active-count badge when filters applied
-- Location line: **"Recommended near {city}"** + **Change >** (use existing location prefs if any)
+### Also check
+- FavoriteButton size on the card image if it’s dominating.
+- Any other oversized icons on this page only — don’t shrink Discover globally unless shared component is used only here; prefer local overrides.
 
-### Professional cards (list — match mock composition)
-Each card:
-- LEFT: large rounded work/cover image
-  - "FEATURED" badge top-left when featured/recommended
-  - Heart favorite bottom-right of image
-- RIGHT:
-  - Name + verified check
-  - Specialty · City · distance
-  - Rating (gold star) + review count
-  - "Starts at $X"
-  - Pills: next availability (green, if data exists) + Verified (gold) when verified
-  - ⋯ menu top-right (can link report/share or hide if no actions yet — don't leave broken)
-  - Actions: outlined **"View Profile"** + rose-gradient **"Book Now"** (→ book flow for that pro)
+Open the PNG side-by-side and tune until category rail + card image proportions match. Soft Luxe only.
 
-Do NOT use the thin current ProfessionalCard list variant as-is if it doesn't match — create a dedicated recommended-card variant or page-local card that matches the mock.
-
-### Bottom nav
-Keep existing BottomNav (Home / Bookings / Create FAB / Messages / Profile avatar). Home selected when appropriate; recommended may sit under Discover entry — don't break nav.
-
-## Data / behavior
-- Keep using recommended/featured professionals data (`getRecommendedProfessionals` / recommend engine — pick the correct source of truth for this page).
-- Search filters the in-page list (client or query param — prefer URL-friendly if easy).
-- Empty state Soft Luxe, not broken.
-- Mobile-first; readable on desktop without looking like a dashboard.
-
-## Done when
-1. `/recommended` visually tracks the PNG (hero, chips, search/filters, card layout, CTAs).
-2. Gates green → **commit** → **`npx vercel --prod` immediately**.
-3. Confirm live URL.
-4. Append --- STATUS --- below. Short user note.
-
-No inventing Stripe live keys. No purple defaults.
+## Done
+1. Visual scale matches mock (smaller circles, denser cards).
+2. Gates → commit → deploy prod.
+3. STATUS + short note to user with live URL.
 --- NEXT ---
-Match recommendation-window.png on /recommended; auto-deploy.
+Shrink oversized graphics on /recommended to match mock; auto-deploy.
 --- STATUS ---
-[2026-07-23, session c10d8f4a] ✅ /recommended MATCHES MOCK — DEPLOYED.
-
-Studied design-refs/recommendation-window.png. Found /recommended had already
-been rebuilt to the "Find Your Glam" design by the parallel session (uncommitted
-WIP on disk: page.tsx + CategoryRail/AreaControl/RecommendedProCard +
-SearchBar/Filters/params/ranking + recommend/copy + next-opening). I did NOT
-duplicate it — verified it against the PNG, discarded my own draft components,
-and made the one clear deviation match: category chips are now CIRCULAR icon
-chips with the label BELOW (were squircles with label inside), per the mock.
-
-Match confirmed vs PNG: top bar (wordmark + bell + hamburger via Shell/AppHeader
-+ Back), "Find Your Glam" rose-gold serif hero + subcopy + gold-bordered star
-tip box, horizontal circular category rail (All=gold glow, real cats: All/Makeup/
-Hair/Nails/Lashes/Stylist — Brows/Bridal intentionally NOT invented, no DB
-category), search "Search recommended professionals" + Filters + "Recommended
-near {city} · Change", editorial pro cards (cover image + FEATURED badge + heart,
-name+verified, specialty·city·distance, gold star+reviews, Starts at $X, green
-next-avail pill + Verified pill, View Profile + Book Now→/book/[slug]), BottomNav
-intact. All live data (getRecommendedProfessionals ∪ getFeaturedProfessionals).
-
-Committed (2f4df47 + gitignore) INCLUDING two files the WIP imported but left
-untracked (recommend/copy.ts, next-opening.ts) — would've broken a clean build.
-Gates: tsc 0, lint 0, vitest 179/179, build 0. DEPLOYED (standing auto-deploy
-rule): https://iglamher-app.vercel.app/recommended → 200, "Find Your Glam"
-renders. Still open (user): APPLY_PENDING_0027.sql, Stripe 1099 toggle.
+(awaiting)
