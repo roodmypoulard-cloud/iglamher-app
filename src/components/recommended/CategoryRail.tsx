@@ -8,36 +8,36 @@ type IconProps = { className?: string };
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
 
 const AllIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <path d="M4 6c5-2.5 11-2.5 16 0M4 12c5-2.5 11-2.5 16 0M4 18c5-2.5 11-2.5 16 0" />
   </svg>
 );
 const MakeupIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <path d="m14.5 3.5 6 6-9.5 9.5a2.6 2.6 0 0 1-1.6.75l-4 .35.35-4a2.6 2.6 0 0 1 .75-1.6L16 5" />
     <path d="m13 5 6 6" />
   </svg>
 );
 const HairIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <path d="M12 3c-4 0-6.5 3-6.5 6.6 0 2.6.9 3.7.6 6C5.8 18 5 19.5 5 21h14c0-1.5-.8-3-1.1-5.4-.3-2.3.6-3.4.6-6C18.5 6 16 3 12 3Z" />
     <path d="M9.5 21c0-3 .5-5.5 2.5-8 2 2.5 2.5 5 2.5 8" />
   </svg>
 );
 const NailsIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <path d="M9 9h6v11a1 1 0 0 1-1 1h-4a1 1 0 0 1-1-1V9Z" />
     <path d="M10 9V5a2 2 0 0 1 4 0v4M8 3.5 9 5m7-1.5L15 5" />
   </svg>
 );
 const LashesIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <path d="M3 12c2.8-3.8 6-5.7 9-5.7S18.2 8.2 21 12" />
     <path d="M6 13.5 5 16m4.5-1.5-.6 2.6M13 15l.5 2.6M17.6 13.7l1 2.4" />
   </svg>
 );
 const StylistIcon = (p: IconProps) => (
-  <svg viewBox="0 0 24 24" width={19} height={19} {...stroke} className={p.className} aria-hidden>
+  <svg viewBox="0 0 24 24" width={16} height={16} {...stroke} className={p.className} aria-hidden>
     <circle cx="6.5" cy="17.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" />
     <path d="m8.6 15.9 9-11.4M15.4 15.9l-9-11.4" />
   </svg>

@@ -38,4 +38,21 @@ Open the PNG side-by-side and tune until category rail + card image proportions 
 --- NEXT ---
 Shrink oversized graphics on /recommended to match mock; auto-deploy.
 --- STATUS ---
-(awaiting)
+[2026-07-23, session c10d8f4a] ✅ SHRUNK TO MOCK SCALE — DEPLOYED.
+
+Re-opened the PNG and tuned against it. Split of work (parallel session had
+already landed part of the shrink in ba39985 — I verified, didn't duplicate):
+- CategoryRail (mine, this commit): chips 64→48px (h-12 w-12), icons 24→19px,
+  selected glow softened (0_5px_14px vs 0_8px_22px), gap 3→2.5, label 11→10.5px,
+  chip/label gap tightened.
+- RecommendedProCard: image + type + pills + 36px buttons already at mock
+  density from ba39985 (image w-[34%] 104–136px, min-h 142, name 15px,
+  9.5px pills). My additions: FEATURED badge tighter (8.5px, 1.5 insets),
+  heart FavoriteButton 34→28px.
+- Hero/tip: already mock-dense in ba39985 (26px hero, 16px tip icon, py-2) —
+  left as-is, matches PNG.
+
+Gates: tsc 0, lint 0, vitest 179/179, build 0. Commit 148736c. DEPLOYED
+(standing rule): https://iglamher-app.vercel.app/recommended → 200, new 48px
+chip classes confirmed in served HTML. Still open (user):
+APPLY_PENDING_0027.sql, Stripe 1099 toggle.

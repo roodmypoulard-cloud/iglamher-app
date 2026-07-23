@@ -7,6 +7,7 @@ import { CategoryRail } from "@/components/recommended/CategoryRail";
 import { AreaControl } from "@/components/recommended/AreaControl";
 import { RecommendedProCard } from "@/components/recommended/RecommendedProCard";
 import { GridSkeleton } from "@/components/ui/states";
+import { BackButton } from "@/components/ui/BackButton";
 import { getRecommendedProfessionals, listCategories } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
 import { parseSearchParams } from "@/lib/marketplace/params";
@@ -93,11 +94,16 @@ async function Results({ raw }: { raw: RawSearchParams }) {
   const now = new Date();
   return (
     <>
-      <p className="mb-3 text-[12.5px] text-ink-muted">
-        {total} recommended {total === 1 ? "professional" : "professionals"}
-        {params.q ? ` for “${params.q}”` : ""}
-      </p>
-      <div className="space-y-3">
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <p className="min-w-0 truncate text-[11.5px] text-ink-muted">
+          {total} recommended {total === 1 ? "professional" : "professionals"}
+          {params.q ? ` for “${params.q}”` : ""}
+        </p>
+        <Suspense>
+          <SortSelect />
+        </Suspense>
+      </div>
+      <div className="space-y-2.5">
         {pros.map((p) => (
           <RecommendedProCard key={p.userId} pro={p} favorited={favoritedIds.includes(p.userId)} nextOpening={nextOpeningLabel(p, now)} />
         ))}
@@ -123,34 +129,37 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
   const categories = await listCategories();
 
   return (
-    <Shell back="/discover">
+    <Shell>
+      {/* Slim inline back (the standard pill costs a full row on this dense page) */}
+      <BackButton fallback="/discover" label="Back" className="!min-h-[30px] !border-0 !bg-transparent !px-0 !py-0 text-[13px] !backdrop-blur-none" />
+
       {/* Header — serif, centered, editorial */}
-      <div className="text-center">
-        <h1 className="font-display text-[26px] font-bold leading-tight text-rose-light">Find Your Glam</h1>
-        <p className="mx-auto mt-1 max-w-[46ch] text-[12px] leading-relaxed text-ink-secondary">
+      <div className="-mt-1 text-center">
+        <h1 className="font-display text-[23px] font-bold leading-tight text-rose-light">Find Your Glam</h1>
+        <p className="mx-auto mt-0.5 max-w-[48ch] text-[11px] leading-snug text-ink-secondary">
           Discover trusted beauty professionals selected for quality, reliability, and client care.
         </p>
       </div>
 
       {/* Info card */}
-      <div className="mt-3 flex items-center gap-2.5 rounded-[14px] border border-rose/30 bg-rose/[0.05] px-3.5 py-2">
+      <div className="mt-2.5 flex items-center gap-2 rounded-[12px] border border-rose/30 bg-rose/[0.05] px-3 py-1.5">
         <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-rose" aria-hidden>
           <path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.8 6.4 20l1.3-6.2L3 9.5l6.3-.7L12 3Z" />
         </svg>
-        <p className="text-[11.5px] leading-snug text-ink-secondary">
+        <p className="text-[10.5px] leading-snug text-ink-secondary">
           Choose the type of glam you need to see recommended professionals available near you.
         </p>
       </div>
 
       {/* Category selector */}
-      <div className="mt-3">
+      <div className="mt-2.5">
         <Suspense>
           <CategoryRail categories={categories.map((c) => ({ slug: c.slug, name: c.name }))} />
         </Suspense>
       </div>
 
       {/* Search + filters */}
-      <div className="mt-2.5 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <div className="min-w-0 flex-1">
           <SearchBar initial={q} basePath="/recommended" placeholder="Search recommended professionals" />
         </div>
@@ -163,12 +172,6 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
           <AreaControl />
         </Suspense>
       </div>
-      <div className="mt-2 flex justify-end">
-        <Suspense>
-          <SortSelect />
-        </Suspense>
-      </div>
-
       <div className="mt-3">
         <Suspense fallback={<GridSkeleton />}>
           <Results raw={raw} />
