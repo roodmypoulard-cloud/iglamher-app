@@ -212,10 +212,18 @@ export async function getFeaturedProfessionals(limit = 6, viewer: GeoPoint = DEF
   return views.filter((v) => v.isFeatured).slice(0, limit);
 }
 
-/** iGlamHer Recommended — admin-curated placement (paid later; expiry-aware). */
-export async function getRecommendedProfessionals(limit = 12, viewer: GeoPoint = DEFAULT_VIEWER): Promise<ProfessionalCardView[]> {
-  const views = await searchProfessionalViews({ sort: "rating" }, viewer);
-  return views.filter((v) => v.isRecommended).slice(0, limit);
+/** iGlamHer Recommended — admin-curated placement (paid later; expiry-aware).
+ *  Full search/filter/sort support: runs the standard marketplace pipeline
+ *  (text relevance, category, distance, rating, price, location type,
+ *  verified, sort) constrained to recommended pros. Server-side only. */
+export async function getRecommendedProfessionals(
+  params: SearchParams = {},
+  limit = 12,
+  viewer: GeoPoint = DEFAULT_VIEWER,
+): Promise<{ pros: ProfessionalCardView[]; total: number }> {
+  const views = await searchProfessionalViews({ sort: "recommended", ...params }, viewer);
+  const recommended = views.filter((v) => v.isRecommended);
+  return { pros: recommended.slice(0, limit), total: recommended.length };
 }
 
 export async function getProfessionalsByCategory(slug: CategorySlug, viewer: GeoPoint = DEFAULT_VIEWER): Promise<ProfessionalCardView[]> {

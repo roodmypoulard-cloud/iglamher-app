@@ -24,6 +24,7 @@ export type SortKey =
   | "recommended"
   | "nearest"
   | "rating"
+  | "reviews"
   | "price_asc"
   | "earliest";
 
@@ -186,6 +187,9 @@ export function sortViews(views: ProfessionalCardView[], sort: SortKey): Profess
       break;
     case "rating":
       out.sort((a, b) => b.ratingAverage - a.ratingAverage || b.reviewCount - a.reviewCount);
+      break;
+    case "reviews":
+      out.sort((a, b) => b.reviewCount - a.reviewCount || b.ratingAverage - a.ratingAverage);
       break;
     case "price_asc":
       out.sort((a, b) => a.startingPriceCents - b.startingPriceCents);

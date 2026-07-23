@@ -12,12 +12,15 @@ export function SearchBar({
   placeholder = "Search makeup, hair, lashes, a name or city…",
   iconRight = false,
   variant = "default",
+  basePath = "/search",
 }: {
   initial?: string;
   autoFocus?: boolean;
   placeholder?: string;
   iconRight?: boolean;
   variant?: "default" | "cta";
+  /** Route that receives the query — lets Recommended reuse the bar in place. */
+  basePath?: string;
 }) {
   const router = useRouter();
   const [value, setValue] = useState(initial);
@@ -44,7 +47,7 @@ export function SearchBar({
     addRecentSearch(q);
     track("search_submitted", { hasQuery: q.length > 0 });
     setOpen(false);
-    router.push(q ? `/search?q=${encodeURIComponent(q)}` : "/search");
+    router.push(q ? `${basePath}?q=${encodeURIComponent(q)}` : basePath);
   }
 
   if (variant === "cta") {

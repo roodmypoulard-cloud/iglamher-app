@@ -24,6 +24,7 @@ const SORT_OPTS: { value: SortKey; label: string }[] = [
   { value: "recommended", label: "Recommended" },
   { value: "nearest", label: "Nearest" },
   { value: "rating", label: "Highest rated" },
+  { value: "reviews", label: "Most reviewed" },
   { value: "price_asc", label: "Price: low to high" },
   { value: "earliest", label: "Earliest availability" },
 ];

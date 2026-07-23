@@ -6,7 +6,7 @@ import type { CategorySlug, LocationType } from "@/lib/data/model";
 
 const CATEGORIES: CategorySlug[] = ["hair", "makeup", "lashes", "nails", "stylist"];
 const LOCATIONS: Array<LocationType | "all"> = ["all", "mobile", "in_salon", "both"];
-const SORTS: SortKey[] = ["recommended", "nearest", "rating", "price_asc", "earliest"];
+const SORTS: SortKey[] = ["recommended", "nearest", "rating", "reviews", "price_asc", "earliest"];
 
 type RawParams = Record<string, string | string[] | undefined>;
 
