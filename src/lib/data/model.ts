@@ -112,6 +112,8 @@ export interface Professional {
   isActive: boolean;
   isVerified: boolean;
   isFeatured: boolean;
+  /** Admin-curated "iGlamHer Recommended" placement (future paid slot). */
+  isRecommended?: boolean;
   instantBook: boolean;
   ratingAverage: number;
   reviewCount: number;

@@ -1,19 +1,22 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { setProfessionalActiveAction, setProfessionalFeaturedAction } from "@/lib/admin/actions";
+import { setProfessionalActiveAction, setProfessionalFeaturedAction, setProfessionalRecommendedAction } from "@/lib/admin/actions";
 
 export function AdminProRow({
   userId,
   active,
   featured,
+  recommended = false,
 }: {
   userId: string;
   active: boolean;
   featured: boolean;
+  recommended?: boolean;
 }) {
   const [isActive, setActive] = useState(active);
   const [isFeatured, setFeatured] = useState(featured);
+  const [isRecommended, setRecommended] = useState(recommended);
   const [pending, start] = useTransition();
   const [err, setErr] = useState<string | null>(null);
 
@@ -60,6 +63,23 @@ export function AdminProRow({
         }`}
       >
         {isFeatured ? "Featured" : "Feature"}
+      </button>
+      {/* Curated placement — free at launch, becomes the $2.99/mo paid slot. */}
+      <button
+        type="button"
+        disabled={pending}
+        onClick={() =>
+          start(async () => {
+            const res = await setProfessionalRecommendedAction(userId, !isRecommended);
+            if (res.ok) setRecommended(!isRecommended);
+            else setErr(res.error);
+          })
+        }
+        className={`rounded-full px-3 py-1 text-[12px] font-semibold ${
+          isRecommended ? "gold-glossy" : "border border-border text-ink-muted"
+        }`}
+      >
+        {isRecommended ? "★ Recommended" : "Recommend"}
       </button>
       {err && <span className="text-[11px] text-danger">{err}</span>}
     </div>

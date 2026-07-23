@@ -186,3 +186,15 @@ Each: interface + env-gated wrapper + working local fallback + documented integr
   + checkout + `customer.subscription.updated/deleted` webhook syncing
   `is_featured`. Ranking already weighs `featured`, so search/discover order is
   consistent with the category page.
+
+## "iGlamHer Recommended" curated placement (2026-07-23)
+- Home hero chip "Easy Booking" (how-it-works sheet, redundant with /how-it-works)
+  replaced by "Recommended" → /recommended: only pros WE approve (admin toggle on
+  /admin, gold "★ Recommended" chip, audit path via setProfessionalRecommendedAction).
+- Monetization-ready by design, FREE at launch: professional_profiles.is_recommended
+  + recommended_at + recommended_until (0028). NULL until = active (free era);
+  when the $2.99/mo placement subscription ships, the Stripe webhook maintains
+  recommended_until each period — lapsed payment auto-drops the placement with
+  zero schema change. Column guard extended: placement is platform-only (a pro
+  can never PATCH themselves into the paid shelf).
+- EasyBookingSheet.tsx deleted (booking explainer lives at /how-it-works).

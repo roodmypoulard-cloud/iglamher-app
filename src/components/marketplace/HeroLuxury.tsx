@@ -4,7 +4,6 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { addRecentSearch } from "@/lib/search/recent";
-import { EasyBookingSheet } from "./EasyBookingSheet";
 import styles from "./HeroLuxury.module.css";
 
 function haptic() {
@@ -30,7 +29,6 @@ export default function HeroLuxury({
 }: HeroLuxuryProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
-  const [easyOpen, setEasyOpen] = useState(false);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -102,12 +100,10 @@ export default function HeroLuxury({
           onClick={() => goFromChip("/discover?verified=1", "verified")}
         />
         <Benefit
-          icon="calendar"
-          label="Easy Booking"
-          onClick={() => {
-            haptic();
-            setEasyOpen(true);
-          }}
+          icon="crown"
+          label="Recommended"
+          pending={isPending && pendingKey === "recommended"}
+          onClick={() => goFromChip("/recommended", "recommended")}
         />
         <Benefit
           icon="heart"
@@ -116,8 +112,6 @@ export default function HeroLuxury({
           onClick={() => goFromChip("/reviews", "reviews")}
         />
       </div>
-
-      <EasyBookingSheet open={easyOpen} onClose={() => setEasyOpen(false)} />
 
       <form className={styles.search} onSubmit={submitSearch} role="search">
         <svg className={styles.searchIcon} viewBox="0 0 24 24" aria-hidden="true">
@@ -147,7 +141,7 @@ function Benefit({
   onClick,
   pending = false,
 }: {
-  icon: "sparkle" | "calendar" | "heart";
+  icon: "sparkle" | "crown" | "heart";
   label: string;
   onClick: () => void;
   pending?: boolean;
@@ -167,10 +161,10 @@ function Benefit({
           <path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z" />
         </svg>
       )}
-      {icon === "calendar" && (
+      {icon === "crown" && (
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <rect x="4" y="5" width="16" height="15" rx="2" />
-          <path d="M8 3v4M16 3v4M4 10h16" />
+          <path d="M4 17h16l-1-7.5-3.6 2.8L12 6l-3.4 6.3L5 9.5 4 17Z" />
+          <path d="M4 19.4h16" />
         </svg>
       )}
       {icon === "heart" && (

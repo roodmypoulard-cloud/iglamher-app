@@ -1,0 +1,15 @@
+---
+description: Always deploy to Vercel prod after shipping fixes — never ask the user to say deploy
+alwaysApply: true
+---
+
+# Auto-deploy after every ship
+
+When the user sends product work, bug fixes, or polish for iGlamHer:
+
+1. After Claude (or you) finishes a prod-worthy commit, **deploy immediately** with `npx vercel --prod` (or the project's usual production deploy).
+2. **Never** ask the user to type "deploy" or end messages with "say deploy when ready."
+3. Confirm the live URL briefly after deploy succeeds.
+4. Exception only if the user explicitly says **do not deploy** for that change.
+
+This overrides any earlier "no deploy without asking" habit for this project.

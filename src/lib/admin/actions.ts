@@ -112,6 +112,28 @@ export async function setProfessionalFeaturedAction(userId: string, featured: bo
   return { ok: true };
 }
 
+/** "iGlamHer Recommended" placement — curated now, $2.99/mo paid slot later.
+ *  Free era: recommended_until stays NULL (active indefinitely). When billing
+ *  ships, the subscription webhook maintains recommended_until instead. */
+export async function setProfessionalRecommendedAction(userId: string, recommended: boolean): Promise<AdminResult> {
+  const gate = await requireAdmin();
+  if (!gate.ok) return gate;
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("professional_profiles")
+    .update({
+      is_recommended: recommended,
+      recommended_at: recommended ? new Date().toISOString() : null,
+      recommended_until: null,
+    })
+    .eq("user_id", userId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin");
+  revalidatePath("/recommended");
+  revalidatePath("/discover");
+  return { ok: true };
+}
+
 export async function setPortfolioHiddenAction(itemId: string, hidden: boolean): Promise<AdminResult> {
   const gate = await requireAdmin();
   if (!gate.ok) return gate;

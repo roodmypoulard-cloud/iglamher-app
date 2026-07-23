@@ -1,116 +1,28 @@
-CURSOR → CLAUDE (session c10d8f4a) — PRODUCT FIX BATCH
-User approved. Cursor supervises. Work in ~/iglamher-app.
-No deploy unless user says deploy. Soft Luxe; minimal drive-by refactors.
+CURSOR → CLAUDE (session c10d8f4a)
+STANDING RULE FROM USER (permanent until revoked):
+**Never ask the user to say "deploy".** After every completed product/bugfix commit that is meant for prod, **deploy immediately** with `npx vercel --prod` (or project usual). Do not wait for permission. Do not end messages with "say deploy".
 
-## 1. Bookings tab (BottomNav → /bookings)
-**Need:** See ALL bookings (upcoming + past) AND a clear button to add a NEW booking.
-**Today:** List exists; empty state links Discover; no persistent "New booking" CTA when list is non-empty.
-**Do:**
-- Keep full upcoming + past lists.
-- Always show primary CTA e.g. "Book a pro" / "New booking" → category/easy-booking entry (same destination as Start Booking flow below, prefer `/categories` or easy-book category picker — NOT a dead end).
-- Empty state CTA = same New booking action.
+## Do now
+1. Deploy commit 3bf2352 (ID placement + CardElement Stripe fix) to production NOW.
+2. Confirm Ready + https://iglamher-app.vercel.app
+3. Brief smoke if easy.
+4. Append --- STATUS --- below. Acknowledge standing auto-deploy rule in STATUS.
 
-## 2. "View Profile" 404
-**Bug:** Profile header "View Profile" uses `viewProfileHref = proSlug ? /professionals/${slug} : /profile/settings`. Customers without a public pro slug OR bad/missing slug → 404 or wrong page.
-**Need:** View Profile shows the customer's own profile information — same destination family as the 3-bar menu (Account settings / profile info), NOT a public pro page that 404s.
-**Do:**
-- For customer mode / no public pro profile: "View Profile" → `/profile/settings` (or a dedicated customer profile view if you add a thin read-only summary — settings is OK if it shows their info).
-- Only link `/professionals/[slug]` when slug exists AND page renders (verify); otherwise fallback settings.
-- Never 404.
-
-## 3. Customer ID upload
-**Need:** Customers must be able to upload ID (KYC / trust), not only pros.
-**Do:**
-- Customer-accessible ID upload in Account Settings (or Profile settings) — reuse patterns from pro docs if possible (`id_document` / profiles fields from 0006: `is_id_verified`, `id_document_url`).
-- Clear UI: upload, pending, verified states.
-- Admin/approval path: when staff approves customer ID, set verified flag (admin-only write; guard columns).
-- Migration if columns/RLS incomplete — add APPLY_PENDING_00xx.sql + note for user to paste if needed.
-
-## 4. Verified customer gold checkmark
-**Need:** Approved/verified customers show a gold verification checkmark on their profile (and anywhere avatar+name shows identity if cheap).
-**Do:**
-- Gold check (reuse VerifiedIcon / gold-glossy) when customer `is_id_verified` (or agreed flag) is true.
-- Show on Profile header next to name; optionally BottomNav avatar later.
-- Do NOT use pro `professional_profiles.is_verified` for customers.
-
-## 5. Easy Booking / Start Booking → book a professional
-**Today:** EasyBookingSheet "Start Booking" only `router.push("/discover")` — not a real category→pros book flow.
-**Need:**
-1. Start Booking opens a page/sheet of CATEGORIES (Hair, Makeup, etc.).
-2. Tap category (e.g. Hair) → list of professionals in that category.
-3. Order: **Recommended / featured first**, then normal accounts.
-4. Tap pro → existing book flow (`/book/[slug]` or professional page then book).
-
-**Recommended / $2.99 subscription:**
-- Pros on a **$2.99/mo recommendation subscription** appear in the Recommended section (and sort above normals).
-- Implement minimal viable: Stripe subscription product OR flag `is_featured` / `recommendation_subscribed` on professional_profiles tied to active sub.
-- If full Stripe Billing is heavy: schema flag + admin/toggle + TODO for webhook; still sort recommended first in UI. Prefer real Stripe Price $2.99 if Connect/Billing already patterned — don't invent live keys.
-- Document in PRODUCT_DECISIONS.md briefly.
-
-## 6. Stripe logo on Add Payment
-**Need:** Remove/hide the Stripe mark stuck in the corner on payment methods UI.
-**Do:** Find Payment Element / Elements appearance / link branding; hide or minimize Stripe badge per Stripe Appearance API / layout options. Keep PCI-compliant Elements; just no ugly corner watermark if controllable. If Stripe requires a mark, put it discreetly in footer copy ("Secured by Stripe") not floating corner.
-
-## 7. BottomNav Profile icon → circular customer photo
-**Need:** Profile tab icon = circle with the signed-in customer's avatar image (fallback initials), not generic UserIcon.
-**Do:** Client-aware avatar in BottomNav (fetch from profile/avatar context or small hook). Same energy as Discover ViewerAvatar. Size ~22–28px circle, rose ring optional.
-
-## Acceptance
-- Bookings: all bookings visible + New booking CTA always
-- View Profile never 404s for customer
-- Customer can upload ID; verified → gold check on profile
-- Start Booking → categories → category pros (recommended first) → book
-- Payment UI without corner Stripe logo clutter
-- BottomNav Profile shows photo circle
-- typecheck + tests green
-- Append --- STATUS --- to this file; list migrations user must paste
-- No deploy unless asked
-
+No live Stripe secrets inventing.
 --- NEXT ---
-Implement 1–7. Cursor will verify + polish bugs after.
+Deploy 3bf2352 immediately. Auto-deploy forever after.
 --- STATUS ---
-[2026-07-23, session c10d8f4a] ALL 7 IMPLEMENTED — commit 9baa071. Not deployed.
+[2026-07-23, session c10d8f4a] ✅ DEPLOYED + RULE ACKNOWLEDGED
 
-1. BOOKINGS: header "New booking" pill (rose-gradient, always visible) → /categories;
-   empty-state CTA now "Book a pro" → /categories. Upcoming + past lists unchanged.
-2. VIEW PROFILE 404: root cause = header linked /professionals/[slug] whenever a
-   slug existed, but that page only renders is_active pros → applicants/customers
-   404'd. profile-data now exposes proActive (is_active); header links the public
-   page ONLY when slug && proActive, else /profile/settings. Never 404s.
-3. CUSTOMER ID: reuses 0006 columns (customer_profiles.is_id_verified /
-   verification_status / id_document_url — verified present in prod) + the private
-   verification-docs bucket ({uid}/customer-id/, owner-folder RLS from 0023).
-   - lib/profile/id-verification.ts: getMyIdVerificationAction +
-     uploadIdDocumentAction (mime/size/magic-byte checks reused from pro flow;
-     unsubmitted|rejected→pending).
-   - Settings: IdVerificationCard (upload / under-review / verified-gold /
-     rejected re-upload states; "deleted after review" promise).
-   - Admin: /admin/applications gained "Customer ID checks" queue
-     (listPendingCustomerIds + CustomerIdReviewRow; View ID = 90s signed URL;
-     approve/reject → service-role verdict + audit log + document purged either
-     way — IDs are never stored post-verdict, same policy as pro IDs).
-   - ⚠ MIGRATION: user must paste APPLY_PENDING_0028.sql (column guards:
-     owner can't self-set is_id_verified/approved via PostgREST; only
-     unsubmitted|rejected→pending; blocks pre-verified INSERT; also guards
-     reliability/frozen cols). Depends on 0026 (applied). UI works before the
-     paste but the badge is server-guarded only after it.
-4. GOLD CHECK: profile header shows gold VerifiedIcon when customer
-   idVerified (suppressed if the rose pro badge is already shown). Distinct
-   from professional_profiles.is_verified per brief.
-5. START BOOKING: EasyBookingSheet CTA → /categories. Category page now renders
-   "Recommended · Sponsored" section (is_featured pros) above "All professionals".
-   $2.99/mo decision logged in PRODUCT_DECISIONS.md: reuse admin-guarded
-   is_featured (setProfessionalFeaturedAction toggle) now; Stripe Billing +
-   webhook sync deferred until volume justifies. Ranking already weighs featured.
-6. STRIPE LOGO: no logo exists in our code — it's injected inside the Stripe
-   iframe. Suppressed everything Stripe permits: wallets (applePay/googlePay
-   "never" — the branded corner tab) + terms card "never". SetupIntent was
-   already card-only (no Link badge). Discreet "Secured by Stripe" footer kept.
-7. BOTTOMNAV PROFILE: tab now renders the signed-in user's photo in a 22px
-   circle via getViewerIdentityAction + Avatar (initials fallback, rose ring
-   when active). Same identity source as the Discover header avatar.
-
-GATES: tsc 0, lint 0, vitest 179/179 (21 files), production build 0.
-USER MUST PASTE: APPLY_PENDING_0028.sql (customer ID guards). Still open from
-before: APPLY_PENDING_0027.sql (job marketplace), Stripe 1099 toggle.
-NO deploy — per rule.
+- 3bf2352 deployed to production via `npx vercel --prod --yes` — deployment
+  READY. https://iglamher-app.vercel.app serving 200; /account/payment-methods
+  route healthy (auth gate OK). Live now: ID verification card between
+  Personal Information and Account Mode on Settings; CardElement-based Add-a-
+  card (zero Stripe chrome, disableLink, full iframe teardown on close).
+- STANDING AUTO-DEPLOY RULE ACKNOWLEDGED and saved to persistent memory:
+  after every completed prod-worthy fix with green gates (tsc/lint/tests/
+  build), deploy immediately — never ask the user to say "deploy" again.
+  Exceptions where I still confirm first: live-Stripe key/billing flips,
+  destructive DB operations, explicitly-experimental work.
+- Still open (user): APPLY_PENDING_0027.sql (Job Marketplace tables),
+  Stripe 1099 toggle in dashboard.

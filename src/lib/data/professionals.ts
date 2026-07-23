@@ -35,6 +35,8 @@ interface ProRow {
   is_active: boolean;
   is_verified: boolean;
   is_featured: boolean;
+  is_recommended?: boolean | null;      // 0028 — optional so pre-migration rows never crash
+  recommended_until?: string | null;
   instant_book: boolean;
   rating_average: number;
   review_count: number;
@@ -94,6 +96,8 @@ function mapPro(row: ProRow): Professional {
     isActive: row.is_active,
     isVerified: row.is_verified,
     isFeatured: row.is_featured,
+    isRecommended: Boolean(row.is_recommended) &&
+      (row.recommended_until == null || new Date(row.recommended_until).getTime() > Date.now()),
     instantBook: row.instant_book,
     ratingAverage: Number(row.rating_average),
     reviewCount: row.review_count,
@@ -206,6 +210,12 @@ export async function searchProfessionalViews(
 export async function getFeaturedProfessionals(limit = 6, viewer: GeoPoint = DEFAULT_VIEWER): Promise<ProfessionalCardView[]> {
   const views = await searchProfessionalViews({ sort: "rating" }, viewer);
   return views.filter((v) => v.isFeatured).slice(0, limit);
+}
+
+/** iGlamHer Recommended — admin-curated placement (paid later; expiry-aware). */
+export async function getRecommendedProfessionals(limit = 12, viewer: GeoPoint = DEFAULT_VIEWER): Promise<ProfessionalCardView[]> {
+  const views = await searchProfessionalViews({ sort: "rating" }, viewer);
+  return views.filter((v) => v.isRecommended).slice(0, limit);
 }
 
 export async function getProfessionalsByCategory(slug: CategorySlug, viewer: GeoPoint = DEFAULT_VIEWER): Promise<ProfessionalCardView[]> {

@@ -123,7 +123,7 @@ export default async function AdminPage() {
                 {Math.round(profileCompleteness(p) * 100)}%
               </p>
             </div>
-            <AdminProRow userId={p.userId} active={p.isActive} featured={p.isFeatured} />
+            <AdminProRow userId={p.userId} active={p.isActive} featured={p.isFeatured} recommended={Boolean(p.isRecommended)} />
           </div>
         ))}
       </div>
