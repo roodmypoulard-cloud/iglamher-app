@@ -51,7 +51,7 @@ export default async function SearchPage({
   const q = typeof raw.q === "string" ? raw.q : "";
 
   return (
-    <Shell wide>
+    <Shell wide back="/discover">
       <div className="mb-5">
         <SearchBar initial={q} />
       </div>

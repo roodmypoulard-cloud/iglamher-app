@@ -86,7 +86,7 @@ export default async function BookingSuccessPage({ searchParams }: { searchParam
   }
 
   return (
-    <Shell>
+    <Shell back="/bookings">
       <div className="mx-auto max-w-md py-10 text-center">
         {result.paid ? (
           <>

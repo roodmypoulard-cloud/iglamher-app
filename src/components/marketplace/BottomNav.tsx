@@ -53,7 +53,11 @@ export function BottomNav() {
           <Link
             href="/requests"
             aria-label="Create a job request"
-            className="fab-gold -mt-6 grid h-14 w-14 place-items-center rounded-full text-[#2A1712]"
+            aria-current={pathname.startsWith("/requests") ? "page" : undefined}
+            className={cn(
+              "fab-gold -mt-6 grid h-14 w-14 place-items-center rounded-full text-[#2A1712]",
+              pathname.startsWith("/requests") && "ring-2 ring-rose/70 ring-offset-2 ring-offset-bg-elevated",
+            )}
           >
             <span aria-hidden className="fab-gold-halo" />
             <span aria-hidden className="fab-gold-shine" />
@@ -61,7 +65,7 @@ export function BottomNav() {
               <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" />
             </svg>
           </Link>
-          <span aria-hidden className="mt-1 text-[10px] font-semibold text-rose">
+          <span aria-hidden className={cn("mt-1 text-[10px] font-semibold", pathname.startsWith("/requests") ? "text-rose" : "text-ink-muted")}>
             Create
           </span>
         </li>

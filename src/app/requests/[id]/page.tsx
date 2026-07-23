@@ -80,6 +80,14 @@ export default async function RequestDetailPage({ params }: { params: Promise<{ 
           <CancelRequestButton id={req.id} />
         </div>
       )}
+
+      {/* Honest state: pros can browse requests, but the direct respond/offer
+          flow isn't built yet — say so rather than dead-ending silently. */}
+      {!isOwner && req.status === "open" && (
+        <p className="mt-4 rounded-[14px] border border-border bg-surface px-4 py-3 text-[12.5px] leading-relaxed text-ink-muted">
+          Responding to requests directly is coming soon. Professionals will be able to send offers right from this page.
+        </p>
+      )}
     </Shell>
   );
 }

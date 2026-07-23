@@ -266,7 +266,7 @@ export function AccountSettingsClient(props: Props) {
             <Icon d={I.chevron} className="text-ink-muted" />
           </span>
         </SupportLink>
-        <Row label="Help Center" href="/how-it-works" />
+        <Row label="How it works" href="/how-it-works" />
       </Card>
 
       {/* ABOUT */}

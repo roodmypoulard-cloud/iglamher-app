@@ -35,7 +35,7 @@ export function AppHeader() {
         {/* Account & settings entry — profile itself lives on the bottom-nav Profile tab. */}
         <Link
           href="/profile/settings"
-          aria-label="Account settings menu"
+          aria-label="Account settings"
           className="menu-gold grid h-10 w-10 place-items-center rounded-full border border-rose/30 bg-surface/60"
         >
           <span aria-hidden className="flex w-[18px] flex-col gap-[4.5px]">
