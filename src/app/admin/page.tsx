@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin · iGlamHer" };
 
 const SECTIONS = [
+  { href: "/admin/applications", label: "Verifications", desc: "Approve new pros" },
   { href: "/admin/analytics", label: "Analytics", desc: "GMV, funnel, retention" },
   { href: "/admin/campaigns", label: "Campaigns", desc: "Promos & coupons" },
 ];

@@ -91,7 +91,7 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
           <header className="flex items-end gap-4">
             <Image
               src={pro.avatarUrl}
-              alt={pro.displayName}
+              alt=""
               width={104}
               height={104}
               className="img-luxe -mt-16 h-26 w-26 flex-none rounded-[22px] border-2 border-bg object-cover shadow-luxe ring-1 ring-rose/40"

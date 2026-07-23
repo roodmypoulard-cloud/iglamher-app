@@ -60,6 +60,9 @@ const RECOMMENDED: Array<{ key: string; why: string }> = [
   { key: "REDIS_URL", why: "distributed rate limiting + shared cache (per-instance fallback otherwise)" },
   { key: "SENTRY_DSN", why: "error tracking" },
   { key: "RESEND_API_KEY", why: "transactional email" },
+  { key: "TWILIO_ACCOUNT_SID", why: "phone verification (Twilio Verify) — AC…" },
+  { key: "TWILIO_AUTH_TOKEN", why: "phone verification secret (Twilio Verify)" },
+  { key: "TWILIO_VERIFY_SERVICE_SID", why: "phone verification Verify Service — VA…" },
 ];
 
 export interface EnvReport {

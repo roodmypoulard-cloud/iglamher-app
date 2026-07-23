@@ -46,7 +46,7 @@ export default async function ProfessionalOnboarding() {
   // No provider profile yet — show the intro + create-account CTA.
   if (!ctx.pro) {
     return (
-      <main className="mx-auto min-h-dvh w-full max-w-lg px-6 py-12">
+      <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
         <p className="font-display text-2xl font-bold">Become an iGlamHer pro</p>
         <p className="mt-1 text-sm text-ink-muted">Set up your profile, portfolio, and prices. You keep 85%.</p>
         <ul className="mt-6 space-y-2">
@@ -70,7 +70,7 @@ export default async function ProfessionalOnboarding() {
   // Approved & live.
   if (isActive) {
     return (
-      <main className="mx-auto min-h-dvh w-full max-w-lg px-6 py-12">
+      <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
         <p className="font-display text-2xl font-bold">You’re live 🎉</p>
         <p className="mt-1 text-sm text-ink-muted">Your profile is approved and visible in the marketplace.</p>
         <Link href="/pro" className="mt-6 inline-block rounded-full rose-gradient px-6 py-3 text-sm font-semibold text-[#2A1712]">
@@ -83,7 +83,7 @@ export default async function ProfessionalOnboarding() {
   // Submitted, awaiting admin approval.
   if (reviewStatus === "pending_review") {
     return (
-      <main className="mx-auto min-h-dvh w-full max-w-lg px-6 py-12">
+      <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
         <p className="font-display text-2xl font-bold">Under review</p>
         <p className="mt-1 text-sm text-ink-muted">
           Thanks — your profile is with our team. We’ll email you once you’re approved and live. You can still edit your details below.

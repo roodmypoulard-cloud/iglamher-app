@@ -26,7 +26,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
   const addons = pro.addons.filter((a) => a.isActive);
 
   return (
-    <Shell>
+    <Shell back="/discover">
       <TrackView event="service_viewed" props={{ service: service.id, professional: pro.slug }} />
 
       <nav className="mb-4 text-sm text-ink-muted">

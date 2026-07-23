@@ -4,6 +4,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { captureError, log } from "@/lib/observability/logger";
 import { reverseBookingPayout, payoutAmountCents } from "@/lib/payments/payouts";
+import { ensureBookingConversationUnlocked } from "@/lib/messaging/unlock";
+import { emailUserBestEffort } from "@/lib/integrations/notifications";
 
 // ============================================================
 // Stripe webhook — the SOURCE OF TRUTH for payment state (not the browser).
@@ -78,25 +80,42 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
       if (pi.metadata?.kind === "balance_hold") { log.info("webhook.balance_captured", { bookingId }); return; }
 
       // Deposit: save the customer + card for the day-of balance hold, then confirm.
-      const { data: bk } = await admin.from("bookings").select("total_cents, amount_due_now_cents").eq("id", bookingId).maybeSingle();
-      const totals = bk as { total_cents?: number; amount_due_now_cents?: number } | null;
-      const balanceCents = Math.max(0, (totals?.total_cents ?? 0) - (totals?.amount_due_now_cents ?? 0));
+      const { data: bk } = await admin.from("bookings").select("total_cents, amount_due_now_cents, customer_id, professional_id").eq("id", bookingId).maybeSingle();
+      const info = bk as { total_cents?: number; amount_due_now_cents?: number; customer_id?: string; professional_id?: string } | null;
+      const balanceCents = Math.max(0, (info?.total_cents ?? 0) - (info?.amount_due_now_cents ?? 0));
+
+      // Persist the chargeable card on the booking REGARDLESS of status. The webhook
+      // is the source of truth; do NOT gate PM persistence on the pending→confirmed
+      // edge, or a booking already confirmed by /book/success loses its saved card.
+      const cardPatch: Record<string, unknown> = {};
+      if (pi.customer) cardPatch.stripe_customer_id = pi.customer;
+      if (pi.payment_method) cardPatch.stripe_payment_method_id = pi.payment_method;
+      if (Object.keys(cardPatch).length > 0) {
+        await admin.from("bookings").update(cardPatch).eq("id", bookingId);
+      }
+
       const { data: b } = await admin
         .from("bookings")
         .update({
           status: "confirmed", confirmed_at: new Date().toISOString(), stripe_payment_intent_id: pi.id,
-          stripe_customer_id: pi.customer ?? null, stripe_payment_method_id: pi.payment_method ?? null,
           balance_cents: balanceCents,
         })
         .eq("id", bookingId)
         .eq("status", "pending_payment")
         .select("professional_id, customer_id, total_cents, platform_fee_cents")
         .maybeSingle();
-      await admin.from("booking_status_events").insert({ booking_id: bookingId, status: "confirmed", note: "Payment succeeded (webhook)" });
-      await admin.from("conversations").update({ is_unlocked: true }).eq("booking_id", bookingId);
+
+      // Ensure conversation + members exist and unlock it (idempotent; runs on every
+      // delivery so backfilled/trigger-less bookings still get messaging).
+      await ensureBookingConversationUnlocked(admin, bookingId, info?.customer_id, info?.professional_id);
 
       // Record the provider's pending earning (idempotent via unique(booking_id,kind)).
       const row = b as { professional_id?: string; customer_id?: string; total_cents?: number; platform_fee_cents?: number } | null;
+      // The following side effects fire ONLY on the pending→confirmed transition
+      // (row is non-null only when this delivery flipped the status).
+      if (row) {
+        await admin.from("booking_status_events").insert({ booking_id: bookingId, status: "confirmed", note: "Payment succeeded (webhook)" });
+      }
       // Booking-confirmed notifications (best-effort; only fires on the pending→confirmed transition).
       if (row?.professional_id && row?.customer_id) {
         try {
@@ -104,6 +123,9 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
             { user_id: row.customer_id, type: "booking", title: "Booking confirmed", body: "Your payment went through and your appointment is confirmed.", data: { bookingId } },
             { user_id: row.professional_id, type: "booking", title: "New booking", body: "You have a new confirmed booking.", data: { bookingId } },
           ]);
+          // Mirror to email (best-effort — never blocks webhook ack).
+          await emailUserBestEffort(row.customer_id, "booking", "Booking confirmed", "Your payment went through and your appointment is confirmed.");
+          await emailUserBestEffort(row.professional_id, "booking", "New booking", "You have a new confirmed booking.");
         } catch { /* best-effort */ }
       }
       if (row?.professional_id) {

@@ -74,6 +74,8 @@ export const LIMITS = {
   search: { limit: 60, windowMs: 60_000 },
   message: { limit: 30, windowMs: 60_000 },
   booking: { limit: 10, windowMs: 60_000 },
+  phoneSend: { limit: 5, windowMs: 15 * 60_000 }, // 5 SMS sends / 15 min (per phone, per account, per IP)
+  phoneCheck: { limit: 10, windowMs: 15 * 60_000 }, // 10 code checks / 15 min (brute-force guard)
 } as const;
 
 const registry = new Map<string, RateLimiter>();

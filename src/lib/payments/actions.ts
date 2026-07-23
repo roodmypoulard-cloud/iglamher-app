@@ -4,8 +4,10 @@
 // URL the client redirects to. On success, /book/success confirms the booking;
 // the webhook is the production reconciliation path (idempotent).
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getStripe, isStripeConfigured } from "./stripe";
+import { getOrCreateCustomerId } from "./customer";
 import { publicEnv } from "@/lib/env";
 
 export type CheckoutResult = { ok: true; url: string } | { ok: false; error: string; needsAuth?: true };
@@ -37,6 +39,16 @@ export async function createCheckoutSessionAction(bookingId: string): Promise<Ch
   // is captured to the platform and reconciled on payout.
   try {
     const stripe = await getStripe();
+    // Reuse the user's existing Stripe customer (or create one) rather than letting
+    // Checkout mint a fresh orphan customer on every session. This keeps the saved
+    // card + customer stable across the deposit, day-of balance hold, and tips, and
+    // shared with the account-level card management (payment-methods.ts).
+    const customerId = await getOrCreateCustomerId(supabase, auth.user.id, auth.user.email);
+    // Persist the resolved customer on the booking now so the webhook / success
+    // confirmation / balance hold can charge it even if the PaymentIntent later
+    // omits the customer field. Service-role write (customer id is not user-writable).
+    await createAdminClient().from("bookings").update({ stripe_customer_id: customerId }).eq("id", b.id);
+
     const session = await stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
@@ -52,9 +64,8 @@ export async function createCheckoutSessionAction(bookingId: string): Promise<Ch
       metadata: { bookingId: b.id },
       // Save the card so we can hold + charge the remaining balance on the day of
       // the job (deposit is captured now; balance is authorized at "Start").
-      customer_creation: "always",
+      customer: customerId,
       payment_intent_data: { metadata: { bookingId: b.id }, setup_future_usage: "off_session" },
-      customer_email: auth.user.email ?? undefined,
       success_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/book/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${publicEnv.NEXT_PUBLIC_APP_URL}/account`,
     });

@@ -34,7 +34,7 @@ export function ProfessionalCard({
         <div className="relative aspect-square h-[76px] flex-none overflow-hidden rounded-[13px]">
           <Image
             src={pro.avatarUrl}
-            alt={pro.displayName}
+            alt=""
             fill
             sizes="76px"
             className="img-luxe object-cover"
@@ -49,7 +49,9 @@ export function ProfessionalCard({
           <p className="mt-1.5 flex items-center gap-x-2 truncate text-[11.5px] text-ink-muted">
             <Rating average={pro.ratingAverage} count={pro.reviewCount} className="text-[11.5px]" />
             {pro.distanceMi != null && <span className="flex-none">· {formatDistance(pro.distanceMi)}</span>}
-            <span className="flex-none">· {formatPrice(pro.startingPriceCents, { from: true })}</span>
+            {pro.startingPriceCents > 0 && (
+              <span className="flex-none">· {formatPrice(pro.startingPriceCents, { from: true })}</span>
+            )}
           </p>
         </div>
         <FavoriteButton professionalId={pro.userId} professionalSlug={pro.slug} initialFavorited={favorited} />
@@ -71,7 +73,7 @@ export function ProfessionalCard({
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <SmartImage
           src={cover}
-          alt={`${pro.displayName} portfolio`}
+          alt=""
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="img-luxe object-cover transition-transform duration-500 group-hover:scale-[1.04]"
@@ -96,7 +98,9 @@ export function ProfessionalCard({
         </p>
         <p className="mt-auto flex items-center justify-between pt-2 text-[11.5px] text-ink-muted">
           <span className="truncate">{locationLabel(pro)}</span>
-          <span className="flex-none font-semibold text-ink">{formatPrice(pro.startingPriceCents, { from: true })}</span>
+          {pro.startingPriceCents > 0 && (
+            <span className="flex-none font-semibold text-ink">{formatPrice(pro.startingPriceCents, { from: true })}</span>
+          )}
         </p>
         {pro.distanceMi != null && (
           <p className="text-[11px] text-ink-muted">{formatDistance(pro.distanceMi)}</p>

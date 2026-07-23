@@ -1,8 +1,7 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { MOCK_NOTIFICATIONS, type AppNotification } from "./model";
-
-const STORAGE_KEY = "iglamher:notifications-read";
+import type { AppNotification } from "./model";
+import { fetchMyNotifications, markAllNotificationsReadAction, type RealNotification } from "./actions";
 
 interface NotificationsCtx {
   notifications: AppNotification[];
@@ -15,62 +14,53 @@ interface NotificationsCtx {
 
 const Ctx = createContext<NotificationsCtx | null>(null);
 
+/** Loads the current user's REAL notifications once on mount. Unread state is
+ *  derived from the DB `read_at`, with optimistic local marking layered on top. */
 export function NotificationsProvider({ children }: { children: ReactNode }) {
+  const [notifications, setNotifications] = useState<RealNotification[]>([]);
   const [readIds, setReadIds] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_KEY);
-      // One-time hydration of persisted read-state from localStorage.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      if (raw) setReadIds(new Set(JSON.parse(raw) as string[]));
-    } catch {
-      /* ignore */
-    }
-    setHydrated(true);
-  }, []);
-
-  const persist = useCallback((next: Set<string>) => {
-    setReadIds(new Set(next));
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
-    } catch {
-      /* ignore */
-    }
-  }, []);
-
-  const markRead = useCallback(
-    (id: string) => {
-      setReadIds((prev) => {
-        if (prev.has(id)) return prev;
-        const next = new Set(prev).add(id);
-        try {
-          localStorage.setItem(STORAGE_KEY, JSON.stringify([...next]));
-        } catch {
-          /* ignore */
-        }
-        return next;
+    let alive = true;
+    fetchMyNotifications()
+      .then((rows) => {
+        if (!alive) return;
+        setNotifications(rows);
+        setReadIds(new Set(rows.filter((r) => r.read).map((r) => r.id)));
+      })
+      .catch(() => {
+        /* leave empty on failure — no fake data */
+      })
+      .finally(() => {
+        if (alive) setHydrated(true);
       });
-    },
-    [],
-  );
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const markRead = useCallback((id: string) => {
+    setReadIds((prev) => (prev.has(id) ? prev : new Set(prev).add(id)));
+  }, []);
 
   const markAllRead = useCallback(() => {
-    persist(new Set(MOCK_NOTIFICATIONS.map((n) => n.id)));
-  }, [persist]);
+    // Optimistic: clear the badge immediately, then persist server-side.
+    setReadIds(new Set(notifications.map((n) => n.id)));
+    void markAllNotificationsReadAction();
+  }, [notifications]);
 
   const value = useMemo<NotificationsCtx>(() => {
-    const unreadCount = hydrated ? MOCK_NOTIFICATIONS.filter((n) => !readIds.has(n.id)).length : 0;
+    const unreadCount = hydrated ? notifications.filter((n) => !readIds.has(n.id)).length : 0;
     return {
-      notifications: MOCK_NOTIFICATIONS,
+      notifications,
       unreadCount,
       isRead: (id) => readIds.has(id),
       markRead,
       markAllRead,
       hydrated,
     };
-  }, [readIds, hydrated, markRead, markAllRead]);
+  }, [notifications, readIds, hydrated, markRead, markAllRead]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

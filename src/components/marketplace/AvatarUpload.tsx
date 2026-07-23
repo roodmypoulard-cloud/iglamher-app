@@ -35,15 +35,21 @@ export function AvatarUpload({
 
     const fd = new FormData();
     fd.append("avatar", file);
-    const res = await updateAvatarAction(fd);
-    setBusy(false);
-    URL.revokeObjectURL(preview);
-
-    if (res.ok) {
-      setUrl(res.url);
-    } else {
-      setUrl(initialUrl ?? null); // roll back preview
-      setError(res.error);
+    try {
+      const res = await updateAvatarAction(fd);
+      if (res.ok) {
+        setUrl(res.url);
+      } else {
+        setUrl(initialUrl ?? null); // roll back preview
+        setError(res.error);
+      }
+    } catch {
+      setUrl(initialUrl ?? null); // roll back preview on unexpected failure
+      setError("Upload failed. Please try again.");
+    } finally {
+      // Guaranteed reset — the button can never stay stuck on "busy".
+      setBusy(false);
+      URL.revokeObjectURL(preview);
     }
   }
 

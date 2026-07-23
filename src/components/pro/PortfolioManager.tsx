@@ -27,11 +27,16 @@ export function PortfolioManager({ items }: { items: PortfolioRow[] }) {
     const fd = new FormData();
     fd.set("file", file);
     start(async () => {
-      const res = await uploadPortfolioImageAction(undefined, fd);
-      if (res?.error) setUploadError(res.error);
-      else {
-        setMsg(res?.success ?? "Photo added.");
-        router.refresh();
+      try {
+        const res = await uploadPortfolioImageAction(undefined, fd);
+        if (res?.error) setUploadError(res.error);
+        else {
+          setMsg(res?.success ?? "Photo added.");
+          router.refresh();
+        }
+      } catch {
+        // Never let a rejected action bubble to the page-level error boundary.
+        setUploadError("Upload failed. Please try again.");
       }
     });
   }
@@ -82,7 +87,10 @@ export function PortfolioManager({ items }: { items: PortfolioRow[] }) {
                 <button
                   type="button"
                   disabled={pending || item.isCover}
-                  onClick={() => start(async () => setMsg((await setCoverPortfolioItemAction(item.id))?.success ?? null))}
+                  onClick={() => start(async () => {
+                    try { setMsg((await setCoverPortfolioItemAction(item.id))?.success ?? null); }
+                    catch { setUploadError("Couldn't update cover. Please try again."); }
+                  })}
                   className="font-semibold text-rose disabled:opacity-40"
                 >
                   Set cover
@@ -92,7 +100,10 @@ export function PortfolioManager({ items }: { items: PortfolioRow[] }) {
                   disabled={pending}
                   onClick={() => {
                     if (!confirm("Delete this photo?")) return;
-                    start(async () => setMsg((await deletePortfolioItemAction(item.id))?.success ?? null));
+                    start(async () => {
+                      try { setMsg((await deletePortfolioItemAction(item.id))?.success ?? null); }
+                      catch { setUploadError("Couldn't delete. Please try again."); }
+                    });
                   }}
                   className="font-semibold text-ink-muted hover:text-danger"
                 >

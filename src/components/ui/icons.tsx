@@ -42,6 +42,9 @@ export const ArrowRightIcon = (p: IconProps) => (
 export const BellIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0" /></svg>
 );
+export const CreditCardIcon = (p: IconProps) => (
+  <svg {...base(p)}><rect x="2.5" y="5" width="19" height="14" rx="2.5" /><path d="M2.5 9.5h19M6 15.5h3" /></svg>
+);
 export const HeartIcon = (p: IconProps) => (
   <svg {...base(p)}><path d="M12 21s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.5-7 10-7 10z" /></svg>
 );

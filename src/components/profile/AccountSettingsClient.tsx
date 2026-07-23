@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Modal } from "@/components/ui/Modal";
 import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
 import { PhoneVerification } from "@/components/profile/PhoneVerification";
+import { PaymentMethodsClient } from "@/components/payments/PaymentMethodsClient";
 import {
   updatePersonalInfoAction, changeEmailAction, changePasswordAction,
   saveNotificationPrefsAction, saveLanguageAction, saveAppearanceAction, downloadMyDataAction,
@@ -180,9 +181,9 @@ export function AccountSettingsClient(props: Props) {
 
       {/* PAYMENT METHODS */}
       <Card icon={I.card} title="Payment Methods">
-        <div className="px-4 py-4 text-sm text-ink-muted">
-          <p>No payment method saved.</p>
-          <p className="mt-1 text-[12px]">Your card is entered securely at checkout via Stripe.</p>
+        <div className="px-4 py-4">
+          <p className="mb-3 text-[12px] text-ink-muted">Add one or more credit or debit cards. Cards are stored securely by Stripe and used to book and pay for services.</p>
+          <PaymentMethodsClient />
         </div>
       </Card>
 

@@ -1,5 +1,6 @@
 "use client";
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { setProfessionalActiveAction, setProfessionalFeaturedAction } from "@/lib/admin/actions";
 
 export function AdminProRow({
@@ -18,11 +19,15 @@ export function AdminProRow({
 
   return (
     <div className="flex items-center gap-2">
+      {/* Visibility toggle only — this never approves. Activating succeeds only for a
+          pro already approved via the application review; new applicants are sent
+          there via the Review link. */}
       <button
         type="button"
         disabled={pending}
         onClick={() =>
           start(async () => {
+            setErr(null);
             const res = await setProfessionalActiveAction(userId, !isActive);
             if (res.ok) setActive(!isActive);
             else setErr(res.error);
@@ -32,8 +37,14 @@ export function AdminProRow({
           isActive ? "bg-success/15 text-success" : "border border-border text-ink-muted"
         }`}
       >
-        {isActive ? "Approved" : "Approve"}
+        {isActive ? "Live · Deactivate" : "Activate"}
       </button>
+      <Link
+        href={`/admin/applications/${userId}`}
+        className="rounded-full border border-border px-3 py-1 text-[12px] font-semibold text-ink-muted hover:border-rose/50"
+      >
+        Review
+      </Link>
       <button
         type="button"
         disabled={pending}

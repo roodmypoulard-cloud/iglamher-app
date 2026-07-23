@@ -35,7 +35,7 @@ export default async function BookPage({
   return (
     <div className="mx-auto flex min-h-dvh w-full max-w-[1280px] flex-col">
       <AppHeader />
-      <main className="flex-1 px-5 py-6 md:px-8">
+      <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-6 md:px-8 md:py-10">
         <Link href={`/professionals/${pro.slug}`} className="mb-6 inline-block text-sm text-rose hover:underline">
           ← {pro.displayName}
         </Link>

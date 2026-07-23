@@ -10,6 +10,14 @@ export interface PayoutOverview {
   payoutsFrozen: boolean;
   pendingCents: number;
   availableCents: number;
+  /** Stripe requirements.currently_due — fields still blocking payout. */
+  currentlyDue: string[];
+}
+
+// Humanize Stripe's dotted requirement keys, e.g. "individual.verification.document".
+function labelRequirement(key: string): string {
+  const tail = key.split(".").filter((s) => s !== "individual" && s !== "company").join(" ");
+  return (tail || key).replace(/[._]/g, " ").replace(/\bssn last 4\b/i, "SSN (last 4)").trim();
 }
 
 export function ConnectPayouts({ overview }: { overview: PayoutOverview }) {
@@ -39,6 +47,17 @@ export function ConnectPayouts({ overview }: { overview: PayoutOverview }) {
         </div>
       </div>
 
+      {!eligible && overview.currentlyDue.length > 0 && (
+        <div className="mt-4 rounded-xl border border-warning/40 bg-warning/5 p-3">
+          <p className="text-[12px] font-semibold text-warning">Still needed to unlock payouts</p>
+          <ul className="mt-1.5 list-disc space-y-0.5 pl-4 text-[12px] text-ink-muted">
+            {overview.currentlyDue.map((req) => (
+              <li key={req}>{labelRequirement(req)}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       {!eligible && (
         <div className="mt-4">
           <Button
@@ -53,12 +72,12 @@ export function ConnectPayouts({ overview }: { overview: PayoutOverview }) {
               })
             }
           >
-            {overview.detailsSubmitted ? "Continue verification" : "Set up payouts with Stripe"}
+            {overview.detailsSubmitted ? "Continue setup" : "Set up payouts"}
           </Button>
           {error && <p className="mt-2 text-[12px] text-danger">{error}</p>}
           <p className="mt-2 text-[11px] text-ink-muted">
-            You must complete Stripe verification before receiving payouts. We calculate your earnings from server-side
-            values only.
+            You&apos;ll finish adding your bank details and tax info on Stripe&apos;s secure page, then come right back.
+            Stripe handles verification and your 1099 tax forms. Earnings are calculated from server-side values only.
           </p>
         </div>
       )}

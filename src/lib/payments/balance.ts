@@ -4,12 +4,14 @@ import "server-only";
 // on the saved card to confirm the funds are there; at completion we CAPTURE it.
 // Real money moves only on capture. Every step is idempotent + guarded.
 import { getStripe } from "./stripe";
+import { resolveChargeIdentity } from "./customer";
 import type { createAdminClient } from "@/lib/supabase/admin";
 
 type Admin = ReturnType<typeof createAdminClient>;
 
 type BookingPay = {
   id: string;
+  customer_id: string;
   total_cents: number;
   amount_due_now_cents: number;
   platform_fee_cents: number;
@@ -22,7 +24,7 @@ type BookingPay = {
 async function loadBooking(admin: Admin, bookingId: string): Promise<BookingPay | null> {
   const { data } = await admin
     .from("bookings")
-    .select("id, total_cents, amount_due_now_cents, platform_fee_cents, stripe_customer_id, stripe_payment_method_id, balance_hold_pi_id, balance_status")
+    .select("id, customer_id, total_cents, amount_due_now_cents, platform_fee_cents, stripe_customer_id, stripe_payment_method_id, balance_hold_pi_id, balance_status")
     .eq("id", bookingId)
     .maybeSingle();
   return (data as BookingPay | null) ?? null;
@@ -40,12 +42,22 @@ export async function holdBookingBalance(admin: Admin, bookingId: string): Promi
   if (b.balance_status === "held" || b.balance_status === "captured") return { ok: true, status: "held" };
 
   const balanceCents = Math.max(0, (b.total_cents ?? 0) - (b.amount_due_now_cents ?? 0));
+  // A balance is only genuinely "no_balance" when nothing is owed. When money IS
+  // owed we must have a card to authorize — a missing card is a hard failure that
+  // blocks the start, NOT a silent skip that would let the pro work unpaid.
   if (balanceCents <= 0) {
     await admin.from("bookings").update({ balance_cents: 0, balance_status: "captured" }).eq("id", bookingId);
     return { ok: true, status: "no_balance" };
   }
-  if (!b.stripe_customer_id || !b.stripe_payment_method_id) {
-    return { ok: true, status: "no_balance" };
+  // Prefer the card saved on the booking; fall back to the customer's account
+  // default card (covers bookings that predate customer/PM persistence).
+  const charge = await resolveChargeIdentity(admin, {
+    userId: b.customer_id,
+    bookingCustomerId: b.stripe_customer_id,
+    bookingPaymentMethodId: b.stripe_payment_method_id,
+  });
+  if (!charge) {
+    return { ok: false, error: "No saved card on file to authorize the remaining balance." };
   }
 
   try {
@@ -54,8 +66,8 @@ export async function holdBookingBalance(admin: Admin, bookingId: string): Promi
       {
         amount: balanceCents,
         currency: "usd",
-        customer: b.stripe_customer_id,
-        payment_method: b.stripe_payment_method_id,
+        customer: charge.customerId,
+        payment_method: charge.paymentMethodId,
         off_session: true,
         confirm: true,
         capture_method: "manual", // authorize only — funds held, not captured
@@ -67,7 +79,17 @@ export async function holdBookingBalance(admin: Admin, bookingId: string): Promi
       await admin.from("bookings").update({ balance_status: "failed", balance_cents: balanceCents }).eq("id", bookingId);
       return { ok: false, error: "The card could not be authorized for the balance." };
     }
-    await admin.from("bookings").update({ balance_hold_pi_id: pi.id, balance_cents: balanceCents, balance_status: "held" }).eq("id", bookingId);
+    await admin
+      .from("bookings")
+      .update({
+        balance_hold_pi_id: pi.id,
+        balance_cents: balanceCents,
+        balance_status: "held",
+        // Persist the resolved card so capture / tips reuse it directly.
+        stripe_customer_id: charge.customerId,
+        stripe_payment_method_id: charge.paymentMethodId,
+      })
+      .eq("id", bookingId);
     return { ok: true, status: "held" };
   } catch (e) {
     await admin.from("bookings").update({ balance_status: "failed", balance_cents: balanceCents }).eq("id", bookingId);

@@ -2,20 +2,27 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import { AppHeader } from "./AppHeader";
 import { BottomNav } from "./BottomNav";
+import { BackButton } from "@/components/ui/BackButton";
 import { ChevronRight } from "@/components/ui/icons";
 import { cn } from "@/lib/format";
 
-/** Standard customer-facing page frame: header, constrained main, bottom nav. */
+/** Standard customer-facing page frame: header, constrained main, bottom nav.
+ *  Pass `back` (true, or a fallback href string) on pushed sub-pages to show a
+ *  consistent iOS-style Back control so no screen is ever a dead end. */
 export function Shell({
   children,
   wide = false,
   bottomNav = true,
   header = true,
+  back = false,
+  backLabel = "Back",
 }: {
   children: ReactNode;
   wide?: boolean;
   bottomNav?: boolean;
   header?: boolean;
+  back?: boolean | string;
+  backLabel?: string;
 }) {
   return (
     <div
@@ -28,8 +35,13 @@ export function Shell({
       {/* Bottom padding clears the fixed BottomNav + the iPhone safe-area inset so
           content is never hidden behind it (nav is mobile-only → md:pb-12). */}
       <main
-        className={cn("page-enter flex-1 px-5 pb-[calc(4.125rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12", header ? "pt-4" : "pt-0")}
+        className={cn("page-enter flex-1 px-5 pb-[calc(4.125rem+env(safe-area-inset-bottom))] md:px-8 md:pb-12", header ? "pt-4" : "safe-top pt-4")}
       >
+        {back && (
+          <div className="-mt-1 mb-2">
+            <BackButton fallback={typeof back === "string" ? back : "/discover"} label={backLabel} />
+          </div>
+        )}
         {children}
       </main>
       {bottomNav && <BottomNav />}

@@ -31,16 +31,21 @@ export async function getAccountContext(): Promise<AccountContext | null> {
     .eq("id", auth.user.id)
     .maybeSingle();
   const p = data as { account_type?: AccountType; active_mode?: AccountMode; role?: string } | null;
+  const isProByRole = p?.role === "professional" || p?.role === "admin";
   if (p) {
     if (p.account_type) accountType = p.account_type;
     else if (p.role === "professional") accountType = "professional"; // pre-0016 fallback
     if (p.active_mode) activeMode = p.active_mode;
   }
+  // A professional-role user may have a stale account_type of 'customer' (the /pro/apply
+  // flow sets role but not account_type). Treat role as authoritative for the switcher so
+  // pros can always get back to the customer app.
+  if (isProByRole && accountType === "customer") accountType = "both";
 
   return {
     userId: auth.user.id,
     accountType,
     activeMode,
-    canSwitch: accountType === "professional" || accountType === "both",
+    canSwitch: accountType === "professional" || accountType === "both" || isProByRole,
   };
 }

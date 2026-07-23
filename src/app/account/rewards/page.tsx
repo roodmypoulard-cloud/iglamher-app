@@ -21,7 +21,7 @@ export default async function RewardsPage() {
 
   if (!loyalty.available) {
     return (
-      <Shell>
+      <Shell back="/account">
         <h1 className="font-display text-3xl font-bold">iGlam Rewards</h1>
         <div className="mt-6">
           <EmptyState title="Rewards need the live backend" body="Connect Supabase and sign in to earn points, unlock tiers, and share your referral code." action={{ label: "Discover", href: "/discover" }} />
@@ -31,7 +31,7 @@ export default async function RewardsPage() {
   }
 
   return (
-    <Shell>
+    <Shell back="/account">
       <h1 className="font-display text-3xl font-bold leading-tight">iGlam Rewards</h1>
       <p className="mb-6 mt-1 text-sm text-ink-muted">Earn on every booking. Redeem for credit.</p>
 

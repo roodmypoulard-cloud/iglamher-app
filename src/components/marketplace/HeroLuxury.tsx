@@ -1,10 +1,19 @@
 "use client";
-import { useState, type FormEvent } from "react";
+import { useState, useTransition, type FormEvent } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { track } from "@/lib/analytics";
 import { addRecentSearch } from "@/lib/search/recent";
+import { EasyBookingSheet } from "./EasyBookingSheet";
 import styles from "./HeroLuxury.module.css";
+
+function haptic() {
+  try {
+    navigator.vibrate?.(10);
+  } catch {
+    /* unsupported */
+  }
+}
 
 export type HeroLuxuryProps = {
   /** High-resolution portrait with the subject on the right. */
@@ -21,6 +30,9 @@ export default function HeroLuxury({
 }: HeroLuxuryProps) {
   const router = useRouter();
   const [query, setQuery] = useState("");
+  const [easyOpen, setEasyOpen] = useState(false);
+  const [pendingKey, setPendingKey] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
 
   function submitSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -28,6 +40,14 @@ export default function HeroLuxury({
     addRecentSearch(trimmed);
     track("search_submitted", { hasQuery: trimmed.length > 0 });
     router.push(trimmed ? `/search?q=${encodeURIComponent(trimmed)}` : "/search");
+  }
+
+  // Navigate from a trust chip with haptic feedback + a per-chip loading state.
+  function goFromChip(href: string, key: string) {
+    if (isPending) return; // block duplicate taps mid-navigation
+    haptic();
+    setPendingKey(key);
+    startTransition(() => router.push(href));
   }
 
   return (
@@ -39,8 +59,12 @@ export default function HeroLuxury({
         alt=""
         fill
         priority
-        sizes="100vw"
-        quality={82}
+        fetchPriority="high"
+        // LCP element. The hero lives inside the Shell's constrained column
+        // (max-w-[440px] mobile, ~768px md, ~1024px lg), so cap the requested
+        // width here instead of letting sizes="100vw" pull the 3840px source.
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 768px, 1024px"
+        quality={80}
       />
       <div className={styles.imageBlend} aria-hidden="true" />
       <svg className={styles.rim} viewBox="0 0 390 44" preserveAspectRatio="none" aria-hidden="true">
@@ -70,11 +94,30 @@ export default function HeroLuxury({
         <div className={styles.accentLine} aria-hidden="true" />
       </div>
 
-      <div className={styles.trustRow} aria-label="Platform benefits">
-        <Benefit icon="sparkle" label="Trusted Pros" />
-        <Benefit icon="calendar" label="Easy Booking" />
-        <Benefit icon="heart" label="Real Reviews" />
+      <div className={styles.trustRow} role="group" aria-label="Platform benefits">
+        <Benefit
+          icon="sparkle"
+          label="Trusted Pros"
+          pending={isPending && pendingKey === "verified"}
+          onClick={() => goFromChip("/discover?verified=1", "verified")}
+        />
+        <Benefit
+          icon="calendar"
+          label="Easy Booking"
+          onClick={() => {
+            haptic();
+            setEasyOpen(true);
+          }}
+        />
+        <Benefit
+          icon="heart"
+          label="Real Reviews"
+          pending={isPending && pendingKey === "reviews"}
+          onClick={() => goFromChip("/reviews", "reviews")}
+        />
       </div>
+
+      <EasyBookingSheet open={easyOpen} onClose={() => setEasyOpen(false)} />
 
       <form className={styles.search} onSubmit={submitSearch} role="search">
         <svg className={styles.searchIcon} viewBox="0 0 24 24" aria-hidden="true">
@@ -98,9 +141,26 @@ export default function HeroLuxury({
   );
 }
 
-function Benefit({ icon, label }: { icon: "sparkle" | "calendar" | "heart"; label: string }) {
+function Benefit({
+  icon,
+  label,
+  onClick,
+  pending = false,
+}: {
+  icon: "sparkle" | "calendar" | "heart";
+  label: string;
+  onClick: () => void;
+  pending?: boolean;
+}) {
   return (
-    <div className={styles.benefit}>
+    <button
+      type="button"
+      className={styles.benefit}
+      onClick={onClick}
+      aria-label={label}
+      aria-busy={pending || undefined}
+      disabled={pending}
+    >
       {icon === "sparkle" && (
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z" />
@@ -119,6 +179,6 @@ function Benefit({ icon, label }: { icon: "sparkle" | "calendar" | "heart"; labe
         </svg>
       )}
       <span>{label}</span>
-    </div>
+    </button>
   );
 }

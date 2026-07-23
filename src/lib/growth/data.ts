@@ -1,6 +1,7 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
+import { syncConnectStatus } from "@/lib/payments/connect";
 import type { PayoutOverview } from "@/components/pro/ConnectPayouts";
 import type { BookingFact } from "@/lib/analytics/metrics";
 import {
@@ -22,7 +23,7 @@ const EMPTY: ProviderGrowthReport = {
   repeatRate: 0, weekly: [], forecastNextWeekCents: 0, suggestions: [], available: false,
 };
 
-const EMPTY_PAYOUT: PayoutOverview = { detailsSubmitted: false, payoutsEnabled: false, payoutsFrozen: false, pendingCents: 0, availableCents: 0 };
+const EMPTY_PAYOUT: PayoutOverview = { detailsSubmitted: false, payoutsEnabled: false, payoutsFrozen: false, pendingCents: 0, availableCents: 0, currentlyDue: [] };
 
 /** Payout onboarding state + earnings-ledger balances (server-side trusted). */
 export async function getPayoutOverview(): Promise<PayoutOverview> {
@@ -33,10 +34,21 @@ export async function getPayoutOverview(): Promise<PayoutOverview> {
 
   const { data: prof } = await supabase
     .from("professional_profiles")
-    .select("connect_details_submitted, connect_payouts_enabled, payouts_frozen")
+    .select("connect_details_submitted, connect_payouts_enabled, payouts_frozen, stripe_account_id")
     .eq("user_id", auth.user.id)
     .maybeSingle();
-  const p = prof as { connect_details_submitted?: boolean; connect_payouts_enabled?: boolean; payouts_frozen?: boolean } | null;
+  const p = prof as { connect_details_submitted?: boolean; connect_payouts_enabled?: boolean; payouts_frozen?: boolean; stripe_account_id?: string } | null;
+
+  // When payouts aren't live yet, pull Stripe's outstanding requirements so the UI
+  // can tell the pro exactly what's blocking them. Best-effort — never block the page.
+  let currentlyDue: string[] = [];
+  if (p?.stripe_account_id && !p.connect_payouts_enabled) {
+    try {
+      currentlyDue = (await syncConnectStatus(auth.user.id)).currentlyDue;
+    } catch {
+      currentlyDue = [];
+    }
+  }
 
   const { data: ledger } = await supabase
     .from("earnings_ledger")
@@ -52,6 +64,7 @@ export async function getPayoutOverview(): Promise<PayoutOverview> {
     payoutsFrozen: Boolean(p?.payouts_frozen),
     pendingCents: Math.max(0, sum("pending")),
     availableCents: Math.max(0, sum("available")),
+    currentlyDue,
   };
 }
 

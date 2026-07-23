@@ -9,13 +9,13 @@ import type { Category } from "@/lib/data/model";
  */
 export function CategoryTiles({ categories }: { categories: Category[] }) {
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
       {categories.map((c) => (
         <Link key={c.id} href={`/categories/${c.slug}`} className="group flex flex-col">
           <div className="relative aspect-[20/27] w-full overflow-hidden rounded-[24px] border border-border/80 shadow-luxe transition-[transform,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:-translate-y-1 group-active:-translate-y-0.5 [will-change:transform]">
             <SmartImage
               src={c.imageUrl}
-              alt={c.name}
+              alt=""
               fill
               sizes="(max-width: 640px) 46vw, 220px"
               className="img-luxe object-cover transition-transform duration-[650ms] ease-out group-hover:scale-[1.07]"

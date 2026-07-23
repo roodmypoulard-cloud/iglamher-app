@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { ServiceRow, AddonRow } from "@/lib/data/model";
 import { computeDaySlots, type AvailabilityConfig, type Slot } from "@/lib/availability/calc";
 import { computeBooking } from "@/lib/booking/pricing";
-import { createBookingDraftAction } from "@/lib/booking/actions";
+import { createBookingDraftAction, cancelUnpaidBookingAction } from "@/lib/booking/actions";
 import { createCheckoutSessionAction } from "@/lib/payments/actions";
 import { formatPrice, formatDuration, cn } from "@/lib/format";
 import { Button } from "@/components/ui/Button";
@@ -102,7 +102,10 @@ export function BookingFlow({ professionalId, professionalName, services, addons
           window.location.href = `/signin?next=${encodeURIComponent(window.location.pathname)}`;
           return;
         }
-        setError(checkout.error);
+        // Checkout never started — release the draft so the slot isn't held hostage
+        // by an unpayable pending_payment booking. The user can retry from "review".
+        await cancelUnpaidBookingAction(res.bookingId);
+        setError(`${checkout.error} Please try again.`);
         return;
       }
       window.location.href = checkout.url;

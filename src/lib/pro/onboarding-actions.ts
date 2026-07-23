@@ -10,7 +10,6 @@
 // which is the sole marketplace-visibility gate.
 import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { safeFilename } from "./schemas";
 
@@ -128,12 +127,15 @@ export async function getPublishChecklist(userId: string): Promise<{ missing: st
 }
 
 /**
- * Publish the profile to the public marketplace. Self-service, gated by the
- * completeness checklist (no admin approval for beta). is_active is set via the
- * admin client because the column guard blocks providers from self-activating.
+ * Submit the completed profile for admin review. Self-service submission only —
+ * it NEVER makes the provider public. is_active and review_status='approved' are
+ * admin-only (enforced by the guard_professional_profile_columns trigger); only
+ * an admin approval flips those. This action just moves the application into the
+ * review queue (review_status='pending_review') and records the onboarding step,
+ * all through the user's own session so RLS + the column guard still apply.
  */
 export async function submitProviderForReviewAction(): Promise<OnboardingState> {
-  if (!isLiveSupabase()) return { error: "Connect Supabase to publish." };
+  if (!isLiveSupabase()) return { error: "Connect Supabase to submit for review." };
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { error: "Please sign in." };
@@ -141,31 +143,34 @@ export async function submitProviderForReviewAction(): Promise<OnboardingState> 
 
   const { data: cur } = await supabase
     .from("professional_profiles")
-    .select("is_active")
+    .select("is_active, review_status")
     .eq("user_id", userId)
     .maybeSingle();
-  if ((cur as { is_active?: boolean } | null)?.is_active) return { success: "Your profile is already live." };
-
-  const { missing, ready } = await getPublishChecklist(userId);
-  if (!ready) return { error: `Add ${missing.join(", ")} before publishing.` };
-
-  try {
-    // Server-authorized publish: verified completeness + ownership → admin write.
-    const admin = createAdminClient();
-    const { error } = await admin
-      .from("professional_profiles")
-      .update({ is_active: true, review_status: "approved", onboarding_complete: true })
-      .eq("user_id", userId);
-    if (error) return { error: error.message };
-    await supabase
-      .from("profiles")
-      .update({ professional_onboarding_completed: true, onboarding_completed: true, active_mode: "professional" })
-      .eq("id", userId);
-  } catch (e) {
-    return { error: `Publish failed: ${e instanceof Error ? e.message : String(e)}` };
+  const row = cur as { is_active?: boolean; review_status?: string } | null;
+  if (row?.is_active) return { success: "Your profile is already live." };
+  if (row?.review_status === "pending_review" || row?.review_status === "under_review") {
+    return { success: "Your application is in review — we'll email you when there's a decision." };
   }
 
+  const { missing, ready } = await getPublishChecklist(userId);
+  if (!ready) return { error: `Add ${missing.join(", ")} before submitting for review.` };
+
+  // Owner-session write. Allowed transition (draft/needs_more_info -> pending_review)
+  // only; the column guard rejects any attempt to self-set is_active/approved.
+  const { error } = await supabase
+    .from("professional_profiles")
+    .update({ review_status: "pending_review", submitted_at: new Date().toISOString() })
+    .eq("user_id", userId);
+  if (error) return { error: error.message };
+  // Best-effort onboarding flag (column optional across deploys). Never touches
+  // marketplace visibility.
+  await supabase
+    .from("profiles")
+    .update({ professional_onboarding_completed: true, onboarding_completed: true, active_mode: "professional" })
+    .eq("id", userId);
+
   revalidatePath("/onboarding/professional");
-  revalidatePath("/discover");
-  return { success: "You're live! Your profile now appears in the marketplace." };
+  revalidatePath("/pro/application");
+  revalidatePath("/admin/applications");
+  return { success: "Submitted for review. We'll email you once an admin approves your profile." };
 }

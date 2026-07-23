@@ -111,6 +111,18 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
         </section>
       )}
 
+      {b.conversationId && (
+        <Link
+          href={`/messages/${b.conversationId}`}
+          className="mt-4 flex items-center justify-between rounded-[16px] border border-border bg-surface px-4 py-4 transition-colors hover:border-rose/50"
+        >
+          <span className="text-sm font-semibold text-ink">
+            {b.viewerRole === "customer" ? "Message your provider" : "Message the customer"}
+          </span>
+          <ChevronRight width={16} height={16} className="text-ink-muted" />
+        </Link>
+      )}
+
       {b.professionalSlug && b.viewerRole === "customer" && (
         <Link
           href={`/professionals/${b.professionalSlug}`}

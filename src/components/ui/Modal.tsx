@@ -1,6 +1,18 @@
 "use client";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useEffect, useRef, useSyncExternalStore, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/format";
+
+const noopSubscribe = () => () => {};
+/** True on the client, false during SSR — so createPortal(document.body) never runs
+ *  on the server. Uses useSyncExternalStore (no setState-in-effect). */
+function useMounted(): boolean {
+  return useSyncExternalStore(
+    noopSubscribe,
+    () => true,
+    () => false,
+  );
+}
 
 function useDismiss(open: boolean, onClose: () => void) {
   useEffect(() => {
@@ -29,13 +41,16 @@ export function Modal({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLDivElement>(null);
+  const mounted = useMounted();
   useDismiss(open, onClose);
   useEffect(() => {
     if (open) ref.current?.focus();
   }, [open]);
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={onClose}>
+  if (!open || !mounted) return null;
+  // Portal to <body> so the overlay escapes any ancestor with a transform/filter/
+  // overflow (which would otherwise trap this position:fixed layer inside a page box).
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-center justify-center overflow-y-auto bg-black/60 p-4" onClick={onClose}>
       <div
         ref={ref}
         tabIndex={-1}
@@ -43,12 +58,13 @@ export function Modal({
         aria-modal="true"
         aria-label={title}
         onClick={(e) => e.stopPropagation()}
-        className="slide-up w-full max-w-md rounded-[20px] border border-border bg-bg-elevated p-6 outline-none"
+        className="slide-up my-auto max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[20px] border border-border bg-bg-elevated p-6 outline-none"
       >
         {title && <h2 className="mb-3 font-display text-xl font-semibold">{title}</h2>}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
@@ -66,9 +82,10 @@ export function Sheet({
   children: ReactNode;
   className?: string;
 }) {
+  const mounted = useMounted();
   useDismiss(open, onClose);
-  if (!open) return null;
-  return (
+  if (!open || !mounted) return null;
+  return createPortal(
     <div className="fixed inset-0 z-50 flex flex-col justify-end bg-black/60" onClick={onClose}>
       <div
         role="dialog"
@@ -89,6 +106,7 @@ export function Sheet({
         )}
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

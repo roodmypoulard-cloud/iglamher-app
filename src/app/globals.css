@@ -46,6 +46,56 @@
 }
 
 * { -webkit-tap-highlight-color: transparent; }
+
+/* ============================================================
+   Safe-area utilities — keep chrome clear of the notch, iPhone
+   Dynamic Island, status bar, and the home indicator. Paired with
+   viewport-fit=cover (set in layout.tsx).
+   ============================================================ */
+@utility safe-top { padding-top: env(safe-area-inset-top); }
+@utility safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+@utility safe-x {
+  padding-left: max(1.25rem, env(safe-area-inset-left));
+  padding-right: max(1.25rem, env(safe-area-inset-right));
+}
+/* Sticky/fixed top bars: base vertical padding PLUS the top inset so the logo
+   and controls always sit below the Dynamic Island, while the bar's background
+   still fills the area behind it. */
+@utility topbar-safe {
+  padding-top: calc(0.625rem + env(safe-area-inset-top));
+  padding-bottom: 0.625rem;
+}
+/* Full-screen scroll pages that have no sticky bar of their own. */
+@utility page-safe-top { padding-top: calc(1rem + env(safe-area-inset-top)); }
+
+/* ============================================================
+   Premium page transitions (native-feeling slide/fade between routes).
+   Progressive enhancement — no-op where the View Transitions API is absent.
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  @view-transition { navigation: auto; }
+  ::view-transition-old(root) { animation: vtFadeOut .18s ease both; }
+  ::view-transition-new(root) { animation: vtSlideIn .32s cubic-bezier(0.22, 1, 0.36, 1) both; }
+}
+@keyframes vtFadeOut { to { opacity: 0; } }
+@keyframes vtSlideIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Kill the mobile browser's ~300ms "wait for double-tap-zoom" delay on every
+   interactive control, and hint the compositor so the first tap paints fast. */
+button, a, [role="button"], label, select, summary, input[type="checkbox"], input[type="radio"] {
+  touch-action: manipulation;
+}
+/* Instant (<100ms), GPU-only pressed feedback on every control — no layout, no JS. */
+@media (hover: none) {
+  button:active, a:active, [role="button"]:active {
+    transform: scale(0.98);
+    transition: transform 0.05s ease;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
+
 html { color-scheme: dark; }
 body {
   background: var(--color-bg);
@@ -61,6 +111,39 @@ body {
 @utility rose-gradient {
   background-image: linear-gradient(150deg, var(--color-rose-light), var(--color-rose));
 }
+/* Real metallic gold — a warm gold base with a bright highlight band for a foil/leaf
+   sheen, framed by a darker gold edge. Reads as gold, not flat yellow. */
+@utility gold-metallic {
+  background-image: linear-gradient(135deg, #8a6a1c 0%, #c9a24a 22%, #f4e6a6 48%, #d9b45a 64%, #a67e28 84%, #7d5f18 100%);
+  color: #2a1c08;
+}
+@utility gold-edge {
+  border-color: #9c7b2e;
+}
+/* Plain glossy gold — a top-lit vertical gradient with inset highlight/shadow so it
+   reads as a shiny gold chip (used for the "Pro" badge). */
+@utility gold-glossy {
+  background-image: linear-gradient(180deg, #f8ecab 0%, #e3c368 34%, #c69a34 62%, #9a7620 100%);
+  color: #2a1c08;
+  box-shadow: inset 0 1px 1px rgba(255,255,255,0.65), inset 0 -1px 2px rgba(0,0,0,0.28), 0 1px 3px rgba(0,0,0,0.35);
+}
+
+/* A light band that sweeps across a freshly-selected gold tab (glint), plus a small
+   pop on its label — both play once on mount, i.e. right when you tap the tab. */
+@media (prefers-reduced-motion: no-preference) {
+  .tab-shine {
+    position: absolute; inset: 0; pointer-events: none; border-radius: inherit; overflow: hidden;
+  }
+  .tab-shine::after {
+    content: ""; position: absolute; inset: -20%;
+    background: linear-gradient(105deg, transparent 38%, rgba(255,255,255,0.75) 50%, transparent 62%);
+    transform: translateX(-130%);
+    animation: goldGlint 1s ease-out 0.06s 1 both;
+  }
+  .tab-label-pop { animation: tabPop 0.34s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+}
+@keyframes goldGlint { to { transform: translateX(130%); } }
+@keyframes tabPop { 0% { transform: scale(0.82); } 60% { transform: scale(1.09); } 100% { transform: scale(1); } }
 @utility card-luxe {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -121,6 +204,23 @@ body {
   78% { transform: scale(1.08); }
   100% { transform: scale(1); }
 }
+
+/* ---- Splash screen (premium launch) ---- */
+.splash-glow { animation: splashGlow 3.6s ease-in-out infinite; }
+.splash-logo { animation: splashLogoIn 1.1s cubic-bezier(0.22, 1, 0.36, 1) both; }
+/* A soft band of light sweeping across the wordmark every few seconds. */
+.splash-shine {
+  background: linear-gradient(105deg, transparent 38%, rgba(240,192,180,0.55) 50%, transparent 62%);
+  background-size: 250% 100%;
+  animation: splashShine 3.4s ease-in-out 0.6s infinite;
+}
+@keyframes splashGlow {
+  0%, 100% { opacity: 0.35; transform: scale(1); }
+  50% { opacity: 0.7; transform: scale(1.12); }
+}
+@keyframes splashLogoIn { from { opacity: 0; transform: scale(0.96); } to { opacity: 1; transform: none; } }
+@keyframes splashShine { 0% { background-position: 160% 0; } 55%, 100% { background-position: -60% 0; } }
+@keyframes splashFadeOut { to { opacity: 0; visibility: hidden; } }
 
 /* Unified "one photoshoot" treatment — subtle, consistent warmth/contrast across all provider & category imagery. */
 .img-luxe { filter: saturate(1.04) contrast(1.02) brightness(1.005); }

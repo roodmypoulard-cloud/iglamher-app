@@ -4,8 +4,10 @@
 // contact info is rejected; the attempt is logged flagged/redacted for safety.
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { scanForContactInfo, guardMessage } from "./contact-guard";
+import { emailUserBestEffort } from "@/lib/integrations/notifications";
 
 const schema = z.object({
   conversationId: z.string().uuid(),
@@ -55,5 +57,32 @@ export async function sendMessageAction(raw: unknown): Promise<SendResult> {
   });
   if (error) return { ok: false, error: error.message };
   await supabase.from("conversations").update({ last_message_at: new Date().toISOString() }).eq("id", conversationId);
+
+  // Notify the other participant(s). The recipient's notification row can't be
+  // written under the sender's session (RLS owns-row), so use the service role.
+  // Best-effort — a notification hiccup never fails the send.
+  try {
+    const { data: members } = await supabase
+      .from("conversation_members")
+      .select("user_id")
+      .eq("conversation_id", conversationId);
+    const recipients = (members ?? [])
+      .map((m) => (m as { user_id: string }).user_id)
+      .filter((id) => id !== auth.user!.id);
+    if (recipients.length > 0) {
+      const admin = createAdminClient();
+      await admin.from("notifications").insert(
+        recipients.map((user_id) => ({
+          user_id,
+          type: "message",
+          title: "New message",
+          body: "You have a new message.",
+          data: { conversationId },
+        })),
+      );
+      // Mirror to email (best-effort).
+      await Promise.all(recipients.map((user_id) => emailUserBestEffort(user_id, "message", "New message", "You have a new message on iGlamHer.")));
+    }
+  } catch { /* notifications are best-effort */ }
   return { ok: true };
 }

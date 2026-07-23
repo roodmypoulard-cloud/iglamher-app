@@ -50,7 +50,7 @@ export default async function SettingsPage() {
     x === "email" || x === "google" || x === "apple");
 
   return (
-    <Shell>
+    <Shell back="/profile">
       <div className="mb-6 flex items-center gap-3">
         <Link href="/profile" className="text-sm text-rose hover:underline">← Profile</Link>
       </div>

@@ -14,7 +14,7 @@ export default async function NotificationsPage() {
     if (!auth.user) redirect("/signin?next=/notifications");
   }
   return (
-    <Shell>
+    <Shell back="/discover">
       <h1 className="mb-1 font-display text-3xl font-bold leading-tight">Notifications</h1>
       <p className="mb-6 text-sm text-ink-muted">Bookings, messages and offers.</p>
       <NotificationList />

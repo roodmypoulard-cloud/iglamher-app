@@ -64,7 +64,7 @@ interface PortfolioRowDb {
   is_cover: boolean; is_hidden: boolean; sort_order: number;
 }
 interface RuleRowDb { weekday: number; start_minute: number; end_minute: number; }
-interface ReviewRowDb { id: string; rating: number; body: string | null; professional_response: string | null; is_published: boolean; created_at: string; }
+interface ReviewRowDb { id: string; rating: number; body: string | null; professional_response: string | null; is_published: boolean; created_at: string; direction?: string | null; }
 
 const catById = new Map(CATEGORIES.map((c) => [c.id, c.slug] as const));
 
@@ -122,11 +122,16 @@ function mapPro(row: ProRow): Professional {
       serviceId: p.service_id ?? undefined, categorySlug: p.category_id ? slugFor(p.category_id) : undefined,
       isCover: p.is_cover, isHidden: p.is_hidden, sortOrder: p.sort_order,
     })),
-    reviews: (row.reviews ?? []).map((r) => ({
-      id: r.id, author: "Verified client", rating: r.rating, body: r.body ?? "",
-      serviceName: "", createdAt: r.created_at, professionalResponse: r.professional_response ?? undefined,
-      isPublished: r.is_published,
-    })),
+    // Only customer→pro reviews are shown on a public pro profile. pro→customer
+    // reviews (the pro rating the client) must never leak here. `direction` may be
+    // absent on pre-0020 rows, which are all customer_to_pro by definition.
+    reviews: (row.reviews ?? [])
+      .filter((r) => (r.direction ?? "customer_to_pro") === "customer_to_pro")
+      .map((r) => ({
+        id: r.id, author: "Verified client", rating: r.rating, body: r.body ?? "",
+        serviceName: "", createdAt: r.created_at, professionalResponse: r.professional_response ?? undefined,
+        isPublished: r.is_published,
+      })),
     availability: (row.availability_rules ?? []).map((r) => ({
       weekday: r.weekday, startMinute: r.start_minute, endMinute: r.end_minute,
     })),
@@ -136,6 +141,16 @@ function mapPro(row: ProRow): Professional {
 
 const PRO_SELECT =
   "*, services(*), service_addons(*), professional_portfolio_items(*), availability_rules(*), reviews(*)";
+
+/**
+ * Moderation gate for public visibility (professional_profiles.account_status, 0024):
+ * a suspended/banned pro must never surface publicly. Best-effort — pre-0024 rows have
+ * no column (undefined) and are treated as active, so it never crashes an old deploy.
+ */
+function accountIsActive(row: { account_status?: string | null }): boolean {
+  const s = row.account_status;
+  return s == null || s === "active";
+}
 
 async function fetchActivePros(): Promise<Professional[]> {
   if (!isLiveSupabase()) return PROFESSIONALS.filter(isPubliclyVisible);
@@ -148,10 +163,22 @@ async function fetchActivePros(): Promise<Professional[]> {
     .from("professional_profiles")
     .select(PRO_SELECT)
     .eq("is_active", true)
+    // Only surface trustworthy profiles publicly: admin-verified pros or curated
+    // demo/launch data. This keeps unverified test signups (e.g. incomplete
+    // onboarding accounts with random-suffix names, 0 reviews) out of the feed.
+    .or("is_verified.eq.true,is_demo.eq.true")
     .order("reliability_score", { ascending: false })
     .limit(500);
   if (error || !data) return [];
-  return (data as unknown as ProRow[]).map(mapPro);
+  // Dedupe by user_id at the source so a single pro can never render twice,
+  // regardless of any accidental duplicate rows or nested-join fan-out.
+  const byId = new Map<string, Professional>();
+  for (const row of data as unknown as ProRow[]) {
+    if (!accountIsActive(row as { account_status?: string | null })) continue;
+    const pro = mapPro(row);
+    if (!byId.has(pro.userId)) byId.set(pro.userId, pro);
+  }
+  return Array.from(byId.values());
 }
 
 export async function listCategories(): Promise<Category[]> {
@@ -198,6 +225,7 @@ export async function getProfessionalBySlug(slug: string): Promise<Professional 
     .eq("is_active", true)
     .maybeSingle();
   if (error || !data) return null;
+  if (!accountIsActive(data as { account_status?: string | null })) return null;
   return mapPro(data as unknown as ProRow);
 }
 
@@ -217,7 +245,9 @@ export async function getProfessionalsByUserIds(ids: string[], activeOnly = true
   if (activeOnly) query = query.eq("is_active", true);
   const { data, error } = await query;
   if (error || !data) return [];
-  return orderBy((data as unknown as ProRow[]).map(mapPro), ids);
+  const rows = data as unknown as ProRow[];
+  const visible = activeOnly ? rows.filter((r) => accountIsActive(r as { account_status?: string | null })) : rows;
+  return orderBy(visible.map(mapPro), ids);
 }
 
 function orderBy(pros: Professional[], ids: string[]): Professional[] {

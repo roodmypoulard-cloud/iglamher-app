@@ -20,7 +20,7 @@ export default async function FavoritesPage() {
   const allPros = await searchProfessionalViews({});
 
   return (
-    <Shell>
+    <Shell back="/account">
       <h1 className="font-display text-3xl font-bold leading-tight">Favorites</h1>
       <p className="mb-6 mt-1 text-sm text-ink-muted">Your saved professionals.</p>
       <FavoritesView allPros={allPros} />

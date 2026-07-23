@@ -9,6 +9,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { isConfigured } from "./config";
 import { log } from "@/lib/observability/logger";
+import { sendEmail as sendEmailSmtp, emailConfigured, notificationEmail } from "@/lib/email/send";
 
 export type NotificationChannel = "in_app" | "email" | "sms" | "push";
 
@@ -37,19 +38,37 @@ async function sendInApp(p: NotificationPayload): Promise<ChannelResult> {
     type: p.type,
     title: p.title,
     body: p.body,
-    metadata: p.metadata ?? {},
+    // The notifications column is `data` (jsonb) — there is no `metadata` column.
+    data: p.metadata ?? {},
   });
   return { channel: "in_app", delivered: !error, detail: error?.message };
 }
 
-// --- vendor channels: real integration points, dormant until keys exist ---
+// --- email: real transactional send via Zoho SMTP (lib/email/send) ---
 async function sendEmail(p: NotificationPayload): Promise<ChannelResult> {
-  if (!isConfigured("resend_email") || !p.email) return { channel: "email", delivered: false, detail: "not configured" };
-  // Integration point (Resend):
-  //   const res = await fetch("https://api.resend.com/emails", { method:"POST",
-  //     headers:{ Authorization:`Bearer ${process.env.RESEND_API_KEY}` }, body: ... });
-  log.info("notification.email.pending", { to: p.email, type: p.type });
-  return { channel: "email", delivered: false, detail: "resend wired; enable send in code" };
+  if (!emailConfigured()) return { channel: "email", delivered: false, detail: "not configured" };
+
+  // Resolve the recipient (explicit override, else the user's auth email) and
+  // honor the customer's email opt-out when they have a preference row.
+  let to = p.email;
+  if (!to && isLiveSupabase()) {
+    try {
+      const admin = createAdminClient();
+      const { data } = await admin.auth.admin.getUserById(p.userId);
+      to = data.user?.email ?? undefined;
+      const { data: pref } = await admin.from("customer_profiles").select("notif_email").eq("user_id", p.userId).maybeSingle();
+      if ((pref as { notif_email?: boolean } | null)?.notif_email === false) {
+        return { channel: "email", delivered: false, detail: "opted out" };
+      }
+    } catch {
+      /* fall through — no recipient resolved */
+    }
+  }
+  if (!to) return { channel: "email", delivered: false, detail: "no recipient" };
+
+  const { subject, html, text } = notificationEmail(p.title, p.body);
+  const res = await sendEmailSmtp(to, subject, html, text);
+  return { channel: "email", delivered: res.ok, detail: res.error ?? (res.skipped ? "skipped" : undefined) };
 }
 
 async function sendSms(p: NotificationPayload): Promise<ChannelResult> {
@@ -92,4 +111,26 @@ export async function dispatchNotification(p: NotificationPayload): Promise<Chan
     else if (ch === "push") results.push(await sendPush(p));
   }
   return results;
+}
+
+/**
+ * Fire-and-forget email that mirrors an in-app notification already written by the
+ * caller. Email-only (no duplicate in-app insert) and NEVER throws — safe to call
+ * after the primary action has committed, so a mail hiccup can't fail the action.
+ */
+export async function emailUserBestEffort(
+  userId: string,
+  type: NotificationPayload["type"],
+  title: string,
+  body: string,
+  email?: string,
+): Promise<void> {
+  try {
+    const res = await sendEmail({ userId, type, title, body, email });
+    if (!res.delivered && res.detail && res.detail !== "not configured" && res.detail !== "opted out") {
+      log.warn("notification.email.undelivered", { userId, type, detail: res.detail });
+    }
+  } catch (e) {
+    log.warn("notification.email.failed", { userId, type, error: e instanceof Error ? e.message : String(e) });
+  }
 }

@@ -1,7 +1,12 @@
 import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
+import { withTimeout } from "@/lib/util/timeout";
 import type { BookingStatus } from "./status";
+
+// Every DB round-trip in this module is bounded: a hung query rejects after 6s
+// so the page's error boundary fires instead of leaving a permanent skeleton.
+const DB_TIMEOUT_MS = 6000;
 
 export interface BookingSummary {
   id: string;
@@ -33,15 +38,24 @@ function mapRow(r: Record<string, unknown>): BookingSummary {
 
 export async function getMyCustomerBookings(): Promise<BookingSummary[]> {
   if (!isLiveSupabase()) return [];
-  const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
-  if (!auth.user) return [];
-  const { data } = await supabase
-    .from("bookings")
-    .select(SELECT)
-    .eq("customer_id", auth.user.id)
-    .order("starts_at", { ascending: false });
-  return ((data as unknown as Record<string, unknown>[]) ?? []).map(mapRow);
+  // Best-effort: this feeds the Discover recommendations and the account bookings
+  // list. On a DB error/timeout, degrade to an empty list rather than throwing and
+  // taking down the whole page (recommendations are non-critical personalization).
+  try {
+    const supabase = await createSupabaseServerClient();
+    const { data: auth } = await withTimeout(supabase.auth.getUser(), DB_TIMEOUT_MS, "auth.getUser");
+    if (!auth.user) return [];
+    const { data, error } = await withTimeout(
+      supabase.from("bookings").select(SELECT).eq("customer_id", auth.user.id).order("starts_at", { ascending: false }),
+      DB_TIMEOUT_MS,
+      "customer bookings",
+    );
+    if (error) throw new Error(`Failed to load bookings: ${error.message}`);
+    return ((data as unknown as Record<string, unknown>[]) ?? []).map(mapRow);
+  } catch (e) {
+    console.error("[bookings] getMyCustomerBookings failed", e instanceof Error ? e.message : e);
+    return [];
+  }
 }
 
 export interface BookingDetail extends BookingSummary {
@@ -54,48 +68,59 @@ export interface BookingDetail extends BookingSummary {
   viewerRole: "customer" | "professional";
   reviewedByViewer: boolean;
   tipped: boolean;
+  conversationId: string | null;
+  messagingUnlocked: boolean;
 }
 
 /** Load one booking (customer OR professional party only). Returns null if it
  *  doesn't exist or the viewer isn't a party — the page shows 404 for null. */
 export async function getBookingDetail(id: string): Promise<BookingDetail | null> {
   if (!isLiveSupabase()) return null;
+  // Guard against a missing/blank dynamic route id before touching the DB.
+  if (!id || typeof id !== "string" || id.trim() === "") return null;
+
   const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth } = await withTimeout(supabase.auth.getUser(), DB_TIMEOUT_MS, "auth.getUser");
   if (!auth.user) return null;
 
-  const { data } = await supabase
-    .from("bookings")
-    .select(
-      "id,status,service_name_snapshot,starts_at,ends_at,total_cents,subtotal_cents,amount_due_now_cents,professional_id,customer_id,professional:professional_profiles!bookings_professional_id_fkey(business_name,slug)",
-    )
-    .eq("id", id)
-    .maybeSingle();
+  const { data, error } = await withTimeout(
+    supabase
+      .from("bookings")
+      .select(
+        "id,status,service_name_snapshot,starts_at,ends_at,total_cents,subtotal_cents,amount_due_now_cents,professional_id,customer_id,professional:professional_profiles!bookings_professional_id_fkey(business_name,slug)",
+      )
+      .eq("id", id)
+      .maybeSingle(),
+    DB_TIMEOUT_MS,
+    "booking detail",
+  );
+  if (error) throw new Error(`Failed to load booking: ${error.message}`);
   if (!data) return null;
   const r = data as unknown as Record<string, unknown>;
   if (r.customer_id !== auth.user.id && r.professional_id !== auth.user.id) return null;
 
   const viewerRole = r.professional_id === auth.user.id ? "professional" : "customer";
   // Has the viewer already reviewed (in their direction)? Has a tip been left?
-  // Degrades to false if migrations 0020/0021 aren't applied.
+  // Degrades to false if migrations 0020/0021 aren't applied. These three lookups
+  // are independent → run them in parallel so the detail page isn't 3 serial hops.
   const dir = viewerRole === "professional" ? "pro_to_customer" : "customer_to_pro";
-  let reviewedByViewer = false;
-  let tipped = false;
-  const { data: rev } = await supabase.from("reviews").select("id").eq("booking_id", id).eq("direction", dir).maybeSingle();
-  reviewedByViewer = Boolean(rev);
-  const { data: tip } = await supabase.from("tips").select("id").eq("booking_id", id).maybeSingle();
-  tipped = Boolean(tip);
+  const [rev, tip, pay, convo] = await withTimeout(
+    Promise.all([
+      supabase.from("reviews").select("id").eq("booking_id", id).eq("direction", dir).maybeSingle(),
+      supabase.from("tips").select("id").eq("booking_id", id).maybeSingle(),
+      supabase.from("payments").select("status").eq("booking_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("conversations").select("id, is_unlocked").eq("booking_id", id).maybeSingle(),
+    ]),
+    DB_TIMEOUT_MS,
+    "booking detail extras",
+  );
+  const reviewedByViewer = Boolean(rev.data);
+  const tipped = Boolean(tip.data);
+  const convoRow = convo.data as { id?: string; is_unlocked?: boolean } | null;
 
   // Payment status: prefer the payments row; fall back to booking-status-derived.
   let paymentStatus = "unpaid";
-  const { data: pay } = await supabase
-    .from("payments")
-    .select("status")
-    .eq("booking_id", id)
-    .order("created_at", { ascending: false })
-    .limit(1)
-    .maybeSingle();
-  const payStatus = (pay as { status?: string } | null)?.status;
+  const payStatus = (pay.data as { status?: string } | null)?.status;
   if (payStatus) paymentStatus = payStatus;
   else if (["confirmed", "in_progress", "completed"].includes(String(r.status))) paymentStatus = "paid";
 
@@ -111,18 +136,21 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     viewerRole,
     reviewedByViewer,
     tipped,
+    conversationId: convoRow?.id ?? null,
+    messagingUnlocked: Boolean(convoRow?.is_unlocked),
   };
 }
 
 export async function getMyProfessionalBookings(): Promise<BookingSummary[]> {
   if (!isLiveSupabase()) return [];
   const supabase = await createSupabaseServerClient();
-  const { data: auth } = await supabase.auth.getUser();
+  const { data: auth } = await withTimeout(supabase.auth.getUser(), DB_TIMEOUT_MS, "auth.getUser");
   if (!auth.user) return [];
-  const { data } = await supabase
-    .from("bookings")
-    .select(SELECT)
-    .eq("professional_id", auth.user.id)
-    .order("starts_at", { ascending: true });
+  const { data, error } = await withTimeout(
+    supabase.from("bookings").select(SELECT).eq("professional_id", auth.user.id).order("starts_at", { ascending: true }),
+    DB_TIMEOUT_MS,
+    "professional bookings",
+  );
+  if (error) throw new Error(`Failed to load bookings: ${error.message}`);
   return ((data as unknown as Record<string, unknown>[]) ?? []).map(mapRow);
 }

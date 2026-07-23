@@ -26,7 +26,7 @@ export default async function CategoryPage({ params }: { params: Promise<{ slug:
   if (!cat) notFound();
 
   return (
-    <Shell wide>
+    <Shell wide back="/categories">
       <TrackView event="category_viewed" props={{ category }} />
       <div className="relative mb-6 aspect-[16/6] w-full overflow-hidden rounded-[16px] border border-border">
         {cat.imageUrl && <Image src={cat.imageUrl} alt="" fill sizes="100vw" className="object-cover" priority />}

@@ -2,6 +2,50 @@
 
 Per CLAUDE.md rule 12, non-spec choices and deferrals are logged here.
 
+## 2026-07-22 — Payouts: Stripe Connect **Express** (Stripe-hosted onboarding) — FINAL
+
+**Decision (owner: Roodmy):** Pros onboard for payouts through **Stripe-hosted Express**
+onboarding — not an in-app bank/SSN form. Connect accounts are `type: "express"`
+(payout-only: `transfers` + `card_payments` capabilities, `business_type: "individual"`,
+MCC `7230`). This **supersedes and reverses** the earlier same-day Custom decision.
+
+**Why Express over Custom:**
+- **1099 tax reporting is handled by Stripe.** Express connected accounts get their
+  `1099-K`/`1099-NEC` generated and filed by Stripe (enable Connect tax reporting in the
+  Dashboard); with Custom, iGlamHer would own 1099 generation and filing itself.
+- **Far less KYC / compliance liability.** Stripe hosts identity, bank, and tax-info
+  collection and owns KYC, verification, disclosures, and the Services Agreement. We never
+  see or store SSN, DOB, or raw bank numbers — shrinking our PII surface and audit scope.
+- **No platform approval gate.** Express works in live mode without Stripe having to
+  specially enable Custom for the platform (which Custom requires).
+- **Faster, lower-maintenance onboarding.** Stripe maintains the flow, localizations, and
+  requirement prompts; we just deep-link into it and read back account status.
+
+**How it works:**
+- `ensureConnectAccount` creates/reuses the pro's Express account; `createOnboardingLink`
+  returns a Stripe-hosted `account_onboarding` link (return/refresh → `/pro/earnings`).
+- Payout eligibility is derived from Stripe's own flags
+  (`details_submitted` / `charges_enabled` / `payouts_enabled`) via `syncConnectStatus`,
+  mirrored onto `professional_profiles` for fast checks — never self-reported.
+  `requirements.currently_due` is surfaced in the UI so a stuck pro sees exactly what's left.
+- **Money flow = separate charges + transfers (unchanged):** the platform collects the
+  deposit and (at completion) the balance onto the **platform** account, keeping its
+  commission; `transferBookingPayout` then `Transfer`s the pro's net to their connected
+  account. Payout is **deferred to service completion** (after the balance is captured),
+  so a payout can never exceed funds actually collected. Refunds reverse the transfer
+  proportionally (`reverseBookingPayout`). Idempotent per booking.
+- Files: `src/lib/payments/connect.ts` (Express account + hosted link + status sync),
+  `connect-actions.ts` (`startConnectOnboardingAction`, `refreshConnectStatusAction`),
+  `src/lib/payments/payouts.ts` (transfers/reversals), wired into
+  `src/components/pro/ConnectPayouts.tsx`. The in-app `PayoutBankForm.tsx` +
+  `savePayoutMethodAction` (Custom bank/SSN entry) were **removed**.
+- **Trade-off accepted:** payouts require the pro to complete a short Stripe-hosted flow
+  (a redirect out of the app) rather than a fully in-app form — worth it for the reduced
+  liability and Stripe-managed 1099s.
+
+**Dashboard follow-up:** enable **Connect → 1099 tax reporting** (see README / go-live
+notes) so Stripe files pros' 1099s automatically.
+
 ## Phase 5 — Booking engine & marketplace core
 
 ### Built and verified (offline-testable)

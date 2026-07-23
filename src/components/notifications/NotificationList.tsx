@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef } from "react";
 import Link from "next/link";
 import { useNotifications } from "@/lib/notifications/provider";
 import { NOTIFICATION_META, timeAgo } from "@/lib/notifications/model";
@@ -8,6 +9,15 @@ import { cn } from "@/lib/format";
 
 export function NotificationList() {
   const { notifications, isRead, markRead, markAllRead, unreadCount, hydrated } = useNotifications();
+
+  // Mark everything read the first time the page is opened (once feed has loaded).
+  const markedOnOpen = useRef(false);
+  useEffect(() => {
+    if (hydrated && !markedOnOpen.current && unreadCount > 0) {
+      markedOnOpen.current = true;
+      markAllRead();
+    }
+  }, [hydrated, unreadCount, markAllRead]);
 
   if (!hydrated) return <ListSkeleton count={4} />;
 
@@ -32,7 +42,7 @@ export function NotificationList() {
           return (
             <li key={n.id}>
               <Link
-                href={n.href ?? "#"}
+                href={n.href ?? "/notifications"}
                 onClick={() => markRead(n.id)}
                 className={cn(
                   "flex gap-3 rounded-[16px] border p-4 transition-colors",

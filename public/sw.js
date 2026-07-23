@@ -2,7 +2,7 @@
  * Pages: network-first (always fresh online, offline fallback).
  * Images: stale-while-revalidate. Static build assets: cache-first.
  * Never caches API routes, auth, checkout, or webhooks. */
-const VERSION = "iglamher-v1";
+const VERSION = "iglamher-v2";
 const SHELL = `${VERSION}-shell`;
 const IMAGES = `${VERSION}-img`;
 const OFFLINE_URL = "/offline";

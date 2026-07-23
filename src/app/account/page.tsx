@@ -2,11 +2,11 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
-import { getAccountContext } from "@/lib/profile/account";
-import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
+import { getProfileOverview } from "@/lib/profile/profile-data";
+import { ProfileModeCard } from "@/components/profile/ProfileModeCard";
 import { Shell, SectionHeader } from "@/components/marketplace/Shell";
 import { EmptyState } from "@/components/ui/states";
-import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, UserIcon, StarIcon } from "@/components/ui/icons";
+import { HeartIcon, CalendarIcon, ChatIcon, BellIcon, UserIcon, StarIcon, CreditCardIcon, SparkleIcon } from "@/components/ui/icons";
 import { getMyCustomerBookings, type BookingSummary } from "@/lib/booking/data";
 import { statusLabel, isActive } from "@/lib/booking/status";
 import { formatPrice } from "@/lib/format";
@@ -16,9 +16,11 @@ export const metadata = { title: "My account · iGlamHer" };
 
 const LINKS = [
   { href: "/account/favorites", label: "Favorites", Icon: HeartIcon },
+  { href: "/account/payment-methods", label: "Payment", Icon: CreditCardIcon },
   { href: "/account/rewards", label: "Rewards", Icon: StarIcon },
   { href: "/notifications", label: "Notifications", Icon: BellIcon },
   { href: "/messages", label: "Messages", Icon: ChatIcon },
+  { href: "/pro/apply", label: "Become a pro", Icon: SparkleIcon },
   { href: "/profile", label: "Settings", Icon: UserIcon },
 ];
 
@@ -49,20 +51,20 @@ export default async function AccountPage() {
   const bookings = await getMyCustomerBookings();
   const upcoming = bookings.filter((b) => isActive(b.status));
   const past = bookings.filter((b) => !isActive(b.status));
-  const account = await getAccountContext();
+  const o = await getProfileOverview();
+  const account = o?.account ?? null;
 
   return (
     <Shell>
       <h1 className="font-display text-3xl font-bold leading-tight">My account</h1>
       <p className="mt-1 text-sm text-ink-muted">Bookings, receipts and settings.</p>
 
+      {/* Same compact mode card as /profile — one component, identical behavior:
+          Customer/Professional switch via switchModeAction, dashboard entry via
+          enterModeAction("professional") → /pro/services. */}
       {account?.canSwitch && (
-        <div className="mt-5 rounded-[16px] border border-border bg-surface p-4">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-ink-muted">Mode</p>
-          <ModeSwitcher activeMode={account.activeMode} />
-          <Link href="/pro/profile" className="mt-3 inline-block text-sm font-semibold text-rose hover:underline">
-            Go to professional dashboard →
-          </Link>
+        <div className="mt-5">
+          <ProfileModeCard accountType={account.accountType} activeMode={account.activeMode} proComplete={Boolean(o?.proComplete)} />
         </div>
       )}
 

@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
+import { emailUserBestEffort } from "@/lib/integrations/notifications";
 
 export type ReviewState = { error?: string; success?: string } | undefined;
 
@@ -76,6 +77,7 @@ export async function submitReviewAction(bookingId: string, _prev: ReviewState, 
       body: `You received a ${v.rating}★ review.`,
       data: { bookingId },
     });
+    await emailUserBestEffort(revieweeId, "review", "New review", `You received a ${v.rating}-star review on iGlamHer.`);
   } catch { /* notifications are best-effort */ }
 
   revalidatePath(`/bookings/${bookingId}`);

@@ -38,7 +38,9 @@ Deno.serve(async () => {
         type: "booking",
         title: `Reminder: ${b.service_name_snapshot}`,
         body: `Your appointment is in ${w.hours} hours.`,
-        metadata: { booking_id: b.id, kind: w.kind },
+        // Column is `data` (jsonb); there is no `metadata` column, so the previous
+        // insert silently dropped the payload / errored and reminders never landed.
+        data: { bookingId: b.id, kind: w.kind },
       });
       // TODO(push): dispatch APNs/FCM here once device tokens + certs exist.
       sent++;

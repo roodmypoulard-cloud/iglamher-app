@@ -39,7 +39,7 @@ export function BottomNav() {
     <nav
       aria-label="Primary"
       className={cn(
-        "fixed bottom-0 left-1/2 z-30 w-full max-w-[440px] -translate-x-1/2 border-t border-border bg-bg-elevated/95 backdrop-blur-lg md:hidden",
+        "fixed bottom-0 left-1/2 z-30 w-full max-w-[440px] -translate-x-1/2 border-t border-border bg-bg-elevated md:hidden",
         "transition-[transform,opacity] duration-300 ease-out will-change-transform motion-reduce:transition-none",
         hidden ? "translate-y-[135%] opacity-0" : "translate-y-0 opacity-100",
       )}

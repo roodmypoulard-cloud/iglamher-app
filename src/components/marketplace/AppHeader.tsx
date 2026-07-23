@@ -1,11 +1,12 @@
 import Link from "next/link";
 import Image from "next/image";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { Avatar } from "@/components/ui/Avatar";
+import { ViewerAvatar } from "@/components/marketplace/ViewerAvatar";
+import { DesktopNav } from "@/components/marketplace/DesktopNav";
 
 export function AppHeader() {
   return (
-    <header className="sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/60 bg-bg/85 px-5 py-3 backdrop-blur-md md:px-8">
+    <header className="topbar-safe sticky top-0 z-20 flex min-h-[72px] items-center justify-between gap-3 border-b border-border/60 bg-bg px-5 md:bg-bg/85 md:px-8 md:backdrop-blur-md">
       <Link href="/discover" aria-label="iGlamHer home" className="flex min-w-0 items-center py-1">
         <span className="fade-in inline-flex flex-col items-center">
           {/* Wrapper hugs the logo so the ambient glow scopes to the mark, and never clips it. */}
@@ -29,11 +30,10 @@ export function AppHeader() {
           </span>
         </span>
       </Link>
+      <DesktopNav className="mx-auto" />
       <div className="flex flex-none items-center gap-4">
         <NotificationBell />
-        <Link href="/profile" aria-label="Your profile" className="transition-transform active:scale-95">
-          <Avatar name="Roodmy" size={32} priority />
-        </Link>
+        <ViewerAvatar size={32} />
       </div>
     </header>
   );

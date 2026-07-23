@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useActionState, useState } from "react";
 import {
   signInAction,
@@ -49,7 +50,17 @@ export function SignUpForm() {
         <PasswordField label="Confirm password" id="confirmPassword" autoComplete="new-password" placeholder="Re-enter password" required />
         <label className="flex items-start gap-2 text-[13px] text-ink-muted">
           <input type="checkbox" name="acceptTerms" value="true" required className="mt-0.5 h-4 w-4 accent-rose" />
-          <span>I agree to the Terms of Service and Privacy Policy.</span>
+          <span>
+            I agree to the{" "}
+            <Link href="/terms" target="_blank" rel="noopener noreferrer" className="text-rose underline">
+              Terms of Service
+            </Link>{" "}
+            and{" "}
+            <Link href="/privacy" target="_blank" rel="noopener noreferrer" className="text-rose underline">
+              Privacy Policy
+            </Link>
+            .
+          </span>
         </label>
         <button
           type="button"

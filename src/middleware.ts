@@ -22,6 +22,15 @@ const PROTECTED = [
 const AUTH_PAGES = ["/signin", "/signup"];
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname;
+  const needsAuthCheck =
+    PROTECTED.some((p) => path.startsWith(p)) || AUTH_PAGES.some((p) => path.startsWith(p));
+
+  // PERF: public navigations (/discover, /search, /categories, /services, …) pay
+  // ZERO auth cost — no Supabase network round-trip. Only protected + auth pages
+  // hit auth.getUser(), which is a network call that otherwise taxed every tap.
+  if (!needsAuthCheck) return NextResponse.next({ request });
+
   let response = NextResponse.next({ request });
 
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -48,12 +57,16 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const path = request.nextUrl.pathname;
-
-  // unauthenticated → keep off protected routes, remember destination
-  if (!user && PROTECTED.some((p) => path.startsWith(p))) {
+  // unauthenticated → keep off protected routes, remember destination.
+  // EXCEPT /book/success: that is the Stripe Checkout return URL. Its session_id
+  // is proof of payment (the page confirms server-side with no browser auth), so
+  // bouncing it to /signin would strand a paid booking. Let it render.
+  const isStripeReturn = path.startsWith("/book/success");
+  if (!user && !isStripeReturn && PROTECTED.some((p) => path.startsWith(p))) {
     const redirect = new URL("/signin", request.url);
-    redirect.searchParams.set("next", path);
+    // Preserve the full destination incl. query (e.g. ?session_id=…) so re-auth
+    // returns the user exactly where they were, not a query-stripped path.
+    redirect.searchParams.set("next", path + request.nextUrl.search);
     return NextResponse.redirect(redirect);
   }
 

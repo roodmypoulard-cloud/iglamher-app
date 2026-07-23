@@ -17,13 +17,39 @@ const inter = Inter({
   display: "swap",
 });
 
+const siteTitle = "iGlamHer — Book Beauty. Anytime. Anywhere.";
+const siteDescription =
+  "Discover and book nearby hair, makeup, lash and styling professionals. Luxury beauty services that come to you, in Los Angeles.";
+
 export const metadata: Metadata = {
-  title: "iGlamHer — Book Beauty. Anytime. Anywhere.",
-  description:
-    "Discover and book nearby hair, makeup, lash and styling professionals. Luxury beauty services that come to you, in Los Angeles.",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://iglamher-app.vercel.app"),
+  title: siteTitle,
+  description: siteDescription,
   applicationName: "iGlamHer",
   manifest: "/manifest.webmanifest",
   appleWebApp: { capable: true, title: "iGlamHer", statusBarStyle: "black-translucent" },
+  openGraph: {
+    title: siteTitle,
+    description: siteDescription,
+    url: "/",
+    siteName: "iGlamHer",
+    type: "website",
+    locale: "en_US",
+    images: [
+      {
+        url: "/brand/hero.jpg",
+        width: 1200,
+        height: 630,
+        alt: "iGlamHer — Book Beauty. Anytime. Anywhere.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: siteTitle,
+    description: siteDescription,
+    images: ["/brand/hero.jpg"],
+  },
 };
 
 export const viewport: Viewport = {

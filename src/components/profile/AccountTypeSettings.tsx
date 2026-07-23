@@ -1,14 +1,15 @@
 "use client";
 import { useTransition, useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { startProviderOnboardingAction } from "@/lib/pro/onboarding-actions";
 import { ModeSwitcher } from "@/components/profile/ModeSwitcher";
+import { SparkleIcon } from "@/components/ui/icons";
 
 /**
- * Settings control for account type. A customer can become a beauty professional
- * (upgrades to "both") without creating a second account; a professional/both
- * account gets the customer/professional mode switch. No new account is ever made.
+ * Account card. Customer accounts get the "become a professional" upgrade (same
+ * account, no new signup). Professional/both accounts get the Account Type + Current
+ * Mode rows and the two large mode cards. The professional dashboard entry lives once
+ * at the page level (not here), so there's a single dashboard CTA.
  */
 export function AccountTypeSettings({
   accountType,
@@ -24,14 +25,13 @@ export function AccountTypeSettings({
   const label =
     accountType === "both" ? "Customer & Professional" : accountType === "professional" ? "Beauty Professional" : "Customer";
 
-  return (
-    <div className="card-luxe px-4 py-4">
-      <div className="flex items-center justify-between">
-        <span className="text-sm text-ink-muted">Account type</span>
-        <span className="text-sm font-semibold text-ink">{label}</span>
-      </div>
-
-      {accountType === "customer" ? (
+  if (accountType === "customer") {
+    return (
+      <div className="card-luxe px-4 py-4">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-ink-muted">Account type</span>
+          <span className="text-sm font-semibold text-ink">{label}</span>
+        </div>
         <div className="mt-4 border-t border-border/60 pt-4">
           <p className="mb-3 text-[13px] text-ink-muted">
             Want to offer your services? Become a beauty professional — same account, no new signup.
@@ -53,15 +53,31 @@ export function AccountTypeSettings({
           </button>
           {error && <p role="alert" className="mt-2 text-sm text-danger">{error}</p>}
         </div>
-      ) : (
-        <div className="mt-4 border-t border-border/60 pt-4">
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-ink-muted">Mode</p>
-          <ModeSwitcher activeMode={activeMode} />
-          <Link href="/pro/profile" className="mt-3 inline-block text-sm font-semibold text-rose hover:underline">
-            Professional dashboard →
-          </Link>
-        </div>
-      )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="card-luxe space-y-4 px-4 py-4">
+      {/* Account type */}
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-ink-muted">Account type</span>
+        <span className="flex items-center gap-1.5 text-sm font-semibold text-rose">
+          {label}
+          <SparkleIcon width={15} height={15} />
+        </span>
+      </div>
+
+      {/* Current mode */}
+      <div className="flex items-center justify-between border-t border-border/60 pt-4">
+        <span className="text-sm text-ink-muted">Current mode</span>
+        <span className="text-sm font-semibold text-rose">
+          {activeMode === "professional" ? "Professional Mode" : "Customer Mode"}
+        </span>
+      </div>
+
+      {/* Two large mode cards */}
+      <ModeSwitcher activeMode={activeMode} />
     </div>
   );
 }

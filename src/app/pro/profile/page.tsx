@@ -20,8 +20,24 @@ export default async function ProProfilePage() {
 
   const completeness = Math.round(profileCompleteness(ctx.pro) * 100);
 
+  const pendingReview = !ctx.pro.isVerified;
+
   return (
     <ProShell active="/pro/profile" isDemo={ctx.isDemo}>
+      {pendingReview && (
+        <div className="mb-6 flex items-start gap-3 rounded-[14px] border border-gold/40 bg-gold/10 px-4 py-3">
+          <svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke="currentColor" strokeWidth={1.9} className="mt-0.5 flex-none text-gold" aria-hidden>
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 7v5l3 2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <div>
+            <p className="text-sm font-semibold text-ink">Profile pending review</p>
+            <p className="mt-0.5 text-[13px] text-ink-secondary">
+              Your profile is complete and in our review queue. You won&apos;t appear in the public feed or take bookings until our team approves you — usually within a day. Nothing is broken; we&apos;ll email you once you&apos;re live.
+            </p>
+          </div>
+        </div>
+      )}
       <div className="mb-6 flex items-center justify-between">
         <h1 className="font-display text-2xl font-bold">Public profile</h1>
         <div className="text-right">

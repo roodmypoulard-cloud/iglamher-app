@@ -9,10 +9,12 @@ import { transferBookingPayout } from "@/lib/payments/payouts";
 import { holdBookingBalance, captureBookingBalance, releaseBookingBalance } from "@/lib/payments/balance";
 import { isLiveSupabase } from "@/lib/data/source";
 import { getServiceWithProfessional } from "@/lib/data/professionals";
-import { computeBooking, type PriceBreakdown } from "./pricing";
+import { computeBooking, cancellationFee, type PriceBreakdown } from "./pricing";
 import { canTransition, type BookingStatus, type Actor } from "./status";
+import { getStripe, isStripeConfigured } from "@/lib/payments/stripe";
 import { awardBookingPoints } from "@/lib/loyalty/award";
 import { isBookingsPaused } from "@/lib/ops/settings";
+import { emailUserBestEffort } from "@/lib/integrations/notifications";
 
 const draftSchema = z.object({
   professionalId: z.string().uuid(),
@@ -62,6 +64,13 @@ export async function createBookingDraftAction(raw: unknown): Promise<DraftResul
     return { ok: true, bookingId: `demo-${crypto.randomUUID()}`, breakdown, demo: true };
   }
 
+  // Payments must be live before we reserve a slot. A pending_payment booking holds
+  // the time slot; if Stripe isn't configured, checkout can never complete and the
+  // slot would orphan. Fail fast rather than create an unpayable draft.
+  if (!isStripeConfigured()) {
+    return { ok: false, error: "Payments aren't available right now. Please try again shortly." };
+  }
+
   const supabase = await createSupabaseServerClient();
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, error: "Please sign in to book." };
@@ -80,6 +89,19 @@ export async function createBookingDraftAction(raw: unknown): Promise<DraftResul
     return { ok: false, error: "Your account is paused. Reactivate it to make a booking." };
   }
   if (pro?.account_status && pro.account_status !== "active") {
+    return { ok: false, error: "This professional is not currently accepting bookings." };
+  }
+
+  // Professional moderation status lives on professional_profiles.account_status (0024)
+  // — a suspended/banned pro can't take new bookings. Best-effort: pre-0024 there's no
+  // column, so a missing column yields null data and simply doesn't block.
+  const { data: proProfile } = await supabase
+    .from("professional_profiles")
+    .select("account_status")
+    .eq("user_id", input.professionalId)
+    .maybeSingle();
+  const proModeration = (proProfile as { account_status?: string } | null)?.account_status;
+  if (proModeration && proModeration !== "active") {
     return { ok: false, error: "This professional is not currently accepting bookings." };
   }
 
@@ -115,6 +137,33 @@ export async function createBookingDraftAction(raw: unknown): Promise<DraftResul
   return { ok: true, bookingId: data as string, breakdown, demo: false };
 }
 
+/**
+ * Release an unpaid draft booking (still `pending_payment`) — called when Stripe
+ * Checkout couldn't be started, so the reserved slot frees up immediately instead
+ * of waiting on Stripe's `payment_intent.canceled` webhook. Scoped to the booking's
+ * own customer and no-ops if the booking has already moved past `pending_payment`.
+ */
+export async function cancelUnpaidBookingAction(bookingId: string): Promise<{ ok: boolean }> {
+  if (!isLiveSupabase()) return { ok: true };
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false };
+
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("bookings")
+    .update({ status: "cancelled_customer", cancelled_at: new Date().toISOString(), cancellation_reason: "Payment not completed" })
+    .eq("id", bookingId)
+    .eq("customer_id", auth.user.id)
+    .eq("status", "pending_payment");
+  if (error) return { ok: false };
+  await admin
+    .from("booking_status_events")
+    .insert({ booking_id: bookingId, status: "cancelled_customer", actor_id: auth.user.id, note: "Checkout not started" })
+    .then(() => {}, () => {});
+  return { ok: true };
+}
+
 // ---- status transitions (professional / customer actions) ----
 const STATUS_ACTIONS: Record<string, { to: BookingStatus; actor: Actor }> = {
   accept: { to: "confirmed", actor: "professional" },
@@ -140,9 +189,9 @@ export async function updateBookingStatusAction(
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) return { ok: false, error: "Please sign in." };
 
-  const { data: booking } = await supabase.from("bookings").select("status, customer_id, professional_id, subtotal_cents, total_cents, amount_due_now_cents, platform_fee_cents").eq("id", bookingId).maybeSingle();
+  const { data: booking } = await supabase.from("bookings").select("status, customer_id, professional_id, subtotal_cents, total_cents, amount_due_now_cents, platform_fee_cents, starts_at, stripe_payment_intent_id").eq("id", bookingId).maybeSingle();
   if (!booking) return { ok: false, error: "Booking not found." };
-  const b = booking as { status: BookingStatus; customer_id: string; professional_id: string; subtotal_cents: number; total_cents: number; amount_due_now_cents: number; platform_fee_cents: number };
+  const b = booking as { status: BookingStatus; customer_id: string; professional_id: string; subtotal_cents: number; total_cents: number; amount_due_now_cents: number; platform_fee_cents: number; starts_at: string; stripe_payment_intent_id: string | null };
 
   const isParty =
     (move.actor === "customer" && b.customer_id === auth.user.id) ||
@@ -155,11 +204,42 @@ export async function updateBookingStatusAction(
 
   const admin = createAdminClient();
 
+  // 0005 column guards forbid a user session from writing the platform-only
+  // statuses (start/complete flip to in_progress/completed). Those transitions
+  // must go through the service-role client; cancel/no-show stay on the user
+  // client where the guard already permits them.
+  const GUARDED_STATUSES: BookingStatus[] = ["confirmed", "in_progress", "completed", "refunded", "disputed"];
+  const writer = GUARDED_STATUSES.includes(move.to) ? admin : supabase;
+
   // Day-of balance HOLD when the pro starts the job — authorize the remaining
   // balance on the saved card to confirm funds. Blocks the start if it can't.
   if (action === "start") {
     const hold = await holdBookingBalance(admin, bookingId);
     if (!hold.ok) return { ok: false, error: hold.error };
+  }
+
+  // Completion collects money BEFORE the booking is flipped to completed: capture
+  // the held balance first. If the card can't be charged we abort WITHOUT marking
+  // complete, paying out, or awarding points — so a failed capture never leaves a
+  // "completed" booking the platform never collected for. captureBookingBalance is
+  // idempotent (an already-captured balance short-circuits), so a retry after a
+  // mid-flow crash — held OR captured but not yet completed — re-captures cleanly.
+  let capturedCents = 0;
+  if (move.to === "completed") {
+    const cap = await captureBookingBalance(admin, bookingId);
+    if (cap.error) {
+      return { ok: false, error: "Couldn't charge the remaining balance, so the appointment wasn't marked complete. Please try again." };
+    }
+    capturedCents = cap.captured ?? 0;
+  }
+
+  // Cancellation refund: return the deposit per policy BEFORE flipping status. A
+  // pro-initiated cancellation always fully refunds the customer; a customer one
+  // applies the hours-to-start fee tiers. A refund failure aborts the cancel so it
+  // can be retried (idempotent) rather than cancelling with the money still held.
+  if (move.to.startsWith("cancelled")) {
+    const refund = await refundDepositOnCancel(b, move.actor);
+    if (!refund.ok) return { ok: false, error: refund.error };
   }
 
   const patch: Record<string, unknown> = { status: move.to };
@@ -169,14 +249,16 @@ export async function updateBookingStatusAction(
   }
   if (move.to === "completed") patch.completed_at = new Date().toISOString();
 
-  const { error } = await supabase.from("bookings").update(patch).eq("id", bookingId);
+  const { error } = await writer.from("bookings").update(patch).eq("id", bookingId);
   if (error) return { ok: false, error: error.message };
   await supabase.from("booking_status_events").insert({ booking_id: bookingId, status: move.to, actor_id: auth.user.id, note: reason ?? null });
 
   // Lifecycle notifications (best-effort, via service role).
   try {
-    const notify = (userId: string, title: string, body: string) =>
-      admin.from("notifications").insert({ user_id: userId, type: "booking", title, body, data: { bookingId } });
+    const notify = async (userId: string, title: string, body: string) => {
+      await admin.from("notifications").insert({ user_id: userId, type: "booking", title, body, data: { bookingId } });
+      await emailUserBestEffort(userId, "booking", title, body);
+    };
     if (move.to === "in_progress") await notify(b.customer_id, "Appointment started", "Your provider has started your service.");
     else if (move.to === "completed") {
       await notify(b.customer_id, "Appointment completed", "Your service is complete — add a tip and leave a review.");
@@ -189,11 +271,10 @@ export async function updateBookingStatusAction(
   if (move.to === "completed") {
     // iGlam Rewards (idempotent).
     await awardBookingPoints(b.customer_id, bookingId, b.subtotal_cents);
-    // CAPTURE the held balance (debit the card), then pay the provider. Payout is
-    // computed from funds actually collected (deposit + captured balance) minus the
-    // platform fee, so it can never exceed what the platform holds.
-    const cap = await captureBookingBalance(admin, bookingId);
-    const collected = (b.amount_due_now_cents ?? 0) + (cap.captured ?? 0);
+    // The balance was already CAPTURED above (before the status flip). Pay the
+    // provider from funds actually collected (deposit + captured balance) minus the
+    // platform fee, so the payout can never exceed what the platform holds.
+    const collected = (b.amount_due_now_cents ?? 0) + capturedCents;
     const netCents = Math.max(0, collected - (b.platform_fee_cents ?? 0));
     if (netCents > 0) {
       await transferBookingPayout(admin, { bookingId, professionalId: b.professional_id, netCents });
@@ -203,4 +284,37 @@ export async function updateBookingStatusAction(
     await releaseBookingBalance(admin, bookingId);
   }
   return { ok: true, status: move.to };
+}
+
+/**
+ * Refund the customer's deposit on cancellation, honoring the cancellation policy.
+ * The deposit was charged on the booking's primary PaymentIntent. Idempotent via a
+ * per-PI Stripe idempotency key, so a retried cancellation never double-refunds.
+ */
+async function refundDepositOnCancel(
+  b: { starts_at: string; amount_due_now_cents: number; stripe_payment_intent_id: string | null },
+  actor: Actor,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  const depositPi = b.stripe_payment_intent_id;
+  const depositCents = b.amount_due_now_cents ?? 0;
+  // Nothing collected yet (e.g. still pending_payment) — cancellation just proceeds.
+  if (!depositPi || depositCents <= 0) return { ok: true };
+
+  const hoursUntilStart = (new Date(b.starts_at).getTime() - Date.now()) / 3_600_000;
+  // A professional cancelling never penalizes the customer — full deposit back.
+  const refundCents =
+    actor === "professional" ? depositCents : cancellationFee(depositCents, hoursUntilStart).refundCents;
+  if (refundCents <= 0) return { ok: true }; // policy fee consumes the whole deposit.
+
+  try {
+    const stripe = await getStripe();
+    await stripe.refunds.create(
+      { payment_intent: depositPi, amount: refundCents, metadata: { kind: "cancellation" } },
+      { idempotencyKey: `refund_cancel_${depositPi}` },
+    );
+    return { ok: true };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : "Refund failed.";
+    return { ok: false, error: `Couldn't refund the deposit, so the booking wasn't cancelled: ${msg}` };
+  }
 }

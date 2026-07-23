@@ -167,33 +167,54 @@ export async function saveProfileAction(_prev: ActionState, formData: FormData):
 
 /** Upload a portfolio photo to Supabase Storage (public 'portfolio' bucket). */
 export async function uploadPortfolioImageAction(_prev: ActionState, formData: FormData): Promise<ActionState> {
-  const gate = await requirePro();
-  if ("error" in gate) return { error: gate.error };
-  const file = formData.get("file");
-  if (!(file instanceof File) || file.size === 0) return { error: "Choose an image to upload." };
-  if (!UPLOAD_LIMITS.mimes.includes(file.type as (typeof UPLOAD_LIMITS.mimes)[number])) {
-    return { error: "Unsupported file type. Use JPEG, PNG, WebP, or AVIF." };
-  }
-  if (file.size > UPLOAD_LIMITS.maxBytes) {
-    return { error: `That file is too large. Max ${UPLOAD_LIMITS.maxBytes / (1024 * 1024)} MB.` };
-  }
-  const admin = createAdminClient();
-  const path = `${gate.userId}/${crypto.randomUUID()}-${safeFilename(file.name)}`;
-  const { error: upErr } = await admin.storage.from("portfolio").upload(path, file, {
-    contentType: file.type,
-    upsert: false,
-  });
-  if (upErr) return { error: upErr.message };
-  const { data: pub } = admin.storage.from("portfolio").getPublicUrl(path);
+  // Everything is wrapped so this action can NEVER throw uncaught — an uncaught throw
+  // in a Server Action rejects the client transition and trips the app's error
+  // boundary ("Something went wrong"). We always return a friendly {error} instead,
+  // and log the real cause so it's diagnosable in the server logs.
+  try {
+    const gate = await requirePro();
+    if ("error" in gate) return { error: gate.error };
+    const file = formData.get("file");
+    if (!(file instanceof File) || file.size === 0) return { error: "Choose an image to upload." };
+    if (!UPLOAD_LIMITS.mimes.includes(file.type as (typeof UPLOAD_LIMITS.mimes)[number])) {
+      return { error: "Unsupported file type. Use JPEG, PNG, WebP, or AVIF." };
+    }
+    if (file.size > UPLOAD_LIMITS.maxBytes) {
+      return { error: `That file is too large. Max ${UPLOAD_LIMITS.maxBytes / (1024 * 1024)} MB.` };
+    }
+    const admin = createAdminClient();
+    const path = `${gate.userId}/${crypto.randomUUID()}-${safeFilename(file.name)}`;
+    // supabase-js needs a plain ArrayBuffer/Uint8Array in the Node server runtime;
+    // passing the web File directly can throw on some runtimes. Normalise it.
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const { error: upErr } = await admin.storage.from("portfolio").upload(path, bytes, {
+      contentType: file.type || "image/jpeg",
+      upsert: false,
+    });
+    if (upErr) {
+      console.error("[portfolio] storage upload failed", upErr.message);
+      return { error: "We couldn't upload that photo. Please try again." };
+    }
+    const { data: pub } = admin.storage.from("portfolio").getPublicUrl(path);
 
-  const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
-    .from("professional_portfolio_items")
-    .insert({ professional_id: gate.userId, kind: "image", url: pub.publicUrl });
-  if (error) return { error: error.message };
-  revalidatePath("/pro/profile");
-  revalidatePath("/onboarding/professional");
-  return { success: "Photo added." };
+    // Insert via the service-role client so a mismatch in the applicant's role/RLS
+    // state can't block a legitimate upload (ownership is already proven by requirePro).
+    const { error } = await admin
+      .from("professional_portfolio_items")
+      .insert({ professional_id: gate.userId, kind: "image", url: pub.publicUrl });
+    if (error) {
+      console.error("[portfolio] db insert failed", error.message);
+      await admin.storage.from("portfolio").remove([path]).catch(() => {});
+      return { error: "We couldn't save that photo. Please try again." };
+    }
+    revalidatePath("/pro/profile");
+    revalidatePath("/onboarding/professional");
+    revalidatePath("/pro/apply");
+    return { success: "Photo added." };
+  } catch (e) {
+    console.error("[portfolio] unexpected upload error", e instanceof Error ? e.message : e);
+    return { error: "Something interrupted the upload. Please try again." };
+  }
 }
 
 /** Replace the professional's category assignments (multi-select). */
