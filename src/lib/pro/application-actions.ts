@@ -110,11 +110,16 @@ export async function ensureApplicationRowAction(): Promise<ActionResult> {
       return { ok: false, error: "This account has been banned and can no longer apply to become a pro. Contact support@iglamher.com if you believe this is a mistake." };
     }
     await supabase.from("profiles").update({ role: "professional" }).eq("id", user.id).eq("role", "customer");
+    // Align with onboarding: an applying customer becomes account_type 'both' in
+    // professional mode. Without this the mode switcher never rendered for pros
+    // who joined via /pro/apply (account_type stayed 'customer').
+    await supabase.from("profiles").update({ account_type: "both", active_mode: "professional" }).eq("id", user.id).eq("account_type", "customer");
     return { ok: true };
   }
   const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
   const name = (prof as { full_name?: string } | null)?.full_name?.trim() || "My studio";
   await supabase.from("profiles").update({ role: "professional" }).eq("id", user.id);
+  await supabase.from("profiles").update({ account_type: "both", active_mode: "professional" }).eq("id", user.id).eq("account_type", "customer");
   const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${user.id.slice(0, 8)}`;
   const { error } = await supabase.from("professional_profiles").insert({ user_id: user.id, business_name: name, slug });
   if (error && !/duplicate|unique/i.test(error.message)) return { ok: false, error: error.message };
@@ -188,6 +193,7 @@ export async function saveApplicationDraftAction(input: unknown): Promise<Action
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
     const name = (prof as { full_name?: string } | null)?.full_name?.trim() || "My studio";
     await supabase.from("profiles").update({ role: "professional" }).eq("id", user.id);
+    await supabase.from("profiles").update({ account_type: "both", active_mode: "professional" }).eq("id", user.id).eq("account_type", "customer");
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${user.id.slice(0, 8)}`;
     const { error } = await supabase.from("professional_profiles").insert({ user_id: user.id, business_name: name, slug, ...patch });
     if (error) return { ok: false, error: error.message };

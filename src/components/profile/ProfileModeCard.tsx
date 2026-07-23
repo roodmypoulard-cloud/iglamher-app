@@ -1,7 +1,7 @@
 "use client";
 import { useState, useTransition } from "react";
 import Link from "next/link";
-import { switchModeAction, enterModeAction } from "@/lib/profile/mode-actions";
+import { switchModeAction, enterProfessionalModeAction } from "@/lib/profile/mode-actions";
 import { UserIcon, CalendarIcon, ChevronRight } from "@/components/ui/icons";
 
 const Crown = ({ className }: { className?: string }) => (
@@ -78,7 +78,7 @@ export function ProfileModeCard({
           above switch correctly; this row has to as well). Incomplete setup goes to
           /pro/apply and doesn't need the switch. */}
       {proComplete ? (
-        <form action={enterModeAction.bind(null, "professional")} className="mt-2.5">
+        <form action={enterProfessionalModeAction} className="mt-2.5">
           <button
             type="submit"
             className="flex w-full items-center gap-3 rounded-[16px] border border-rose/40 bg-gradient-to-br from-rose/[0.14] to-surface p-2.5 text-left transition-transform active:scale-[0.99]"

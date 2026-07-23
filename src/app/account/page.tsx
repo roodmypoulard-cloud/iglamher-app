@@ -26,7 +26,7 @@ const LINKS = [
 
 function BookingRow({ b }: { b: BookingSummary }) {
   return (
-    <div className="flex items-center justify-between rounded-[14px] border border-border bg-surface p-4">
+    <Link href={`/bookings/${b.id}`} className="flex items-center justify-between rounded-[14px] border border-border bg-surface p-4 transition-colors hover:border-rose/50">
       <div>
         <p className="font-display text-base font-semibold">{b.serviceName}</p>
         <p className="text-[12px] text-ink-muted">
@@ -38,7 +38,7 @@ function BookingRow({ b }: { b: BookingSummary }) {
         <span className="rounded-full bg-bg-elevated px-2.5 py-1 text-[11px] font-semibold text-rose">{statusLabel(b.status)}</span>
         <p className="mt-1 text-sm font-semibold">{formatPrice(b.totalCents)}</p>
       </div>
-    </div>
+    </Link>
   );
 }
 
@@ -55,13 +55,13 @@ export default async function AccountPage() {
   const account = o?.account ?? null;
 
   return (
-    <Shell>
+    <Shell back="/profile">
       <h1 className="font-display text-3xl font-bold leading-tight">My account</h1>
       <p className="mt-1 text-sm text-ink-muted">Bookings, receipts and settings.</p>
 
       {/* Same compact mode card as /profile — one component, identical behavior:
           Customer/Professional switch via switchModeAction, dashboard entry via
-          enterModeAction("professional") → /pro/services. */}
+          enterProfessionalModeAction → /pro/services. */}
       {account?.canSwitch && (
         <div className="mt-5">
           <ProfileModeCard accountType={account.accountType} activeMode={account.activeMode} proComplete={Boolean(o?.proComplete)} />

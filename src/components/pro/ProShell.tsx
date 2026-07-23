@@ -4,7 +4,7 @@ import Image from "next/image";
 import { cn } from "@/lib/format";
 import { SparkleIcon, CalendarIcon, CreditCardIcon, UserIcon } from "@/components/ui/icons";
 import { BackButton } from "@/components/ui/BackButton";
-import { enterModeAction } from "@/lib/profile/mode-actions";
+import { enterCustomerModeAction } from "@/lib/profile/mode-actions";
 
 const NAV = [
   { href: "/pro/services", label: "Services", Icon: SparkleIcon },
@@ -34,7 +34,7 @@ export function ProShell({
         </Link>
         {/* Always-visible way out of professional mode — switches active_mode back to
             customer and lands on the customer profile, so pros never get stuck in /pro/*. */}
-        <form action={enterModeAction.bind(null, "customer")} className="ml-auto flex-none">
+        <form action={enterCustomerModeAction} className="ml-auto flex-none">
           <button
             type="submit"
             className="rounded-full border border-border px-3 py-1.5 text-xs font-semibold text-ink transition-colors hover:border-rose hover:text-rose"

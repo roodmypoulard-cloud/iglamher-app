@@ -6,13 +6,14 @@ import { writeAudit } from "@/lib/audit/log";
 
 /**
  * Persist the active mode (customer/professional) and enter that mode's home.
- * Professional lands on the Services tab — the dashboard home — not /pro/profile
- * (which is only the public-profile editor and reads as "nothing opened").
- * Customer lands on /profile so the switch is visibly reflected (mode pill +
- * switcher). Returns an error instead of redirecting if the DB update fails, so
- * the UI never silently pretends a failed switch worked. Only professional/both
- * accounts should reach this (UI-gated); RLS + the role check keep customer-only
- * accounts out of pro surfaces regardless.
+ * Professional lands on /pro/services (the dashboard home); customer lands on
+ * /profile so the switch is visibly reflected (mode pill + switcher).
+ *
+ * Hardened: the update selects the row back and verifies the stored mode matches
+ * the requested one. A no-op update (row invisible to RLS, wrong id, column
+ * missing) previously returned no error and still redirected — the UI looked
+ * switched while active_mode never changed. Now any of those paths returns
+ * { error } and does NOT redirect.
  */
 export async function switchModeAction(
   mode: "customer" | "professional",
@@ -21,8 +22,16 @@ export async function switchModeAction(
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/signin");
 
-  const { error } = await supabase.from("profiles").update({ active_mode: mode }).eq("id", auth.user.id);
-  if (error) return { error: "Couldn't switch modes — please try again." };
+  const { data: row, error } = await supabase
+    .from("profiles")
+    .update({ active_mode: mode })
+    .eq("id", auth.user.id)
+    .select("active_mode")
+    .maybeSingle();
+
+  if (error || !row || row.active_mode !== mode) {
+    return { error: "Couldn't switch modes — please try again." };
+  }
 
   await writeAudit({ actorId: auth.user.id, action: "account.mode_switch", entity: "user", entityId: auth.user.id, metadata: { mode } });
   revalidatePath("/", "layout");
@@ -30,11 +39,17 @@ export async function switchModeAction(
 }
 
 /**
- * Void wrapper for use directly as a `<form action>` in server components (which
- * can't pass a value-returning action without a type mismatch). Bind the mode:
- * `enterModeAction.bind(null, "customer")`. On success `switchModeAction` redirects;
- * on failure the wrapper returns and the page re-renders in place.
+ * Form-safe actions for `<form action={...}>` in server components. On success
+ * switchModeAction redirects (NEXT_REDIRECT propagates); on failure these THROW
+ * so the error boundary surfaces it — a failed switch is never silent. (The old
+ * enterModeAction awaited and discarded { error }, so the button looked dead.)
  */
-export async function enterModeAction(mode: "customer" | "professional") {
-  await switchModeAction(mode);
+export async function enterCustomerModeAction() {
+  const res = await switchModeAction("customer");
+  if (res?.error) throw new Error(res.error);
+}
+
+export async function enterProfessionalModeAction() {
+  const res = await switchModeAction("professional");
+  if (res?.error) throw new Error(res.error);
 }

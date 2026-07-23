@@ -4,7 +4,7 @@ export const metadata = { title: "About · iGlamHer" };
 
 export default function AboutPage() {
   return (
-    <LegalLayout title="About iGlamHer" updated="July 2026">
+    <LegalLayout title="About iGlamHer" updated="July 2026" backFallback="/discover">
       <p>
         iGlamHer is a luxury beauty-services marketplace. We connect you with trusted, verified hair, makeup, lash, and
         styling professionals — bookable in seconds, paid securely, with everything handled in one place.

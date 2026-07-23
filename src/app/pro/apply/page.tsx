@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getMyApplicationAction, ensureApplicationRowAction } from "@/lib/pro/application-actions";
 import { getProContext } from "@/lib/pro/context";
 import { ApplicationWizard } from "@/components/pro/ApplicationWizard";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Become a Pro · iGlamHer" };
@@ -20,6 +21,7 @@ export default async function ApplyPage() {
 
   return (
     <main className="page-safe-top mx-auto min-h-dvh w-full max-w-2xl px-5 pb-8 md:pb-12">
+      <BackButton fallback="/profile" label="Back" className="mb-4" />
       <h1 className="font-display text-2xl font-bold md:text-3xl">Become a pro</h1>
       <p className="mt-1 text-sm text-ink-muted">
         Tell us about your work. Every application is reviewed before you go live — we&apos;ll email you the decision.

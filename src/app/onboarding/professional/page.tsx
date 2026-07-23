@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { BackButton } from "@/components/ui/BackButton";
 import { ProfileForm } from "@/components/pro/ProfileForm";
 import { PortfolioManager } from "@/components/pro/PortfolioManager";
 import { CategorySelector } from "@/components/pro/CategorySelector";
@@ -47,6 +48,7 @@ export default async function ProfessionalOnboarding() {
   if (!ctx.pro) {
     return (
       <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
+        <BackButton fallback="/profile" label="Back" className="mb-4" />
         <p className="font-display text-2xl font-bold">Become an iGlamHer pro</p>
         <p className="mt-1 text-sm text-ink-muted">Set up your profile, portfolio, and prices. You keep 85%.</p>
         <ul className="mt-6 space-y-2">
@@ -71,9 +73,10 @@ export default async function ProfessionalOnboarding() {
   if (isActive) {
     return (
       <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
+        <BackButton fallback="/profile" label="Back" className="mb-4" />
         <p className="font-display text-2xl font-bold">You’re live 🎉</p>
         <p className="mt-1 text-sm text-ink-muted">Your profile is approved and visible in the marketplace.</p>
-        <Link href="/pro" className="mt-6 inline-block rounded-full rose-gradient px-6 py-3 text-sm font-semibold text-[#2A1712]">
+        <Link href="/pro/services" className="mt-6 inline-block rounded-full rose-gradient px-6 py-3 text-sm font-semibold text-[#2A1712]">
           Go to your dashboard
         </Link>
       </main>
@@ -84,6 +87,7 @@ export default async function ProfessionalOnboarding() {
   if (reviewStatus === "pending_review") {
     return (
       <main className="page-safe-top mx-auto min-h-dvh w-full max-w-lg px-6 pb-12">
+        <BackButton fallback="/profile" label="Back" className="mb-4" />
         <p className="font-display text-2xl font-bold">Under review</p>
         <p className="mt-1 text-sm text-ink-muted">
           Thanks — your profile is with our team. We’ll email you once you’re approved and live. You can still edit your details below.
@@ -113,6 +117,7 @@ export default async function ProfessionalOnboarding() {
 
   return (
     <main className="mx-auto min-h-dvh w-full max-w-2xl px-6 py-12">
+      <BackButton fallback="/profile" label="Back" className="mb-4" />
       <p className="font-display text-2xl font-bold">Finish your provider profile</p>
       {reviewStatus === "rejected" && (
         <p className="mt-2 rounded-[10px] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-danger">

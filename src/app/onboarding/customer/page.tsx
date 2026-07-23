@@ -1,11 +1,13 @@
 import { Field } from "@/components/auth/fields";
 import { SubmitButton } from "@/components/auth/SubmitButton";
 import { finishCustomerOnboardingAction } from "@/lib/auth/actions";
+import { BackButton } from "@/components/ui/BackButton";
 
 // Customer onboarding — collects profile basics, then enters the marketplace.
 export default function CustomerOnboarding() {
   return (
     <main className="mx-auto flex min-h-dvh w-full max-w-md flex-col justify-center px-6 py-12">
+      <BackButton fallback="/discover" label="Back" className="mb-4 self-start" />
       <div className="mb-6 text-center">
         <p className="font-display text-2xl font-bold">Welcome to iGlamHer 💕</p>
         <p className="mt-1 text-sm text-ink-muted">A few details so we can personalize your beauty.</p>

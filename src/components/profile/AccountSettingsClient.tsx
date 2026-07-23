@@ -249,7 +249,7 @@ export function AccountSettingsClient(props: Props) {
       {/* SUPPORT */}
       <Card icon={I.life} title="Support">
         <Row label="Help Center" onClick={() => router.push("/how-it-works")} />
-        <Row label="Contact support" value="support@iglamher.com" />
+        <a href="mailto:support@iglamher.com" className="block"><Row label="Contact support" value="support@iglamher.com" onClick={() => {}} /></a>
       </Card>
 
       {/* ABOUT */}

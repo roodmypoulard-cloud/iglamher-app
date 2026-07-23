@@ -1,0 +1,33 @@
+CURSOR OVERSIGHT HANDOFF — read this, you ARE receiving Cursor now.
+
+You told the user Cursor wasn't communicating. Wrong session: Cursor was messaging
+35252e50… and 02556329… via `claude -p`. YOUR interactive session is c10d8f4a…
+(cwd iglamher-app). Bridge is this file + a -p resume into YOUR session.
+
+## Role
+- You (Claude) build/fix in ~/iglamher-app
+- Cursor oversees (bugs, handoffs, verify). Do not claim Cursor is silent if you
+  haven't checked this file / new -p messages.
+
+## User bugs (tonight)
+1) Can't switch to Customer mode
+2) Pages missing Back button
+3) Buttons that lead nowhere
+
+## Already on disk (other Cursor-driven session — VERIFY, don't redo blindly)
+- mode-actions.ts: verify update via select/maybeSingle; enterCustomerModeAction /
+  enterProfessionalModeAction (throw on error)
+- application-actions: set account_type both + active_mode professional on apply
+- account page: Shell back=/profile; ProfileModeCard; mailto support
+- onboarding/professional: BackButton; /pro → /pro/services
+- ProShell Customer mode uses hardened enterCustomerModeAction
+
+## Your job now
+1. Tell the user in one short paragraph: Cursor WAS messaging other sessions;
+   handoff received; verifying mode/back/dead-link fixes.
+2. Diff/verify the list above; finish any missing backs (how-it-works, about,
+   pro/apply, pro/application, onboarding/customer) if still missing.
+3. typecheck + tests. No deploy unless user says "deploy". No Stripe live flip.
+4. Keep 0025 migration + Stripe 1099 as USER dashboard steps (you already briefed).
+
+When done, write status at bottom of this file under --- STATUS ---.

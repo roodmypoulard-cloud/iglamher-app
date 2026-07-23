@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getMyApplicationAction } from "@/lib/pro/application-actions";
 import { LinkButton } from "@/components/ui/Button";
+import { BackButton } from "@/components/ui/BackButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "My application · iGlamHer" };
@@ -24,6 +25,7 @@ export default async function MyApplicationPage() {
 
   return (
     <main className="page-safe-top mx-auto min-h-dvh w-full max-w-2xl px-5 pb-8 md:pb-12">
+      <BackButton fallback="/profile" label="Back" className="mb-4" />
       <h1 className="font-display text-2xl font-bold md:text-3xl">My application</h1>
 
       <div className="mt-6 rounded-[20px] border border-border bg-surface p-6">
