@@ -26,3 +26,21 @@ Deploy 3bf2352 immediately. Auto-deploy forever after.
   destructive DB operations, explicitly-experimental work.
 - Still open (user): APPLY_PENDING_0027.sql (Job Marketplace tables),
   Stripe 1099 toggle in dashboard.
+
+--- STATUS ---
+[2026-07-23] RECOMMENDED PLACEMENT SHIPPED. Easy Booking chip -> "Recommended"
+(crown) -> /recommended curated shelf. Deployed to prod + verified live:
+/recommended 200 (crown header + endorsement note + "coming soon" empty state),
+discover chip aria-label="Recommended" present, Easy Booking gone. 0028 pasted
+by user + columns verified (is_recommended/recommended_at/recommended_until all
+live, defaults false). Admin toggle = setProfessionalRecommendedAction (gold
+"★ Recommend" chip in AdminProRow, service-role path, audit-revalidates).
+Monetization dormant: recommended_until NULL = free era; future $2.99/mo Stripe
+sub maintains the date, lapse auto-drops. EasyBookingSheet.tsx deleted.
+HONEST GAPS: (1) guard deny-path (pro self-recommend P0001) not exercised —
+seeded test pro has no professional_profiles row and RLS blocks non-owner/admin
+REST writes (defense-in-depth working as designed); code-identical to the
+VERIFIED 0025 stripe guard. (2) Admin toggle not e2e'd — same shape as the
+proven Featured toggle; will be exercised the first time user recommends a pro.
+Gates at d4cd67d: tsc/lint/179 unit/52 e2e/build all green. User's remaining
+item: Stripe 1099 toggle.
