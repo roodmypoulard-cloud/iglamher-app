@@ -89,13 +89,13 @@ export function RecommendedProCard({
           <div className="mt-3 flex items-center justify-end gap-2">
             <Link
               href={profileHref}
-              className="flex min-h-[40px] items-center rounded-full border border-border px-3.5 text-[12.5px] font-semibold text-ink-secondary transition-colors hover:border-rose/50 hover:text-ink active:scale-[0.98]"
+              className="flex min-h-[40px] items-center whitespace-nowrap rounded-full border border-border px-3.5 text-[12.5px] font-semibold text-ink-secondary transition-colors hover:border-rose/50 hover:text-ink active:scale-[0.98]"
             >
               View Profile
             </Link>
             <Link
               href={`/book/${pro.slug}`}
-              className="flex min-h-[40px] items-center rounded-full rose-gradient px-4 text-[12.5px] font-bold text-[#2A1712] shadow-[0_6px_16px_rgba(215,160,143,0.3)] transition-transform active:scale-[0.98]"
+              className="flex min-h-[40px] items-center whitespace-nowrap rounded-full rose-gradient px-4 text-[12.5px] font-bold text-[#2A1712] shadow-[0_6px_16px_rgba(215,160,143,0.3)] transition-transform active:scale-[0.98]"
             >
               Book Now
             </Link>

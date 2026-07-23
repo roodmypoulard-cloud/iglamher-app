@@ -1,46 +1,92 @@
 CURSOR → CLAUDE (session c10d8f4a)
-STANDING RULE FROM USER (permanent until revoked):
-**Never ask the user to say "deploy".** After every completed product/bugfix commit that is meant for prod, **deploy immediately** with `npx vercel --prod` (or project usual). Do not wait for permission. Do not end messages with "say deploy".
+USER: make sure you follow this design for the recommendation window.
+PIXEL SOURCE OF TRUTH (open and match):
+`/Users/roodmypoulard/iglamher-app/design-refs/recommendation-window.png`
 
-## Do now
-1. Deploy commit 3bf2352 (ID placement + CardElement Stripe fix) to production NOW.
-2. Confirm Ready + https://iglamher-app.vercel.app
-3. Brief smoke if easy.
-4. Append --- STATUS --- below. Acknowledge standing auto-deploy rule in STATUS.
+STANDING RULE: when done + gates green → **deploy immediately**. Never ask "say deploy".
 
-No live Stripe secrets inventing.
+## Target route
+Rebuild **`/recommended`** ("Find Your Glam" recommendation window) to match the mock. Soft Luxe dark + rose-gold. Do NOT invent purple AI aesthetics. Reuse existing Shell/BottomNav/DiscoverTopbar patterns where they already match.
+
+## Layout to match (top → bottom)
+
+### Top bar
+- Back (left)
+- Center: iGlamHer wordmark + "BEAUTY ON DEMAND" tagline (same brand treatment as Discover)
+- Right: notification bell (unread badge) + hamburger → settings/menu (reuse DiscoverTopbar pattern; add Back)
+
+### Hero
+- Display title: **"Find Your Glam"** — large serif/display, rose-gold metallic feel
+- Subcopy: trusted beauty pros selected for quality, reliability, client care
+- Gold-bordered tip box with star: choose the type of glam to see recommended pros near you
+
+### Category carousel (horizontal scroll)
+Circular icon chips: **All** (selected = soft gold glow), Makeup, Hair, Nails, Lashes, Brows, Bridal
+- Selecting a category filters the recommended list (All = unfiltered)
+- Wire to real categories where they exist; don't invent fake data
+
+### Search + filters row
+- Search input placeholder: **"Search recommended professionals"**
+- Filters button with active-count badge when filters applied
+- Location line: **"Recommended near {city}"** + **Change >** (use existing location prefs if any)
+
+### Professional cards (list — match mock composition)
+Each card:
+- LEFT: large rounded work/cover image
+  - "FEATURED" badge top-left when featured/recommended
+  - Heart favorite bottom-right of image
+- RIGHT:
+  - Name + verified check
+  - Specialty · City · distance
+  - Rating (gold star) + review count
+  - "Starts at $X"
+  - Pills: next availability (green, if data exists) + Verified (gold) when verified
+  - ⋯ menu top-right (can link report/share or hide if no actions yet — don't leave broken)
+  - Actions: outlined **"View Profile"** + rose-gradient **"Book Now"** (→ book flow for that pro)
+
+Do NOT use the thin current ProfessionalCard list variant as-is if it doesn't match — create a dedicated recommended-card variant or page-local card that matches the mock.
+
+### Bottom nav
+Keep existing BottomNav (Home / Bookings / Create FAB / Messages / Profile avatar). Home selected when appropriate; recommended may sit under Discover entry — don't break nav.
+
+## Data / behavior
+- Keep using recommended/featured professionals data (`getRecommendedProfessionals` / recommend engine — pick the correct source of truth for this page).
+- Search filters the in-page list (client or query param — prefer URL-friendly if easy).
+- Empty state Soft Luxe, not broken.
+- Mobile-first; readable on desktop without looking like a dashboard.
+
+## Done when
+1. `/recommended` visually tracks the PNG (hero, chips, search/filters, card layout, CTAs).
+2. Gates green → **commit** → **`npx vercel --prod` immediately**.
+3. Confirm live URL.
+4. Append --- STATUS --- below. Short user note.
+
+No inventing Stripe live keys. No purple defaults.
 --- NEXT ---
-Deploy 3bf2352 immediately. Auto-deploy forever after.
+Match recommendation-window.png on /recommended; auto-deploy.
 --- STATUS ---
-[2026-07-23, session c10d8f4a] ✅ DEPLOYED + RULE ACKNOWLEDGED
+[2026-07-23, session c10d8f4a] ✅ /recommended MATCHES MOCK — DEPLOYED.
 
-- 3bf2352 deployed to production via `npx vercel --prod --yes` — deployment
-  READY. https://iglamher-app.vercel.app serving 200; /account/payment-methods
-  route healthy (auth gate OK). Live now: ID verification card between
-  Personal Information and Account Mode on Settings; CardElement-based Add-a-
-  card (zero Stripe chrome, disableLink, full iframe teardown on close).
-- STANDING AUTO-DEPLOY RULE ACKNOWLEDGED and saved to persistent memory:
-  after every completed prod-worthy fix with green gates (tsc/lint/tests/
-  build), deploy immediately — never ask the user to say "deploy" again.
-  Exceptions where I still confirm first: live-Stripe key/billing flips,
-  destructive DB operations, explicitly-experimental work.
-- Still open (user): APPLY_PENDING_0027.sql (Job Marketplace tables),
-  Stripe 1099 toggle in dashboard.
+Studied design-refs/recommendation-window.png. Found /recommended had already
+been rebuilt to the "Find Your Glam" design by the parallel session (uncommitted
+WIP on disk: page.tsx + CategoryRail/AreaControl/RecommendedProCard +
+SearchBar/Filters/params/ranking + recommend/copy + next-opening). I did NOT
+duplicate it — verified it against the PNG, discarded my own draft components,
+and made the one clear deviation match: category chips are now CIRCULAR icon
+chips with the label BELOW (were squircles with label inside), per the mock.
 
---- STATUS ---
-[2026-07-23] RECOMMENDED PLACEMENT SHIPPED. Easy Booking chip -> "Recommended"
-(crown) -> /recommended curated shelf. Deployed to prod + verified live:
-/recommended 200 (crown header + endorsement note + "coming soon" empty state),
-discover chip aria-label="Recommended" present, Easy Booking gone. 0028 pasted
-by user + columns verified (is_recommended/recommended_at/recommended_until all
-live, defaults false). Admin toggle = setProfessionalRecommendedAction (gold
-"★ Recommend" chip in AdminProRow, service-role path, audit-revalidates).
-Monetization dormant: recommended_until NULL = free era; future $2.99/mo Stripe
-sub maintains the date, lapse auto-drops. EasyBookingSheet.tsx deleted.
-HONEST GAPS: (1) guard deny-path (pro self-recommend P0001) not exercised —
-seeded test pro has no professional_profiles row and RLS blocks non-owner/admin
-REST writes (defense-in-depth working as designed); code-identical to the
-VERIFIED 0025 stripe guard. (2) Admin toggle not e2e'd — same shape as the
-proven Featured toggle; will be exercised the first time user recommends a pro.
-Gates at d4cd67d: tsc/lint/179 unit/52 e2e/build all green. User's remaining
-item: Stripe 1099 toggle.
+Match confirmed vs PNG: top bar (wordmark + bell + hamburger via Shell/AppHeader
++ Back), "Find Your Glam" rose-gold serif hero + subcopy + gold-bordered star
+tip box, horizontal circular category rail (All=gold glow, real cats: All/Makeup/
+Hair/Nails/Lashes/Stylist — Brows/Bridal intentionally NOT invented, no DB
+category), search "Search recommended professionals" + Filters + "Recommended
+near {city} · Change", editorial pro cards (cover image + FEATURED badge + heart,
+name+verified, specialty·city·distance, gold star+reviews, Starts at $X, green
+next-avail pill + Verified pill, View Profile + Book Now→/book/[slug]), BottomNav
+intact. All live data (getRecommendedProfessionals ∪ getFeaturedProfessionals).
+
+Committed (2f4df47 + gitignore) INCLUDING two files the WIP imported but left
+untracked (recommend/copy.ts, next-opening.ts) — would've broken a clean build.
+Gates: tsc 0, lint 0, vitest 179/179, build 0. DEPLOYED (standing auto-deploy
+rule): https://iglamher-app.vercel.app/recommended → 200, "Find Your Glam"
+renders. Still open (user): APPLY_PENDING_0027.sql, Stripe 1099 toggle.

@@ -37,7 +37,11 @@ export function nextOpeningLabel(pro: ProfessionalCardView, now = new Date()): s
     const first = slots[0];
     if (!first) continue;
 
-    const time = formatLocalTime(new Date(first.startUtc), pro.timezone);
+    // 12-hour display (formatLocalTime returns "HH:MM" 24h).
+    const [h24, mm] = formatLocalTime(new Date(first.startUtc), pro.timezone).split(":").map(Number);
+    const ampm = h24 >= 12 ? "PM" : "AM";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    const time = `${h12}:${String(mm).padStart(2, "0")} ${ampm}`;
     if (add === 0) return `Today ${time}`;
     if (add === 1) return `Tomorrow ${time}`;
     const weekday = new Intl.DateTimeFormat("en-US", { timeZone: pro.timezone, weekday: "short" }).format(new Date(first.startUtc));
