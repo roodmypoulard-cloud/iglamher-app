@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { stylistReliability, customerReliability } from "../reliability";
-import { deriveBadges, isTopRated } from "../badges";
+import { deriveBadges, isTopRated, BADGE_META, VERIFICATION_BADGES } from "../badges";
 import { scoreFraud } from "../fraud";
 
 describe("stylist reliability", () => {
@@ -49,15 +49,46 @@ describe("customer reliability", () => {
 });
 
 describe("trust badges", () => {
+  const NONE = {
+    identityVerified: false, licenseVerified: false, insured: false,
+    homeStudioReviewed: false, salonLocationVerified: false,
+    ratingAverage: 0, reviewCount: 0, reliabilityScore: 0,
+  };
+
   it("derives badges only from verified state", () => {
     const badges = deriveBadges({
-      identityVerified: true, licenseVerified: true, insured: false, backgroundChecked: false,
+      ...NONE, identityVerified: true, licenseVerified: true,
       ratingAverage: 5, reviewCount: 40, reliabilityScore: 92,
     });
     expect(badges).toContain("identity_verified");
     expect(badges).toContain("licensed");
     expect(badges).toContain("top_rated");
     expect(badges).not.toContain("insured");
+  });
+
+  // C4: the overclaim regression. Approval alone used to light up every badge.
+  it("claims nothing when no credential was individually verified", () => {
+    expect(deriveBadges(NONE)).toEqual([]);
+  });
+
+  it("each badge tracks its own admin-checked fact", () => {
+    expect(deriveBadges({ ...NONE, identityVerified: true })).toEqual(["identity_verified"]);
+    expect(deriveBadges({ ...NONE, licenseVerified: true })).toEqual(["licensed"]);
+    expect(deriveBadges({ ...NONE, insured: true })).toEqual(["insured"]);
+    expect(deriveBadges({ ...NONE, homeStudioReviewed: true })).toEqual(["home_studio_reviewed"]);
+    expect(deriveBadges({ ...NONE, salonLocationVerified: true })).toEqual(["salon_location_verified"]);
+  });
+
+  it("labels never assert more than what was checked", () => {
+    // No badge may imply blanket verification or legal authorization to operate.
+    for (const b of VERIFICATION_BADGES) {
+      expect(BADGE_META[b].label).not.toMatch(/^verified$/i);
+      expect(BADGE_META[b].description).toMatch(/iGlamHer (reviewed|confirmed)/);
+      expect(BADGE_META[b].description).not.toMatch(/guarantee|authorized|permitted to operate/i);
+    }
+    // "License on File" must not read as "license is active with the state".
+    expect(BADGE_META.licensed.description).toMatch(/not confirmation that the license is currently active/i);
+    expect(BADGE_META.home_studio_reviewed.description).toMatch(/not a permit/i);
   });
 
   it("top rated needs rating + volume + reliability", () => {

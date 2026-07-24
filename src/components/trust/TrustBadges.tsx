@@ -2,16 +2,21 @@ import type { Professional } from "@/lib/data/model";
 import { deriveBadges, BADGE_META, type TrustBadge } from "@/lib/trust/badges";
 
 /**
- * Derive display badges from a professional's public record. We only assert
- * badges we have data for (identity verification + reputation); license/insured/
- * background populate from the verification workflow once documents are reviewed.
+ * Derive display badges from a professional's public record.
+ *
+ * C4: each badge comes from its OWN admin-approved column. Previously every
+ * badge was derived from the single `isVerified` flag (and license/insured were
+ * hard-coded false), so an approved pro was labeled "Identity Verified" whether
+ * or not an ID had actually been checked. A pro can never set these — migration
+ * 0033's column guard rejects any self-write.
  */
 export function professionalBadges(pro: Professional): TrustBadge[] {
   return deriveBadges({
-    identityVerified: pro.isVerified,
-    licenseVerified: false,
-    insured: false,
-    backgroundChecked: false,
+    identityVerified: pro.identityVerified,
+    licenseVerified: pro.licenseVerified,
+    insured: pro.insuranceVerified,
+    homeStudioReviewed: pro.homeStudioReviewed,
+    salonLocationVerified: pro.salonLocationVerified,
     ratingAverage: pro.ratingAverage,
     reviewCount: pro.reviewCount,
     reliabilityScore: pro.reliabilityScore,
@@ -26,6 +31,9 @@ export function TrustBadges({ badges, size = "md" }: { badges: TrustBadge[]; siz
       {badges.map((b) => (
         <span
           key={b}
+          // `title` carries the specific meaning, so the short label can never be
+          // read as a broader guarantee than what was actually checked.
+          title={BADGE_META[b].description}
           className={`inline-flex items-center gap-1 rounded-full border border-rose/40 bg-rose/10 font-semibold text-rose ${pad}`}
         >
           <span aria-hidden>{BADGE_META[b].icon}</span> {BADGE_META[b].label}

@@ -10,7 +10,8 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import {
   SERVICE_LOCATIONS, HOME_STUDIO_QUESTIONS, PRO_AGREEMENTS, PRO_AGREEMENT_KEYS,
-  homeStudioNeedsReview, type ServiceLocationKey, type LocationCompliance, type ProAgreementKey,
+  homeStudioNeedsReview, needsHomeStudioAnswers, requiredHomeStudioAnswered,
+  type ServiceLocationKey, type LocationCompliance, type ProAgreementKey,
 } from "./compliance";
 
 export type ComplianceResult = { ok: true } | { ok: false; error: string };
@@ -44,7 +45,12 @@ export async function saveServiceLocationsAction(input: {
     if (QUESTION_KEYS.has(k as never) && (v === "yes" || v === "no")) compliance[k as keyof LocationCompliance] = v;
   }
 
-  const isHome = locations.includes("home_studio") || locations.includes("multiple");
+  const isHome = needsHomeStudioAnswers(locations);
+  // Hard block: every required home-studio question needs an explicit yes/no.
+  // Unanswered is not the same as "no" — "no" saves and flags for review.
+  if (isHome && !requiredHomeStudioAnswered(compliance)) {
+    return { ok: false, error: "Answer every required home studio question before continuing." };
+  }
   const needsReview = isHome && homeStudioNeedsReview(compliance);
 
   // Owner-editable declaration fields via the user's client (RLS: own row).

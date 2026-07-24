@@ -6,6 +6,10 @@ import { openApplicationAction } from "@/lib/admin/verification-actions";
 import { VerificationReviewActions } from "@/components/admin/VerificationReviewActions";
 import { PortfolioGallery, DocumentViewer } from "@/components/admin/ApplicationMedia";
 import { SECTION_LABELS, type ApplicationSection } from "@/lib/pro/application";
+import { SERVICE_LOCATIONS } from "@/lib/pro/compliance";
+
+const SERVICE_LOCATION_LABEL: Record<string, string> =
+  Object.fromEntries(SERVICE_LOCATIONS.map((l) => [l.key, l.label]));
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Review application · Admin · iGlamHer" };
@@ -70,6 +74,28 @@ export default async function ApplicationReviewPage({ params }: { params: Promis
               <Field label="Email" value={app.email ?? "—"} />
             </dl>
             {app.bio && <><p className="mt-4 text-[12px] font-semibold uppercase tracking-wide text-ink-muted">Bio</p><p className="mt-1 text-sm leading-relaxed text-ink-secondary">{app.bio}</p></>}
+          </section>
+
+          {/* C3: admins see the FULL submitted address. Customers see the
+              neighborhood until their booking is confirmed and paid. */}
+          <section className="rounded-[16px] border border-border bg-surface p-5">
+            <h2 className="mb-3 font-display text-lg font-semibold">Location &amp; compliance</h2>
+            <dl className="grid grid-cols-2 gap-x-4 gap-y-3 text-sm">
+              <Field label="Exact address (admin only)" value={app.studioAddress ?? "—"} />
+              <Field label="Neighborhood (customer-visible)" value={app.neighborhood ?? "—"} />
+              <Field
+                label="Works from"
+                value={app.serviceLocations.length
+                  ? app.serviceLocations.map((k) => SERVICE_LOCATION_LABEL[k] ?? k).join(", ")
+                  : "Not declared"}
+              />
+              <Field label="Exact pin hidden pre-booking" value={app.hideExactPin ? "Yes" : "No"} />
+            </dl>
+            {app.needsLocationReview && (
+              <p className="mt-3 rounded-[12px] border border-warning/40 bg-warning/[0.08] px-3 py-2 text-[12px] leading-snug text-warning">
+                Flagged for location review — a required home-studio question was answered “No”. Check the compliance answers before approving.
+              </p>
+            )}
           </section>
 
           <section className="rounded-[16px] border border-border bg-surface p-5">

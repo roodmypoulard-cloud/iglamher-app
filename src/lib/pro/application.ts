@@ -1,5 +1,10 @@
 // Shared types, constants, and validation for the "Become a Pro" application.
 // Pure — safe to import from client or server.
+import {
+  PRO_AGREEMENTS, PRO_AGREEMENT_KEYS, HOME_STUDIO_QUESTIONS,
+  needsHomeStudioAnswers, missingRequiredHomeStudioAnswers,
+  type LocationCompliance, type ProAgreementKey,
+} from "./compliance";
 
 export type ReviewStatus = "draft" | "pending_review" | "under_review" | "approved" | "rejected" | "needs_more_info";
 
@@ -104,6 +109,22 @@ export function hasAtLeastOneLink(s: SocialInput): boolean {
   );
 }
 
+/** An agreement acceptance already on file, as stored in `professional_agreements`. */
+export interface AcceptedAgreement { agreement_key: string; version: string }
+
+/** The acceptance set a pro has once they accept every agreement as it stands
+ *  today — what the client can optimistically record after a successful save. */
+export function currentAgreementAcceptances(): AcceptedAgreement[] {
+  return PRO_AGREEMENT_KEYS.map((k) => ({ agreement_key: k, version: PRO_AGREEMENTS[k].version }));
+}
+
+/** Agreement keys whose CURRENT version has no acceptance on file. Acceptances
+ *  of a superseded version don't count — the pro must accept what's live now. */
+export function missingAgreementKeys(accepted: readonly AcceptedAgreement[]): ProAgreementKey[] {
+  const have = new Set((accepted ?? []).map((a) => `${a.agreement_key}@${a.version}`));
+  return PRO_AGREEMENT_KEYS.filter((k) => !have.has(`${k}@${PRO_AGREEMENTS[k].version}`));
+}
+
 export interface ApplicationForValidation extends SocialInput {
   primarySpecialty?: string | null;
   city?: string | null;
@@ -113,6 +134,12 @@ export interface ApplicationForValidation extends SocialInput {
   portfolioCount?: number;
   hasIdDocument?: boolean;
   hasCredentialDocument?: boolean;
+  /** Declared service locations (`SERVICE_LOCATIONS` keys). Must be non-empty. */
+  serviceLocations?: readonly string[];
+  /** Home-studio answers; every required one must be answered when home-based. */
+  locationCompliance?: LocationCompliance;
+  /** Rows read from `professional_agreements` for this user. */
+  acceptedAgreements?: readonly AcceptedAgreement[];
 }
 
 /** Full pre-submit validation. Returns a list of human-readable errors (empty = ok). */
@@ -143,6 +170,29 @@ export function validateForSubmit(a: ApplicationForValidation): string[] {
 
   // Identity: manual ID upload required for this version
   if (!a.hasIdDocument) errors.push("Upload a government ID for identity verification.");
+
+  // Service location: at least one declared place of work. Required so we know
+  // what to verify — an application with no location has nothing to review.
+  const locations = a.serviceLocations ?? [];
+  if (locations.length === 0) {
+    errors.push("Choose where you provide services.");
+  } else if (needsHomeStudioAnswers(locations)) {
+    // Home-based work: every legally-required question needs an explicit answer.
+    const missing = missingRequiredHomeStudioAnswers(a.locationCompliance ?? {});
+    if (missing.length > 0) {
+      const first = HOME_STUDIO_QUESTIONS.find((q) => q.key === missing[0]);
+      errors.push(
+        missing.length === 1 && first
+          ? `Answer the required home studio question: “${first.label}”`
+          : `Answer all ${missing.length} remaining required home studio questions.`,
+      );
+    }
+  }
+
+  // Legal agreements: both, at the version currently in force.
+  if (missingAgreementKeys(a.acceptedAgreements ?? []).length > 0) {
+    errors.push("Accept both professional agreements before submitting.");
+  }
 
   return errors;
 }

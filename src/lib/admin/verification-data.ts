@@ -112,6 +112,14 @@ export interface ApplicationDetail {
   slug: string;
   primarySpecialty: string;
   city: string;
+  /** C3: admins always see the full submitted address — customers do not. */
+  studioAddress: string | null;
+  neighborhood: string | null;
+  /** Pro asked to withhold their exact pin from customers pre-booking. */
+  hideExactPin: boolean;
+  /** Declared service locations + home-studio answers (0032). */
+  serviceLocations: string[];
+  needsLocationReview: boolean;
   yearsExperience: number | null;
   school: string | null;
   bio: string;
@@ -207,6 +215,19 @@ export async function getApplicationDetail(userId: string): Promise<ApplicationD
   const extra = (sd as { school?: string; account_status?: string; ban_reason?: string; resubmission_count?: number } | null) ?? null;
   const school = extra?.school ?? null;
 
+  // Address + compliance (0001 / 0032 / 0033) — best-effort, in their own query so
+  // a pre-migration column never 404s the review page. Admins are entitled to the
+  // full submitted address; this is the one surface that shows it.
+  const [addrRes, compRes] = await Promise.all([
+    admin.from("professional_profiles").select("studio_address").eq("user_id", userId).maybeSingle(),
+    admin.from("professional_profiles").select("neighborhood,hide_exact_pin,service_locations,needs_location_review").eq("user_id", userId).maybeSingle(),
+  ]);
+  const addr = (addrRes.data as { studio_address?: string | null } | null) ?? null;
+  const comp = (compRes.data as {
+    neighborhood?: string | null; hide_exact_pin?: boolean | null;
+    service_locations?: unknown; needs_location_review?: boolean | null;
+  } | null) ?? null;
+
   // 0024 per-document review state — best-effort; defaults to "pending" pre-migration.
   const docReview = new Map<string, { review_status: string | null; flag_reason: string | null }>();
   const { data: drows } = await admin.from("professional_documents").select("id,review_status,flag_reason").eq("professional_id", userId);
@@ -253,6 +274,13 @@ export async function getApplicationDetail(userId: string): Promise<ApplicationD
     slug: (r.slug as string) ?? "",
     primarySpecialty: (r.primary_specialty as string) ?? "",
     city: (r.city as string) ?? "",
+    studioAddress: addr?.studio_address ?? null,
+    neighborhood: comp?.neighborhood ?? null,
+    hideExactPin: comp?.hide_exact_pin ?? true,
+    serviceLocations: Array.isArray(comp?.service_locations)
+      ? comp.service_locations.filter((l): l is string => typeof l === "string")
+      : [],
+    needsLocationReview: Boolean(comp?.needs_location_review),
     yearsExperience: (r.years_experience as number) ?? null,
     school,
     bio: (r.bio as string) ?? "",

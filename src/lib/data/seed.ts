@@ -205,11 +205,22 @@ function pro(spec: ProSpec): Professional {
     languages: ["English"],
     yearsExperience: 5,
     postalCode: "90001",
+    neighborhood: "",
     locationType: "both",
     serviceRadiusMiles: 15,
     timezone: "America/Los_Angeles",
+    // Demo pros mirror the safe production default: exact pin hidden pre-booking.
+    hideExactPin: true,
     isActive: true,
     isVerified: true,
+    // Labeled badges (C4). Demo data stands in for an admin having checked an ID
+    // and a credential — the two things approval actually requires. Insurance and
+    // the location reviews are left false: nothing in the demo reviewed them.
+    identityVerified: spec.isVerified ?? true,
+    licenseVerified: spec.isVerified ?? true,
+    insuranceVerified: false,
+    homeStudioReviewed: false,
+    salonLocationVerified: false,
     isFeatured: false,
     instantBook: false,
     ratingAverage: 5,

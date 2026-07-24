@@ -26,14 +26,21 @@ interface ProRow {
   languages: string[] | null;
   years_experience: number | null;
   city: string | null;
+  neighborhood?: string | null;         // 0033 — optional so pre-migration rows never crash
   postal_code: string | null;
   location_type: "mobile" | "in_salon" | "both";
   service_radius_miles: number | null;
   location_lat: number | null;
   location_lng: number | null;
   timezone: string | null;
+  hide_exact_pin?: boolean | null;      // 0032
   is_active: boolean;
   is_verified: boolean;
+  identity_verified?: boolean | null;       // 0033 — labeled badges, admin-set
+  license_verified?: boolean | null;        // 0033
+  insurance_verified?: boolean | null;      // 0033
+  home_studio_reviewed?: boolean | null;    // 0033
+  salon_location_verified?: boolean | null; // 0033
   is_featured: boolean;
   is_recommended?: boolean | null;      // 0028 — optional so pre-migration rows never crash
   recommended_until?: string | null;
@@ -87,14 +94,27 @@ function mapPro(row: ProRow): Professional {
     languages: row.languages ?? [],
     yearsExperience: row.years_experience ?? 0,
     city: row.city ?? "",
+    neighborhood: row.neighborhood ?? "",
     postalCode: row.postal_code ?? "",
     locationType: row.location_type,
     serviceRadiusMiles: row.service_radius_miles ?? 15,
     lat: row.location_lat ?? DEFAULT_VIEWER.lat,
     lng: row.location_lng ?? DEFAULT_VIEWER.lng,
     timezone: row.timezone ?? "America/Los_Angeles",
+    // C3: `studio_address` is deliberately NOT mapped onto Professional. This
+    // object reaches customer-facing pages, so the exact address must never ride
+    // along "just in case". Entitled audiences fetch it explicitly instead.
+    // Missing column (pre-0032) ⇒ hidden: fail closed, never leak by default.
+    hideExactPin: row.hide_exact_pin ?? true,
     isActive: row.is_active,
     isVerified: row.is_verified,
+    // Pre-0033 these columns don't exist ⇒ false ⇒ no badge is claimed. Failing
+    // closed here is the point: an unmigrated deploy under-claims, never over-claims.
+    identityVerified: Boolean(row.identity_verified),
+    licenseVerified: Boolean(row.license_verified),
+    insuranceVerified: Boolean(row.insurance_verified),
+    homeStudioReviewed: Boolean(row.home_studio_reviewed),
+    salonLocationVerified: Boolean(row.salon_location_verified),
     isFeatured: row.is_featured,
     isRecommended: Boolean(row.is_recommended) &&
       (row.recommended_until == null || new Date(row.recommended_until).getTime() > Date.now()),

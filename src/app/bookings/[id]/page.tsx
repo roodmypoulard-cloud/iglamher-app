@@ -8,6 +8,7 @@ import { TipForm } from "@/components/booking/TipForm";
 import { ChevronRight } from "@/components/ui/icons";
 import { getBookingDetail } from "@/lib/booking/data";
 import { formatPrice } from "@/lib/format";
+import { ADDRESS_PRIVACY_NOTE } from "@/lib/pro/compliance";
 import type { BookingStatus } from "@/lib/booking/status";
 
 export const dynamic = "force-dynamic";
@@ -84,7 +85,13 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
         <Row label="Time" value={timeRange} />
         <Row label="Professional" value={b.professionalName ?? "—"} />
         <Row label="Service" value={b.serviceName || "Appointment"} />
+        {/* C3: `professionalLocation` is redacted in the data layer — this only
+            holds a street address once the booking is confirmed and paid. */}
+        <Row label={b.professionalLocation.exact ? "Address" : "Area"} value={b.professionalLocation.text} />
       </section>
+      {!b.professionalLocation.exact && (
+        <p className="mt-2 px-1 text-[11.5px] leading-snug text-ink-muted">{ADDRESS_PRIVACY_NOTE}</p>
+      )}
 
       <section className="mt-4 overflow-hidden rounded-[16px] border border-border bg-surface divide-y divide-border/60">
         <Row label="Total" value={formatPrice(b.totalCents)} />

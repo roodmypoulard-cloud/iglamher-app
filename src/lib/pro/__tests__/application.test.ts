@@ -1,8 +1,17 @@
 import { describe, it, expect } from "vitest";
 import {
   isValidHandle, isValidUrl, normalizeUrl, normalizeHandle, hasAtLeastOneLink,
-  validateForSubmit, magicBytesMatch,
+  validateForSubmit, magicBytesMatch, missingAgreementKeys, currentAgreementAcceptances,
 } from "../application";
+import {
+  PRO_AGREEMENTS, PRO_AGREEMENT_KEYS, REQUIRED_HOME_STUDIO_KEYS,
+  type LocationCompliance,
+} from "../compliance";
+
+/** Every required home-studio question answered "yes" — the clean-pass case. */
+const ALL_REQUIRED_YES: LocationCompliance = Object.fromEntries(
+  REQUIRED_HOME_STUDIO_KEYS.map((k) => [k, "yes"]),
+);
 
 describe("social/url validators", () => {
   it("accepts valid handles, rejects junk", () => {
@@ -33,6 +42,7 @@ describe("validateForSubmit", () => {
     primarySpecialty: "makeup", city: "LA", yearsExperience: 3, school: "Empire Beauty School",
     bio: "Bridal and editorial makeup artist with a soft glam signature style.",
     instagramHandle: "glampro", portfolioCount: 4, hasIdDocument: true, hasCredentialDocument: true,
+    serviceLocations: ["salon_suite"], acceptedAgreements: currentAgreementAcceptances(),
   };
   it("passes a complete application", () => {
     expect(validateForSubmit(complete)).toEqual([]);
@@ -54,6 +64,85 @@ describe("validateForSubmit", () => {
   });
   it("rejects a too-short bio", () => {
     expect(validateForSubmit({ ...complete, bio: "hi" }).some((x) => /bio/i.test(x))).toBe(true);
+  });
+
+  // ---- C1: legal prerequisites are hard submit gates ----
+  describe("C1 — legal gates", () => {
+    it("blocks submit with no service location declared", () => {
+      expect(validateForSubmit({ ...complete, serviceLocations: [] }))
+        .toEqual(["Choose where you provide services."]);
+      expect(validateForSubmit({ ...complete, serviceLocations: undefined }))
+        .toEqual(["Choose where you provide services."]);
+    });
+
+    it("blocks submit when the professional agreements aren't accepted", () => {
+      expect(validateForSubmit({ ...complete, acceptedAgreements: [] }))
+        .toEqual(["Accept both professional agreements before submitting."]);
+    });
+
+    it("blocks submit when only ONE agreement is accepted", () => {
+      const onlyFirst = currentAgreementAcceptances().slice(0, 1);
+      expect(onlyFirst).toHaveLength(1);
+      expect(validateForSubmit({ ...complete, acceptedAgreements: onlyFirst }))
+        .toEqual(["Accept both professional agreements before submitting."]);
+    });
+
+    it("rejects an acceptance of a superseded agreement version", () => {
+      const stale = PRO_AGREEMENT_KEYS.map((k) => ({ agreement_key: k, version: "2000-01-01" }));
+      expect(validateForSubmit({ ...complete, acceptedAgreements: stale }))
+        .toEqual(["Accept both professional agreements before submitting."]);
+    });
+
+    it("requires every required home-studio answer when working from home", () => {
+      const errors = validateForSubmit({ ...complete, serviceLocations: ["home_studio"], locationCompliance: {} });
+      expect(errors.some((e) => /home studio question/i.test(e))).toBe(true);
+    });
+
+    it("applies the home-studio gate to 'multiple' locations too", () => {
+      const errors = validateForSubmit({ ...complete, serviceLocations: ["multiple"], locationCompliance: {} });
+      expect(errors.some((e) => /home studio question/i.test(e))).toBe(true);
+    });
+
+    it("passes once every required home-studio question is answered", () => {
+      expect(validateForSubmit({
+        ...complete, serviceLocations: ["home_studio"], locationCompliance: ALL_REQUIRED_YES,
+      })).toEqual([]);
+    });
+
+    it("a required 'no' still submits — it flags for review, it does not block", () => {
+      const withNo: LocationCompliance = { ...ALL_REQUIRED_YES, [REQUIRED_HOME_STUDIO_KEYS[0]]: "no" };
+      expect(validateForSubmit({
+        ...complete, serviceLocations: ["home_studio"], locationCompliance: withNo,
+      })).toEqual([]);
+    });
+
+    it("a partially answered home-studio form still blocks", () => {
+      const partial: LocationCompliance = { [REQUIRED_HOME_STUDIO_KEYS[0]]: "yes" };
+      expect(validateForSubmit({
+        ...complete, serviceLocations: ["home_studio"], locationCompliance: partial,
+      }).some((e) => /home studio question/i.test(e))).toBe(true);
+    });
+
+    it("does not ask home-studio questions of a salon-only pro", () => {
+      expect(validateForSubmit({ ...complete, serviceLocations: ["salon_suite"], locationCompliance: {} }))
+        .toEqual([]);
+    });
+  });
+});
+
+describe("missingAgreementKeys", () => {
+  it("is empty when both current versions are on file", () => {
+    expect(missingAgreementKeys(currentAgreementAcceptances())).toEqual([]);
+  });
+  it("reports keys accepted only at an older version", () => {
+    const stale = [{ agreement_key: PRO_AGREEMENT_KEYS[0], version: "1999-01-01" }];
+    expect(missingAgreementKeys(stale)).toEqual(PRO_AGREEMENT_KEYS);
+  });
+  it("pins acceptances to the exact live version", () => {
+    for (const k of PRO_AGREEMENT_KEYS) {
+      expect(currentAgreementAcceptances().find((a) => a.agreement_key === k)?.version)
+        .toBe(PRO_AGREEMENTS[k].version);
+    }
   });
 });
 

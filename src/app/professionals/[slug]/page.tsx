@@ -17,7 +17,11 @@ import { getProfessionalBySlug } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
 import { publicServices, publicPortfolio, publicReviews } from "@/lib/marketplace/visibility";
 import { formatPrice } from "@/lib/format";
-import { VERIFICATION_DISCLAIMER, PROFESSIONAL_RESPONSIBILITY_NOTE } from "@/lib/pro/compliance";
+import { BADGE_META, isVerificationBadge } from "@/lib/trust/badges";
+import {
+  VERIFICATION_DISCLAIMER, PROFESSIONAL_RESPONSIBILITY_NOTE,
+  ADDRESS_PRIVACY_NOTE, displayAddress,
+} from "@/lib/pro/compliance";
 
 export const dynamic = "force-dynamic";
 
@@ -47,6 +51,14 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
 
   const favoritedIds = await getFavoriteProfessionalIds();
   const favorited = favoritedIds.includes(pro.userId);
+
+  const badges = professionalBadges(pro);
+  // C3: this is a pre-booking surface, so the audience is always "public" — the
+  // exact street address is never rendered here, only the approximate area.
+  const location = displayAddress(
+    { neighborhood: pro.neighborhood, city: pro.city, postalCode: pro.postalCode },
+    { audience: "public", hideExactPin: pro.hideExactPin },
+  );
 
   const services = publicServices(pro);
   const portfolio = publicPortfolio(pro);
@@ -116,14 +128,24 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
             </div>
           </header>
 
-          {/* Trust badges */}
-          <TrustBadges badges={professionalBadges(pro)} />
+          {/* Trust badges — one per admin-checked fact, never a blanket claim */}
+          <TrustBadges badges={badges} />
 
           {/* Verification disclaimer — never claims iGlamHer authorized the pro
-              to operate (spec §11). Kept quiet behind an expandable. */}
+              to operate (spec §11). Spells out badge-by-badge what was actually
+              checked, so the short labels above can't be read as a guarantee. */}
           {pro.isVerified && (
             <details className="group -mt-4 text-[11.5px] text-ink-muted">
-              <summary className="cursor-pointer list-none font-medium text-ink-secondary underline-offset-2 hover:underline">What does verified mean?</summary>
+              <summary className="cursor-pointer list-none font-medium text-ink-secondary underline-offset-2 hover:underline">What do these badges mean?</summary>
+              {badges.filter(isVerificationBadge).length > 0 && (
+                <ul className="mt-1.5 max-w-prose space-y-1 leading-relaxed">
+                  {badges.filter(isVerificationBadge).map((b) => (
+                    <li key={b}>
+                      <span className="font-semibold text-ink-secondary">{BADGE_META[b].label}:</span> {BADGE_META[b].description}
+                    </li>
+                  ))}
+                </ul>
+              )}
               <p className="mt-1.5 max-w-prose leading-relaxed">{VERIFICATION_DISCLAIMER}</p>
               <p className="mt-1.5 max-w-prose leading-relaxed">{PROFESSIONAL_RESPONSIBILITY_NOTE}</p>
             </details>
@@ -131,9 +153,15 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
 
           {/* Meta chips — frosted glass, thin rose-gold rim */}
           <div className="flex flex-wrap gap-2.5 text-[12.5px]">
+            {/* C4: "Verified pro" claimed blanket verification off one flag. The
+                seal only means the application was reviewed and approved; the
+                specific checks are the labeled TrustBadges above. */}
             {pro.isVerified && (
-              <span className="rounded-full border border-rose/40 bg-rose/12 px-3.5 py-1.5 font-medium text-rose backdrop-blur-sm">
-                Verified pro
+              <span
+                title="iGlamHer reviewed and approved this professional's application."
+                className="rounded-full border border-rose/40 bg-rose/12 px-3.5 py-1.5 font-medium text-rose backdrop-blur-sm"
+              >
+                Application approved
               </span>
             )}
             {pro.yearsExperience > 0 && (
@@ -242,7 +270,10 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
           <section>
             <h2 className="mb-3 font-display text-xl font-semibold">Business info</h2>
             <div className="card-luxe divide-y divide-border/60">
-              <InfoRow label="Service area" value={`${pro.city} · ${pro.serviceRadiusMiles} mi radius`} />
+              <InfoRow label="Service area" value={`${location.text} · ${pro.serviceRadiusMiles} mi radius`} />
+              {!location.exact && (
+                <p className="px-4 py-2.5 text-[11.5px] leading-snug text-ink-muted">{ADDRESS_PRIVACY_NOTE}</p>
+              )}
               <InfoRow label="Response time" value="Usually within a few hours" />
               <InfoRow label="Booking" value={pro.instantBook ? "Instant booking available" : "Requests confirmed by pro"} />
               {pro.instagramHandle && (

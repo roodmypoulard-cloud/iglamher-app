@@ -8,8 +8,10 @@ import {
   saveApplicationDraftAction, submitApplicationAction, type MyApplication,
 } from "@/lib/pro/application-actions";
 import {
-  SECTION_LABELS, validateForSubmit, isCredentialKind, type ApplicationSection, type ReviewStatus,
+  SECTION_LABELS, validateForSubmit, isCredentialKind, currentAgreementAcceptances,
+  type ApplicationSection, type ReviewStatus, type AcceptedAgreement,
 } from "@/lib/pro/application";
+import type { LocationCompliance } from "@/lib/pro/compliance";
 
 type PortfolioRow = Parameters<typeof PortfolioManager>[0]["items"];
 
@@ -39,6 +41,15 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
     tiktokHandle: initial.tiktokHandle,
     websiteUrl: initial.websiteUrl,
     portfolioUrl: initial.portfolioUrl,
+  });
+  // Location + agreements live outside `data` because ServiceLocationStep saves
+  // them itself; we hold the last-known persisted state to mirror submit gating.
+  const [locationState, setLocationState] = useState<{
+    locations: string[]; compliance: LocationCompliance; agreements: AcceptedAgreement[];
+  }>({
+    locations: initial.serviceLocations,
+    compliance: initial.locationCompliance,
+    agreements: initial.acceptedAgreements,
   });
   const [savedAt, setSavedAt] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [submitErr, setSubmitErr] = useState<string | null>(null);
@@ -84,8 +95,13 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
       instagramHandle: data.instagramHandle, tiktokHandle: data.tiktokHandle, websiteUrl: data.websiteUrl, portfolioUrl: data.portfolioUrl,
       portfolioCount: initial.portfolioCount, hasIdDocument: initial.documents.some((d) => d.kind === "id_document"),
       hasCredentialDocument: initial.documents.some((d) => isCredentialKind(d.kind)),
+      // Legal prerequisites, mirrored from the server so the review step never
+      // shows "ready to submit" for an application the server will reject.
+      serviceLocations: locationState.locations,
+      locationCompliance: locationState.compliance,
+      acceptedAgreements: locationState.agreements,
     }),
-    [data, initial.portfolioCount, initial.documents],
+    [data, initial.portfolioCount, initial.documents, locationState],
   );
 
   function submit() {
@@ -166,9 +182,13 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
 
         {cur?.key === "location" && (
           <ServiceLocationStep
-            initialLocations={[]}
-            initialCompliance={{}}
-            onSaved={() => setStep((st) => st + 1)}
+            initialLocations={locationState.locations}
+            initialCompliance={locationState.compliance}
+            onSaved={({ locations, compliance }) => {
+              // The step only resolves after both agreements were accepted server-side.
+              setLocationState({ locations, compliance, agreements: currentAgreementAcceptances() });
+              setStep((st) => st + 1);
+            }}
             onBack={() => setStep((st) => Math.max(0, st - 1))}
           />
         )}

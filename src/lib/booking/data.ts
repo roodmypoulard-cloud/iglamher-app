@@ -2,6 +2,7 @@ import "server-only";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 import { withTimeout } from "@/lib/util/timeout";
+import { displayAddress, type AddressParts } from "@/lib/pro/compliance";
 import type { BookingStatus } from "./status";
 
 // Every DB round-trip in this module is bounded: a hung query rejects after 6s
@@ -70,6 +71,38 @@ export interface BookingDetail extends BookingSummary {
   tipped: boolean;
   conversationId: string | null;
   messagingUnlocked: boolean;
+  /** C3: where the appointment happens, already redacted for this viewer.
+   *  `exact: false` ⇒ approximate area only, because the booking isn't yet
+   *  confirmed + paid. Never contains a street address unless `exact` is true. */
+  professionalLocation: { text: string; exact: boolean };
+}
+
+/** The exact address unlocks only once the booking is actually locked in:
+ *  confirmed (or later) AND paid. Everything else sees the neighborhood. */
+function addressUnlocked(status: string, paymentStatus: string): boolean {
+  const committed = ["confirmed", "in_progress", "completed"].includes(status);
+  const paid = ["paid", "succeeded"].includes(paymentStatus);
+  return committed && paid;
+}
+
+/** Read a pro's address parts. Best-effort per column group: `neighborhood`
+ *  (0033) and `hide_exact_pin` (0032) may not exist on an unmigrated deploy, and
+ *  a failed read must degrade to "hidden", never to "show the street address". */
+async function fetchProAddress(
+  supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
+  professionalId: string,
+): Promise<{ parts: AddressParts; hideExactPin: boolean }> {
+  const [base, privacy] = await Promise.all([
+    supabase.from("professional_profiles").select("studio_address,city,postal_code").eq("user_id", professionalId).maybeSingle(),
+    supabase.from("professional_profiles").select("neighborhood,hide_exact_pin").eq("user_id", professionalId).maybeSingle(),
+  ]);
+  const b = (base.data ?? {}) as { studio_address?: string | null; city?: string | null; postal_code?: string | null };
+  const p = (privacy.data ?? {}) as { neighborhood?: string | null; hide_exact_pin?: boolean | null };
+  return {
+    parts: { addressLine1: b.studio_address, city: b.city, postalCode: b.postal_code, neighborhood: p.neighborhood },
+    // Missing column / failed read ⇒ hidden. Fail closed.
+    hideExactPin: privacy.error ? true : p.hide_exact_pin ?? true,
+  };
 }
 
 /** Load one booking (customer OR professional party only). Returns null if it
@@ -125,6 +158,20 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   else if (["confirmed", "in_progress", "completed"].includes(String(r.status))) paymentStatus = "paid";
 
   const pro = r.professional as { business_name?: string; slug?: string } | null;
+
+  // C3: resolve the pro's address for THIS viewer. The professional party always
+  // sees their own address; the customer only after confirmed + paid.
+  const { parts, hideExactPin } = await withTimeout(
+    fetchProAddress(supabase, String(r.professional_id)),
+    DB_TIMEOUT_MS,
+    "booking pro address",
+  );
+  const entitled = viewerRole === "professional" || addressUnlocked(String(r.status), paymentStatus);
+  const professionalLocation = displayAddress(parts, {
+    audience: entitled ? "booked" : "public",
+    hideExactPin,
+  });
+
   return {
     ...mapRow(r),
     endsAt: String(r.ends_at ?? ""),
@@ -138,6 +185,7 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     tipped,
     conversationId: convoRow?.id ?? null,
     messagingUnlocked: Boolean(convoRow?.is_unlocked),
+    professionalLocation,
   };
 }
 

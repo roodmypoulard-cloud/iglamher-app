@@ -8,7 +8,10 @@ import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
-import { APPLICATION_SECTIONS, unmetApprovalRequirements } from "@/lib/pro/application";
+import {
+  APPLICATION_SECTIONS, unmetApprovalRequirements,
+  REQUIRED_IDENTITY_KINDS, REQUIRED_CREDENTIAL_KINDS,
+} from "@/lib/pro/application";
 import { sendEmail, approvedEmail, rejectedEmail, needsInfoEmail } from "@/lib/email/send";
 import { writeAudit } from "@/lib/audit/log";
 
@@ -108,6 +111,9 @@ export async function approveApplicationAction(proId: string): Promise<AdminResu
     .update({ is_verified: true, is_active: true, review_status: "approved", reviewed_at: new Date().toISOString(), reviewed_by: gate.adminId, rejection_reason: null, needs_info_note: null, needs_info_sections: [] })
     .eq("user_id", proId);
   if (error) return { ok: false, error: error.message };
+  // Snapshot the labeled badges BEFORE purging the ID doc — purging removes the
+  // id_document row, and deriving after would silently drop "ID Verified".
+  await syncVerificationBadges(admin, proId);
   await purgeIdDocuments(admin, proId); // ID used only for verification — never stored
   await logEvent(admin, { proId, actorId: gate.adminId, action: "approved", visibleToApplicant: true });
   const { email, name } = await applicant(admin, proId);
@@ -173,6 +179,46 @@ export async function addInternalNoteAction(proId: string, note: string): Promis
   return { ok: true };
 }
 
+// ---- Labeled verification badges (C4) ---------------------------------------
+/** Recompute the per-credential badge columns from what an admin ACTUALLY
+ *  verified, document by document. Called after any per-document verdict and on
+ *  approval, so a badge can never outlive the evidence behind it — flagging a
+ *  license back to `flagged` clears "License on File" on the next sync.
+ *
+ *  `home_studio_reviewed` / `salon_location_verified` are deliberately NOT
+ *  derived here. Nothing in today's flow inspects a home studio or a salon, and
+ *  a badge that claims we did is the exact overclaim C4 exists to remove. They
+ *  stay false until the Phase 3 admin location queue sets them explicitly.
+ *
+ *  Best-effort: pre-0033 the columns don't exist, so this no-ops and every
+ *  badge stays false — an unmigrated deploy under-claims rather than over-claims. */
+async function syncVerificationBadges(admin: ReturnType<typeof createAdminClient>, proId: string): Promise<void> {
+  const { data: docs } = await admin
+    .from("professional_documents")
+    .select("kind, review_status")
+    .eq("professional_id", proId);
+  const rows = (docs as Array<{ kind: string; review_status: string | null }> | null) ?? [];
+  const verified = (kinds: string[]) =>
+    rows.some((d) => kinds.includes(d.kind) && d.review_status === "verified");
+  const hasAny = (kinds: string[]) => rows.some((d) => kinds.includes(d.kind));
+
+  const patch: Record<string, boolean> = {
+    license_verified: verified(REQUIRED_CREDENTIAL_KINDS),
+    insurance_verified: verified(["insurance"]),
+  };
+  // ID documents are purged on approval (we never retain them), so their absence
+  // means "already checked and destroyed", not "never checked". Only re-derive
+  // identity while an ID row still exists; otherwise leave the column untouched.
+  if (hasAny(REQUIRED_IDENTITY_KINDS)) {
+    patch.identity_verified = verified(REQUIRED_IDENTITY_KINDS);
+  }
+
+  const { error } = await admin.from("professional_profiles").update(patch).eq("user_id", proId);
+  if (error && !/does not exist|schema cache|could not find/i.test(error.message)) {
+    console.error("[admin.syncVerificationBadges] failed", error.message);
+  }
+}
+
 // ---- Per-document review ----------------------------------------------------
 /** Mark a single uploaded document verified or flagged. Flagging requires a reason. */
 export async function reviewDocumentAction(docId: string, decision: "verified" | "flagged", flagReason?: string): Promise<AdminResult> {
@@ -194,6 +240,8 @@ export async function reviewDocumentAction(docId: string, decision: "verified" |
     .update({ review_status: decision, flag_reason: reason, reviewed_by: gate.adminId, reviewed_at: new Date().toISOString() })
     .eq("id", docId);
   if (error) return { ok: false, error: error.message };
+  // Keep the labeled badges in lockstep with the evidence (C4).
+  await syncVerificationBadges(admin, d.professional_id);
   await logEvent(admin, {
     proId: d.professional_id, actorId: gate.adminId,
     action: decision === "verified" ? "doc_verified" : "doc_flagged",

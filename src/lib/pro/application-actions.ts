@@ -14,8 +14,9 @@ type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 import {
   DOC_MIME_TYPES, DOC_EXT, DOC_MAX_BYTES, DOC_MAX_COUNT, magicBytesMatch,
   normalizeHandle, normalizeUrl, isValidHandle, isValidUrl, validateForSubmit, isCredentialKind,
-  type ReviewStatus, type ApplicationSection, type DocMime,
+  type ReviewStatus, type ApplicationSection, type DocMime, type AcceptedAgreement,
 } from "./application";
+import type { LocationCompliance } from "./compliance";
 
 const BUCKET = "verification-docs";
 
@@ -54,7 +55,14 @@ export interface MyApplication {
   needsInfoSections: string[];
   rejectionReason: string;
   submittedAt: string | null;
+  /** Legal prerequisites (migration 0032) — mirrored into the wizard so the
+   *  review step shows the same blockers the server enforces on submit. */
+  serviceLocations: string[];
+  locationCompliance: LocationCompliance;
+  acceptedAgreements: AcceptedAgreement[];
 }
+
+const EMPTY_COMPLIANCE = { serviceLocations: [] as string[], locationCompliance: {} as LocationCompliance, acceptedAgreements: [] as AcceptedAgreement[] };
 
 export async function getMyApplicationAction(): Promise<MyApplication | null> {
   const g = await gate();
@@ -68,7 +76,11 @@ export async function getMyApplicationAction(): Promise<MyApplication | null> {
   // school is from migration 0024 — read best-effort so a missing column never breaks the wizard.
   const { data: schoolRow } = await supabase.from("professional_profiles").select("school").eq("user_id", user.id).maybeSingle();
   const school = (schoolRow as { school?: string } | null)?.school ?? "";
-  if (!data) return { exists: false, status: "draft", primarySpecialty: "", city: "", yearsExperience: null, school: "", bio: "", instagramHandle: "", tiktokHandle: "", websiteUrl: "", portfolioUrl: "", portfolioCount: 0, documents: [], needsInfoNote: "", needsInfoSections: [], rejectionReason: "", submittedAt: null };
+  if (!data) return { exists: false, status: "draft", primarySpecialty: "", city: "", yearsExperience: null, school: "", bio: "", instagramHandle: "", tiktokHandle: "", websiteUrl: "", portfolioUrl: "", portfolioCount: 0, documents: [], needsInfoNote: "", needsInfoSections: [], rejectionReason: "", submittedAt: null, ...EMPTY_COMPLIANCE };
+  // Compliance + agreements are from migration 0032 — read best-effort in their own
+  // queries so a missing column/table degrades to "not accepted yet" (which the
+  // review step reports as a blocker) instead of breaking the whole wizard.
+  const compliance = await readComplianceBestEffort(supabase, user.id);
   const r = data as Record<string, unknown>;
   const docs = (r.professional_documents as Array<{ id: string; kind: string; file_name: string; created_at: string }> | null) ?? [];
   const portfolio = (r.professional_portfolio_items as Array<{ id: string }> | null) ?? [];
@@ -90,7 +102,14 @@ export async function getMyApplicationAction(): Promise<MyApplication | null> {
     needsInfoSections: (r.needs_info_sections as string[]) ?? [],
     rejectionReason: (r.rejection_reason as string) ?? "",
     submittedAt: (r.submitted_at as string) ?? null,
+    ...compliance,
   };
+}
+
+/** Read-only view of the 0032 compliance state; never throws, never blocks. */
+async function readComplianceBestEffort(supabase: ServerClient, userId: string): Promise<ComplianceForSubmit> {
+  const result = await readComplianceForSubmit(supabase, userId);
+  return "error" in result ? { ...EMPTY_COMPLIANCE } : result;
 }
 
 /** Ensure the applicant has a professional_profiles row + professional role BEFORE
@@ -266,6 +285,52 @@ export async function removeDocumentAction(documentId: string): Promise<ActionRe
   return { ok: true };
 }
 
+interface ComplianceForSubmit {
+  serviceLocations: string[];
+  locationCompliance: LocationCompliance;
+  acceptedAgreements: AcceptedAgreement[];
+}
+
+/** Read the legal prerequisites for submit straight from the DB.
+ *
+ *  Fails CLOSED: if the 0032 columns/table aren't there yet, or the read errors,
+ *  we cannot prove the pro accepted the agreements or declared a location — so
+ *  we refuse the submit rather than waving through an unverifiable application. */
+async function readComplianceForSubmit(
+  supabase: ServerClient,
+  userId: string,
+): Promise<ComplianceForSubmit | { error: string }> {
+  const BLOCKED = { error: "We can't verify your legal agreements right now. Please try again in a few minutes or contact support@iglamher.com." };
+
+  const { data: profile, error: profileErr } = await supabase
+    .from("professional_profiles")
+    .select("service_locations,location_compliance")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (profileErr || !profile) {
+    console.error("[application.submit] compliance read failed", profileErr?.message ?? "no profile row");
+    return BLOCKED;
+  }
+
+  const { data: agreements, error: agreementsErr } = await supabase
+    .from("professional_agreements")
+    .select("agreement_key,version")
+    .eq("user_id", userId);
+  if (agreementsErr) {
+    console.error("[application.submit] agreements read failed", agreementsErr.message);
+    return BLOCKED;
+  }
+
+  const row = profile as { service_locations?: unknown; location_compliance?: unknown };
+  return {
+    serviceLocations: Array.isArray(row.service_locations)
+      ? row.service_locations.filter((l): l is string => typeof l === "string")
+      : [],
+    locationCompliance: (row.location_compliance ?? {}) as LocationCompliance,
+    acceptedAgreements: (agreements ?? []) as AcceptedAgreement[],
+  };
+}
+
 /** Submit (or resubmit after needs_more_info). Validates, locks, writes an immutable event. */
 export async function submitApplicationAction(): Promise<ActionResult> {
   const g = await gate();
@@ -281,11 +346,19 @@ export async function submitApplicationAction(): Promise<ActionResult> {
   if (!app || !app.exists) return { ok: false, error: "Fill out your application first." };
   if (app.status !== "draft" && app.status !== "needs_more_info") return { ok: false, error: "Your application is already submitted." };
 
+  // Legal gate (C1): service locations, home-studio answers, and both current
+  // agreement versions are read from the DB — never trusted from the client.
+  const compliance = await readComplianceForSubmit(supabase, user.id);
+  if ("error" in compliance) return { ok: false, error: compliance.error };
+
   const errors = validateForSubmit({
     primarySpecialty: app.primarySpecialty, city: app.city, yearsExperience: app.yearsExperience, school: app.school, bio: app.bio,
     instagramHandle: app.instagramHandle, tiktokHandle: app.tiktokHandle, websiteUrl: app.websiteUrl, portfolioUrl: app.portfolioUrl,
     portfolioCount: app.portfolioCount, hasIdDocument: app.documents.some((d) => d.kind === "id_document"),
     hasCredentialDocument: app.documents.some((d) => isCredentialKind(d.kind)),
+    serviceLocations: compliance.serviceLocations,
+    locationCompliance: compliance.locationCompliance,
+    acceptedAgreements: compliance.acceptedAgreements,
   });
   if (errors.length) return { ok: false, error: errors[0] };
 

@@ -103,14 +103,28 @@ export interface Professional {
   languages: string[];
   yearsExperience: number;
   city: string;
+  /** Customer-safe approximate area (e.g. "West Hollywood"). Shown pre-booking. */
+  neighborhood: string;
   postalCode: string;
   locationType: LocationType;
   serviceRadiusMiles: number;
   lat: number;
   lng: number;
   timezone: string; // IANA, e.g. "America/Los_Angeles"
+  /** Pro asked us to withhold their exact address/pin until a booking is
+   *  confirmed. The exact street address is deliberately NOT on this type —
+   *  it is fetched separately for audiences entitled to it (see booking data). */
+  hideExactPin: boolean;
   isActive: boolean;
+  /** Admin approved the application (public listing + ranking gate). NOT a claim
+   *  that any particular credential was checked — see the per-badge flags below. */
   isVerified: boolean;
+  // ---- Labeled verification state (C4). Each is one admin-checked fact. ----
+  identityVerified: boolean;
+  licenseVerified: boolean;
+  insuranceVerified: boolean;
+  homeStudioReviewed: boolean;
+  salonLocationVerified: boolean;
   isFeatured: boolean;
   /** Admin-curated "iGlamHer Recommended" placement (future paid slot). */
   isRecommended?: boolean;
