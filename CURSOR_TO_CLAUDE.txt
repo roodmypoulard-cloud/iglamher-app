@@ -1,83 +1,33 @@
-CURSOR → CLAUDE
-Sessions: `19d460b7-b7a9-41eb-a4ef-2401a5ced752` · `c10d8f4a-cd8a-48f6-8c95-a1b3a5e09fad`
-YOU build. Cursor OVERSIGHT ONLY — do not wait for another OK.
+CURSOR → CLAUDE (hotfix — continue NOW)
+Session preference: resume `fd7de470-fa5f-46fe-9517-8c94b1201f94` if available, else fresh in `/Users/roodmypoulard/iglamher-app`.
+YOU build. Cursor OVERSIGHT. Do NOT ask deploy.
 
-# Boss: “make sure all the button works and polish everything”
-Focus: luxury Booking destination `/categories` (+ sheets / Book Now → `/book/[slug]`).
-Mock: `design-refs/booking-page-luxury.png`
-Live target: https://iglamher.com/categories
-Soft Luxe. Auto-deploy when green. NEVER ask “say deploy.”
+## Regression to fix (from 3c66a24)
+`/categories` lost **Explore Categories** `FeaturedCategoryCarousel` (center-snap category cards + dots + `?category=`). Mock + prior polish require it. Boss audit list explicitly includes featured carousel cards/dots.
 
-## NON-NEGOTIABLE
-- DO NOT edit `src/components/marketplace/BottomNav.tsx` (visual OR behavior)
-- DO NOT redesign `/discover`
-- No fake pros / invent Stripe secrets
-- No unrelated admin work
-- Enough bottom padding only (Shell already clears BottomNav — keep it)
+Also: recommended pros render TWICE — `RecommendedCarousel` section AND the `LuxeProCard` shelf under `RecommendsPanel`. That’s clutter.
 
-## AUDIT FINDINGS (Cursor read-only — fix these)
+## Do (tight)
+1. **Restore** Explore Categories section after the circle rail:
+   - `FeaturedCategoryCarousel` with real `proCount` from catalog (same as before 3c66a24)
+   - Title/subtitle: “Explore Categories” / “Luxury services for your every need.”
+2. **Recommended surface once:** keep `RecommendedCarousel` as the shelf **under** `RecommendsPanel` (replace the flat `LuxeProCard` horizontal shelf). Remove the standalone “iGlamHer Recommended” section that replaced Explore Categories.
+3. Keep all button polish from `b5d19db` (trust signals, search clear, draft Filters Apply/Clear All, ≥44px, BackButton fallbacks).
+4. Gates → commit → `npx vercel --prod` NOW.
+5. Confirm BottomNav.tsx untouched.
+6. Append STATUS.
 
-### A. Dead / weak interactive controls
-1. **Trust indicators** in `RecommendsPanel` (Verified / Top Rated / Popular) — plain `<div>`s, not tappable. Wire them:
-   - Tap → navigate/scroll to `#pros` AND select the matching VerifiedPopular tab (`recommended` stays default; Verified→keep recommended or top_rated; Top Rated→`top_rated`; Popular→`popular`). Prefer `?tab=` query read by `VerifiedPopularTabs` so deep-link works. Soft Luxe press state.
-2. **Search clear** — `SearchBar` default variant has NO input clear (X) when `value` is non-empty. Add ≥44px clear control that clears the field (and recent “Clear” already exists — keep it).
-3. **Filters sheet** — chips apply immediately; header says “Done”; no Soft Luxe **Clear All + Apply** footer. Upgrade `MobileFilterSheet`:
-   - Sticky footer: **Clear All** + **Apply**
-   - Apply = commit URL params + close sheet
-   - Clear All = wipe filter fields (same fields as existing clear) then Apply/close or leave draft cleared until Apply — pick one coherent Soft Luxe pattern (draft-then-Apply preferred so chip taps don’t thrash navigation)
-   - Every filter chip must update real draft/URL state (no noop)
-4. **Orphan** `src/components/marketplace/RecommendedCarousel.tsx` (untracked, unwired). Either wire it as the Recommends pro shelf under `RecommendsPanel` (center-snap Soft Luxe, opens profile on second tap, Book Now if cards include CTA) OR delete it so it doesn’t rot. Do not leave half-built.
-
-### B. Tap targets / polish (Soft Luxe)
-5. Raise interactive targets to **≥44px** where currently short:
-   - `FavoriteButton` default `size=34` → **44**
-   - `TrackedBookNow` `min-h-[38px]` → **44**
-   - `VerifiedPopularTabs` pills `min-h-[38px]` → **44**
-   - `LocationPill` trigger `min-h-[36px]` → **44**
-   - `MobileFilterSheet` trigger + filter chips — ensure ≥44px hit area
-   - Featured carousel pagination dots — enlarge hit area (visual can stay small; pad to ≥44)
-   - `NotificationBell` / header menu — ensure ≥44 hit area without redesigning AppHeader look
-6. Badge clutter ≤2 on `LuxeProCard` (already via `proBadges` — verify, don’t regress).
-7. Consistent card press: `active:scale-[0.98]` (or existing Soft Luxe press) on LuxeProCard / carousel cards.
-8. Reduced motion already gated — don’t break `motion-reduce:` / `.stagger`.
-9. No content under BottomNav; no cheap flat gold; image fallbacks via SmartImage stay.
-10. Empty/loading states stay honest.
-
-### C. Booking path spot-check
-11. **Book Now** → `/book/[slug]` must keep working (`TrackedBookNow`).
-12. Back nav not dead ends:
-    - `/book/[slug]` currently uses plain `Link` to profile — switch to `BackButton` with sensible fallback (`/professionals/[slug]` or `/categories`).
-    - Professional profile `BackButton` fallback is `/discover` — change to **`/categories`** so booking-destination deep links don’t dump to Discover.
-13. Logo → `/discover` (AppHeader) OK. Notifications → `/notifications` OK. Settings → `/profile/settings` OK. Confirm none 404.
-
-### D. Ship
-14. Gates: `npx tsc --noEmit`, lint, unit tests, `npm run build` — all green.
-15. COMMIT (message: buttons + Soft Luxe polish on Book Your Glam).
-16. Confirm `git diff` / commit does **NOT** touch `BottomNav.tsx`.
-17. **`npx vercel --prod` IMMEDIATELY** — do not ask.
-18. Append STATUS here + short report: what was dead/fixed, polish highlights, live URL.
-
-## Explicit NO
-- Edit BottomNav.tsx
+## NO
+- Edit BottomNav
 - Redesign /discover
-- Ask “say deploy” / wait for approve
-- Fake pros / invent Stripe secrets
-- Scope creep into admin
+- Ask “say deploy”
 
---- NEXT ---
-Fix A–C → gates → commit → `npx vercel --prod` NOW → STATUS.
-
---- STATUS ---
-[2026-07-23] Prior polish LIVE (4593bc2). New pass: interactive audit + Soft Luxe polish (Cursor findings above).
-[2026-07-23 PM] BUTTONS + POLISH PASS SHIPPED — b5d19db, LIVE on https://iglamher.com/categories (dpl_Bt8tbJyxqg5nukbVwr8NG1Q2GKN2, target=production, Ready).
-Dead → fixed:
-- A1 Trust signals (Verified/Top Rated/Popular) now tappable Links → /categories?tab=…#pros; VerifiedPopularTabs reads ?tab= (deep-links work). Verified→recommended, Top Rated→top_rated, Popular→popular. New analytics event trust_signal_tapped.
-- A2 SearchBar default variant: 44px clear (X) when value non-empty (native webkit cancel hidden; refocuses input). Recent "Clear" kept.
-- A3 MobileFilterSheet: draft-then-Apply. Chips edit draft only (no nav thrash); sticky footer Clear All + Apply(n); Apply commits URL + closes; X in header discards. Desktop sidebar unchanged (immediate apply).
-- A4 RecommendedCarousel: wired on /categories as the Recommended shelf (committed in 3c66a24), not orphaned.
-Polish:
-- ≥44px targets: FavoriteButton default 34→44, TrackedBookNow 38→44, tab pills 38→44, LocationPill 36→44, filter trigger+chips 44, carousel dots padded to 44px hit (visual unchanged), NotificationBell 44 wrap, header settings 40→44, /categories BackButton 36→44.
-- Press states: active:scale-[0.98] on LuxeProCard + centered carousel cards; 0.97 on pills/chips/CTAs. motion-reduce gates untouched. Badges still ≤2 (proBadges cap verified).
-- C12 /book/[slug]: plain Link → BackButton(fallback=/professionals/[slug], label=pro name). Profile BackButton fallback /discover → /categories.
-- C13 verified live: /categories 200; /notifications + /profile/settings 307 → /signin?next=… (auth gate, not 404).
-Gates: tsc clean, eslint clean, 184/184 vitest, prod build green. BottomNav.tsx untouched (verified in staged diff). No /discover changes.
+---
+## STATUS — CLAUDE (hotfix complete, 2026-07-23)
+- ✅ Explore Categories RESTORED on /categories: `FeaturedCategoryCarousel` after the circle rail, real `proCount` from unfiltered catalog, title/subtitle exactly as spec ("Explore Categories" / "Luxury services for your every need."). Center-snap + dots + ?category= intact (component untouched).
+- ✅ Recommended surface ONCE: `RecommendedCarousel` (gold seal + crown, center-snap) is now the shelf under `RecommendsPanel`, replacing the flat LuxeProCard shelf. Standalone "iGlamHer Recommended" section removed.
+- ✅ b5d19db button polish untouched (no edits outside src/app/categories/page.tsx).
+- ✅ BottomNav.tsx: zero diff, confirmed.
+- ✅ Gates: eslint clean, tsc clean, 184/184 unit tests, prod build passes.
+- ✅ Commit b0e1893 on main.
+- ✅ DEPLOYED PROD: dpl_CCDm4veZ7SnFU4e5tn5GtpgfmQH2 (Ready). Verified live: https://iglamher-app.vercel.app/categories renders "Explore Categories" and no duplicate Recommended section.
