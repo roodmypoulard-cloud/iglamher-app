@@ -107,7 +107,22 @@ export function AdminShell({
         })}
       </div>
 
-      <div className="p-4">
+      <div className="space-y-3 p-4">
+        {/* Grow promo — mirrors the mock's bottom-of-sidebar card. */}
+        <div className="rounded-[14px] border border-rose/25 bg-gradient-to-b from-rose/[0.08] to-surface px-3.5 py-4 text-center">
+          <p className="text-[12px] font-bold text-ink">Grow with iGlamHer</p>
+          <svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="mx-auto mt-2 text-rose" aria-hidden>
+            <path d="M6 3h12l3 6-9 12L3 9l3-6Z" /><path d="M3 9h18M9.5 3 12 9l2.5-6M12 9v12" />
+          </svg>
+          <p className="mt-2 text-[10.5px] leading-snug text-ink-muted">Premium tools to grow the beauty community.</p>
+          <Link
+            href="/admin/analytics"
+            className="mt-2.5 inline-flex min-h-[32px] items-center rounded-full border border-rose/50 px-3.5 text-[11px] font-bold text-rose transition-colors hover:bg-rose/10"
+          >
+            View Analytics
+          </Link>
+        </div>
+
         <a
           href="mailto:support@iglamher.com?subject=Admin%20support"
           className="flex min-h-[40px] items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-semibold text-ink-secondary transition-colors hover:bg-surface hover:text-ink"
@@ -190,7 +205,7 @@ export function AdminShell({
               )}
               <span className="hidden text-right xl:block">
                 <span className="block text-[12.5px] font-bold leading-tight text-ink">{adminName}</span>
-                <span className="block text-[10px] font-semibold uppercase tracking-wide text-rose">Admin</span>
+                <span className="block text-[10px] font-semibold uppercase tracking-wide text-rose">Super Admin</span>
               </span>
             </div>
           </div>

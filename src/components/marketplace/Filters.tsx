@@ -236,7 +236,7 @@ export function FiltersSidebar() {
 }
 
 /** Mobile bottom-sheet trigger + panel. */
-export function MobileFilterSheet() {
+export function MobileFilterSheet({ triggerClassName }: { triggerClassName?: string } = {}) {
   const [open, setOpen] = useState(false);
   const sp = useSearchParams();
   const count = activeFilterCount(parseSearchParams(Object.fromEntries(sp.entries())));
@@ -245,7 +245,7 @@ export function MobileFilterSheet() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="inline-flex items-center gap-2 rounded-[12px] border border-border bg-surface px-4 py-2.5 text-sm font-semibold"
+        className={triggerClassName ?? "inline-flex items-center gap-2 rounded-[12px] border border-border bg-surface px-4 py-2.5 text-sm font-semibold"}
       >
         Filters
         {count > 0 && (

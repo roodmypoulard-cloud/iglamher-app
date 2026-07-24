@@ -2,12 +2,12 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/marketplace/Shell";
 import { SearchBar } from "@/components/marketplace/SearchBar";
-import { MobileFilterSheet, SortSelect } from "@/components/marketplace/Filters";
+import { MobileFilterSheet } from "@/components/marketplace/Filters";
 import { CategoryRail } from "@/components/recommended/CategoryRail";
 import { AreaControl } from "@/components/recommended/AreaControl";
 import { RecommendedProCard } from "@/components/recommended/RecommendedProCard";
+import { RecommendedTopbar } from "@/components/recommended/RecommendedTopbar";
 import { GridSkeleton } from "@/components/ui/states";
-import { BackButton } from "@/components/ui/BackButton";
 import { getRecommendedProfessionals, listCategories } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
 import { parseSearchParams } from "@/lib/marketplace/params";
@@ -94,15 +94,7 @@ async function Results({ raw }: { raw: RawSearchParams }) {
   const now = new Date();
   return (
     <>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="min-w-0 truncate text-[11.5px] text-ink-muted">
-          {total} recommended {total === 1 ? "professional" : "professionals"}
-          {params.q ? ` for “${params.q}”` : ""}
-        </p>
-        <Suspense>
-          <SortSelect />
-        </Suspense>
-      </div>
+      {/* No count/sort chrome above the list — the mock goes straight to cards. */}
       <div className="space-y-2.5">
         {pros.map((p) => (
           <RecommendedProCard key={p.userId} pro={p} favorited={favoritedIds.includes(p.userId)} nextOpening={nextOpeningLabel(p, now)} />
@@ -129,9 +121,9 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
   const categories = await listCategories();
 
   return (
-    <Shell>
-      {/* Slim inline back (the standard pill costs a full row on this dense page) */}
-      <BackButton fallback="/discover" label="Back" className="!min-h-[30px] !border-0 !bg-transparent !px-0 !py-0 text-[13px] !backdrop-blur-none" />
+    <Shell header={false}>
+      {/* One compact top bar (Back · brand · bell + menu) — matches the mock */}
+      <RecommendedTopbar />
 
       {/* Header — serif, centered, editorial */}
       <div className="-mt-1 text-center">
@@ -141,8 +133,8 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
         </p>
       </div>
 
-      {/* Info card */}
-      <div className="mt-2.5 flex items-center gap-2 rounded-[12px] border border-rose/30 bg-rose/[0.05] px-3 py-1.5">
+      {/* Info card — thin gold border like the mock */}
+      <div className="mt-2.5 flex items-center gap-2 rounded-[12px] border border-gold/40 bg-gold/[0.05] px-3 py-1.5">
         <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-rose" aria-hidden>
           <path d="m12 3 2.7 5.8 6.3.7-4.7 4.3 1.3 6.2L12 16.8 6.4 20l1.3-6.2L3 9.5l6.3-.7L12 3Z" />
         </svg>
@@ -164,7 +156,8 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
           <SearchBar initial={q} basePath="/recommended" placeholder="Search recommended professionals" />
         </div>
         <Suspense>
-          <MobileFilterSheet />
+          {/* Same visual height + pill shape as the search field beside it. */}
+          <MobileFilterSheet triggerClassName="inline-flex min-h-[56px] items-center gap-2 rounded-full border border-rose/40 bg-white/[0.05] px-4 text-sm font-semibold backdrop-blur-2xl" />
         </Suspense>
       </div>
       <div className="mt-2 flex items-center justify-between gap-3">

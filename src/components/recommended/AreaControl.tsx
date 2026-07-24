@@ -27,15 +27,16 @@ export function AreaControl() {
 
   return (
     <>
-      <div className="flex min-h-[36px] items-center gap-1.5 rounded-[10px] border border-border bg-surface px-2.5">
+      {/* Flat line like the mock — no card chrome. */}
+      <div className="flex w-full items-center gap-1.5 px-0.5">
         <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-rose" aria-hidden>
           <path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z" /><circle cx="12" cy="10" r="2.5" />
         </svg>
-        <p className="min-w-0 flex-1 truncate text-[11px] text-ink-secondary">
+        <p className="min-w-0 flex-1 truncate text-[11.5px] text-ink-secondary">
           Recommended near <span className="font-semibold text-ink">Los Angeles, CA</span>
           {distance ? <span className="text-ink-muted"> · within {distance} mi</span> : null}
         </p>
-        <button type="button" onClick={() => setOpen(true)} className="flex min-h-[36px] flex-none items-center gap-0.5 text-[11px] font-semibold text-rose">
+        <button type="button" onClick={() => setOpen(true)} className="flex min-h-[32px] flex-none items-center gap-0.5 text-[11.5px] font-semibold text-rose">
           Change
           <svg viewBox="0 0 24 24" width={14} height={14} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="m9 6 6 6-6 6" /></svg>
         </button>

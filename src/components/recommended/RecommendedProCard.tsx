@@ -2,6 +2,7 @@ import Link from "next/link";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { VerifiedIcon } from "@/components/ui/icons";
 import { FavoriteButton } from "@/components/marketplace/FavoriteButton";
+import { CardMenu } from "@/components/recommended/CardMenu";
 import { formatPrice, formatDistance } from "@/lib/format";
 import type { ProfessionalCardView } from "@/lib/data/model";
 
@@ -44,13 +45,17 @@ export function RecommendedProCard({
 
         {/* Details */}
         <div className="min-w-0 flex-1 p-2.5">
-          <h3 className="flex items-center gap-1.5 font-display text-[14px] font-bold leading-tight text-ink">
-            <Link href={profileHref} className="truncate">{pro.businessName || pro.displayName}</Link>
-            {pro.isVerified && <VerifiedIcon width={13} height={13} className="flex-none text-gold" />}
-          </h3>
-          <p className="mt-px truncate text-[10.5px] text-ink-secondary">{pro.primarySpecialty}</p>
-          <p className="mt-px truncate text-[10px] text-ink-muted">
-            {pro.city}
+          <div className="flex items-start justify-between gap-1">
+            {/* Rose-gold serif name, like the mock */}
+            <h3 className="flex min-w-0 items-center gap-1.5 font-display text-[14px] font-bold leading-tight text-rose-light">
+              <Link href={profileHref} className="truncate">{pro.businessName || pro.displayName}</Link>
+              {pro.isVerified && <VerifiedIcon width={13} height={13} className="flex-none text-gold" />}
+            </h3>
+            <CardMenu slug={pro.slug} name={pro.businessName || pro.displayName} />
+          </div>
+          {/* Single meta line: Specialty · City · distance (mock) */}
+          <p className="mt-px truncate text-[10.5px] text-ink-muted">
+            {pro.primarySpecialty} · {pro.city}
             {pro.distanceMi != null && ` · ${formatDistance(pro.distanceMi)}`}
           </p>
 
@@ -79,17 +84,12 @@ export function RecommendedProCard({
                 Verified
               </span>
             )}
-            {pro.locationType !== "in_salon" && (
-              <span className="rounded-full border border-border px-1.5 py-0.5 text-[9px] font-semibold text-ink-muted">
-                {pro.locationType === "mobile" ? "Mobile" : "Mobile · Studio"}
-              </span>
-            )}
           </div>
 
           <div className="mt-2 flex items-center justify-end gap-1.5">
             <Link
               href={profileHref}
-              className="flex min-h-[32px] items-center whitespace-nowrap rounded-full border border-border px-2.5 text-[10.5px] font-semibold text-ink-secondary transition-colors hover:border-rose/50 hover:text-ink active:scale-[0.98]"
+              className="flex min-h-[32px] items-center whitespace-nowrap rounded-full border border-rose/45 px-2.5 text-[10.5px] font-semibold text-rose transition-colors hover:bg-rose/10 active:scale-[0.98]"
             >
               View Profile
             </Link>
