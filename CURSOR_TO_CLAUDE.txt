@@ -1,119 +1,36 @@
-CURSOR → CLAUDE (session c10d8f4a)
-USER: Make sure everywhere in the admin is clickable — not dead.
+CURSOR → CLAUDE (session 19d460b7 — YOU build; Cursor will NOT Design-Mode edit)
 
-STANDING RULE: gates green → commit → **deploy immediately** with `npx vercel --prod`. Never ask “say deploy”. Confirm live URL in STATUS.
+Boss rejected: (1) flat shelves-over-grid as “not creative / not luxury”, (2) gradient-block concept mocks.
+Boss said show before live for this design pass. Cursor OVERSIGHT ONLY — do **not** wait for Cursor to edit code.
 
-Soft Luxe only. Prefer real routes/actions. If a feature isn’t ready: Soft Luxe “coming soon” page/state with clear copy + way back — NEVER a control that ignores clicks. No inventing Stripe secrets. Scope = admin clickability only (`src/app/admin/**`, `src/components/admin/**`).
+## Production-safe direction (Cursor picks — build this NOW)
+**C “The Lookbook” editorial energy + Boss’s required shelves.**
 
-## Inventory (Cursor audit — fix these)
+Must ship on `/categories` (Bookings → New booking):
+1. Soft Luxe editorial masthead (serif restraint, rose/gold — **no purple**, no emoji chrome).
+2. Full-bleed **cover** = top Recommended pro (or Featured) using real `ProfessionalCard` / real photo — not a gradient block.
+3. **Recommended** horizontal ProShelf (real `getRecommendedProfessionals`).
+4. **Popular** horizontal ProShelf (real `sort: "reviews"`, dedupe vs Recommended).
+5. **Browse by service** — organized categories using real `CategoryTiles` + real `public/brand/categories/*.jpg` photography. Not uniform boring wall — section hierarchy + spacing so it feels editorial.
+6. Search retained.
+7. Empty states when shelves empty; categories empty state already ok.
+8. Mobile-first Soft Luxe; a11y + reduced-motion.
 
-### CRITICAL — looks interactive / list rows with no action
+Do **not** invent Occasion taxonomy / new DB. Do **not** invent Stripe secrets. Reuse ProShelf / CategoryTiles / ProfessionalCard.
 
-1. **Dashboard queue rows are dead** — `src/app/admin/page.tsx` `Queue` component
-   - Verification queue / Moderation reports / Open disputes render `<li>` with label only — no Review link, no navigation.
-   - FIX: each verification row → `/admin/applications?tab=awaiting&selected={userId}` (id is already user_id).
-   - Reports/disputes: if no detail route exists, create `/admin/disputes/[id]` Soft Luxe coming-soon detail (show reason/status from list, “Resolution tools coming soon”, back to `/admin/disputes`). Rows must be Links.
+## Done bar
+1. Implement in `src/app/categories/**` (+ small supporting components if needed).
+2. Gates: tsc, lint, unit, playwright, build — all green.
+3. Commit.
+4. Real screenshots → show Boss (preview artifact). **Do not deploy until Boss says approve on THIS new design** (his show-before-live for this visual pass).
+5. Append STATUS here with sha + preview link. When Boss approves in chat → `npx vercel --prod` immediately and confirm https://iglamher-app.vercel.app/categories.
 
-2. **Disputes page rows are dead** — `src/app/admin/disputes/page.tsx`
-   - Same: list items with no Review/open. Wire to the same detail route (or inline sheet with real next step). Every row clickable.
-
-3. **Applications stat cards are dead** — `src/app/admin/applications/page.tsx` `StatCard`
-   - 7 cards are plain `<div>`s. Dashboard SummaryCards already navigate — mirror that:
-     - Pending → `?tab=awaiting`
-     - Approved → `?tab=approved`
-     - Changes → `?tab=changes`
-     - Rejected → `?tab=rejected`
-     - Customer ID Checks → `/admin/verifications`
-     - Active Featured / Monthly Revenue → `/admin/recommendations`
-
-4. **Dashboard Metric row is dead** — `src/app/admin/page.tsx` `Metric` (Professionals, Active, Verified, Featured, At-risk, Fraud flags, etc.)
-   - Make each a Link to the most relevant queue/page:
-     - Professionals / Active / Verified / Featured / Avg* → `/admin/professionals` (Featured can go `/admin/recommendations` if clearer)
-     - At-risk / Fraud flags → `/admin/disputes` (or professionals with a note) — pick the best existing destination; if none, Soft Luxe coming-soon at `/admin/disputes?focus=fraud` still clickable.
-
-5. **Header profile chip is dead** — `AdminShell.tsx` avatar + “Super Admin” block
-   - Wrap in Link → `/admin/settings` (passcode + kill switches). Must be keyboard-focusable.
-
-6. **Bell should land on awaiting queue** — currently `/admin/applications`
-   - Change to `/admin/applications?tab=awaiting`.
-
-7. **Customer list rows have no action** — `src/app/admin/customers/page.tsx`
-   - Add “View” / row Link → `/admin/customers` detail OR Soft Luxe `/admin/customers/[id]` coming-soon (name/email/status + back). Prefer real page if easy; coming-soon OK.
-
-8. **Admin search customer hits have no action** — `src/app/admin/search/page.tsx`
-   - Pros already have Review. Customers need a Link (same customer destination as above). Empty-query state can link back or focus header search — don’t leave a dead button.
-
-### ALREADY OK (don’t break)
-- Sidebar NAV items → real pages
-- Grow “View Analytics” → `/admin/analytics`
-- Help & Support → mailto
-- Lock admin → `lockGateAction`
-- Header search → `/admin/search?q=`
-- Application queue rows → `?selected=`
-- Review panel Approve / Request Changes / Reject / Ban → real actions
-- Featured toggles, Kill switches, AdminProRow Review/Feature/Recommend
-- Manage all / View all / View in app / Full page ↗
-- Dashboard SummaryCards (pending/approved/etc.) already link
-
-### POLISH (if quick)
-- Grow promo card: make whole card or primary CTA clearly clickable (already has CTA — OK if CTA works).
-- Featured roster names on applications bottom widget: optional Link to `/admin/applications/{userId}` beside toggle.
-- Campaigns exists at `/admin/campaigns` but not in sidebar — either add nav item OR leave (dashboard SECTIONS already links). Prefer add “Campaigns” under Analytics if it fits Soft Luxe density; else leave with dashboard link only.
-
-## Fix bar
-1. Grep admin for dead patterns after: no `#` hrefs, no noop onClick, no gold/rose buttons that don’t fire.
-2. Every list row that looks selectable has Review/open Link or navigates.
-3. Every stat/metric card navigates.
-4. Header search + bell + profile all work.
-5. Coming-soon pages: Soft Luxe, honest copy, ← back link — not blank.
-
-## Done criteria
-1. Inventory items above fixed.
-2. Gates: `npx tsc --noEmit`, lint, unit tests, production build green.
-3. Commit + **`npx vercel --prod` immediately**.
-4. Append STATUS: commit sha, live URL `https://iglamher-app.vercel.app/admin`, what was dead → what now works, intentional coming-soon routes created.
+## Explicit NO
+- Do not hand visual work back to Cursor Design Mode.
+- Do not deploy rejected `2e1acae` as-is without the Lookbook luxury pass.
+- Do not ask Cursor to write UI.
 
 --- NEXT ---
-Wire all dead admin controls (dashboard queues/metrics, applications stats, disputes rows, header profile, bell→awaiting, customer/search actions). Soft Luxe coming-soon only where no real feature yet. Gates → commit → deploy.
+Build Lookbook-luxury /categories with Recommended + Popular + real category photos. Gates → commit → screenshot preview for Boss. No deploy until Boss approves this version.
 --- STATUS ---
-(awaiting Claude)
---- STATUS ---
-[2026-07-23, session c10d8f4a] ✅ ADMIN CLICKABILITY — DEPLOYED. Commit 13b8b10.
-Live: https://iglamher-app.vercel.app/admin (200, gates non-admins to /signin).
-
-DEAD → NOW WORKS:
-1. Dashboard queue rows (admin/page.tsx Queue) — were label-only <li>. Now each
-   is a Link: Verification → /admin/applications?tab=awaiting&selected={user_id};
-   Reports → /admin/disputes/{id}?type=report&label&status; Disputes →
-   /admin/disputes/{id}?label&status.
-2. Disputes page rows (admin/disputes/page.tsx) — same, now Links → detail.
-3. Applications 7 stat cards — were <div>. Now Links: Pending/Approved/Changes/
-   Rejected → ?tab=…; Customer ID → /admin/verifications; Featured + Monthly
-   Revenue → /admin/recommendations.
-4. Dashboard Metric row (8 cards) — now Links: Professionals/Active/Verified/
-   AvgRating/AvgReliability → /admin/professionals; Featured →
-   /admin/recommendations; At-risk + Fraud flags → /admin/disputes.
-5. Header profile chip — was <div>. Now Link → /admin/settings, keyboard-
-   focusable (focus-visible ring).
-6. Bell → /admin/applications?tab=awaiting (was bare /admin/applications).
-7. Customers list rows → Link /admin/customers/{id} (+ "View →").
-8. Search customer hits → Link /admin/customers/{id} (+ "View" pill). Pros
-   already had Review.
-POLISH: applications bottom featured-roster names → Link ?selected={id};
-Campaigns added to sidebar nav + header title (existed at /admin/campaigns,
-wasn't reachable from nav).
-
-NEW COMING-SOON ROUTES (Soft Luxe, honest copy, ← back — never blank):
-- /admin/customers/[id] — REAL read-only detail (name/email/phone/role/status/
-  joined from profiles) + "account management tools coming soon" note.
-- /admin/disputes/[id] — case detail; surfaces real reason/status from the open
-  queues (falls back to label/status query params), "Resolution tools coming
-  soon" + links to Professionals / Settings. Handles both disputes & reports.
-
-SWEEP: grep admin for href="#" / onClick={()=>{}} → NONE. Every list row that
-looks selectable now navigates; every stat/metric card navigates; header search
-+ bell + profile all work.
-
-GATES: tsc 0, lint 0, vitest 179/179, build 0. No Stripe secrets invented; the
-coming-soon routes carry no fake data. User still owes: APPLY_PENDING_0029/0030,
-Stripe 1099 toggle, STRIPE_RECOMMEND_PRICE_ID.
+(awaiting Claude luxury rebuild)
