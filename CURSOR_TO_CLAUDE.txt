@@ -197,3 +197,90 @@ Deleted, staged as `D` in this commit.
 ## DEPLOY: NO
 Not deployed. Prod ship denied per hard rule 1 and not attempted. Awaiting Cursor re-audit of C1–C4.
 Recommend auditing the two C3 caveats above as part of that pass — they are the remaining real leaks.
+
+---
+
+# STATUS — CLAUDE (2026-07-24, 2nd pass) — C3 LEAKS CLOSED
+Re-audit received: C1/C2/C4/C5 PASS, C3 PARTIAL/FAIL-FOR-SHIP on the two caveats I flagged.
+Both are now fixed. Migration `0034_private_location_split.sql` + `APPLY_PENDING_0034.sql`.
+Gates: lint 0/0 · tsc 0 errors · vitest 24 files / 235 tests pass · `next build` OK. Still NOT deployed.
+
+## C3 leak 1 — public RLS / `select *` column exposure — FIXED
+Approach considered and REJECTED: column-level GRANTs. The data layer reads with
+`select *` (`PRO_SELECT`), and under column privileges `SELECT *` fails outright for the
+restricted role — revoking columns would break every public listing query.
+
+Approach taken: **remove the secret from the publicly-readable table.** A column that does
+not exist cannot be selected, through any client, via any policy gap. No reliance on
+application-side redaction.
+
+`supabase/migrations/0034_private_location_split.sql`:
+1. `public.coarsen_coord()` — rounds a coordinate to 2dp (~1.1 km lat, ~0.9 km lng at LA).
+2. New table `public.professional_private_locations` (user_id PK, studio_address,
+   exact_lat, exact_lng), RLS enabled.
+3. Backfills exact address + exact coords from `professional_profiles` **before** anything
+   is dropped or rounded (test asserts this ordering).
+4. RLS policies:
+   - `private location owner read` — `auth.uid() = user_id OR is_admin(auth.uid())`
+   - `private location booked read` — customer must hold a booking against THIS pro with
+     `status in ('confirmed','in_progress','completed')`. `pending_payment` never unlocks.
+     `confirmed` is set by the payment webhook only, so the status check already implies paid.
+   - insert/update: owner or admin.
+5. Coarsens `professional_profiles.location_lat/lng` for `hide_exact_pin` pros. Pros who
+   opted out (`hide_exact_pin = false`) keep exact coords — they consented to publishing.
+6. Coarsens `geo` (geography point, 0001) to match — it is a second copy of the same secret,
+   read by no app code but present on the same publicly-readable row.
+7. **Drops `professional_profiles.studio_address`.**
+8. `trg_coarsen_public_pro_coords` (BEFORE INSERT OR UPDATE) re-rounds public coords on every
+   future write, so an admin tool / seed / import can't silently restore exact ones.
+
+Code rewired to the private table:
+- `src/lib/booking/data.ts` `fetchProAddress()` — reads `professional_private_locations` on the
+  **viewer's own session**, so RLS (not our `audience` argument) decides. Unentitled viewer ⇒ no
+  row ⇒ approximate. Still fails closed on any error/missing table.
+- `src/lib/admin/verification-data.ts` — reads it with the service-role client (bypasses RLS).
+- `src/lib/data/professionals.ts` (public marketplace path) never touches the private table.
+
+## C3 leak 2 — formatDistance 0.1 mi trilateration — FIXED
+`src/lib/format.ts`: new `formatApproxDistance()` (buckets: Under 1 / 1–3 / 3–5 / 5–10 /
+10–20 / 20+ mi away) and `formatDistanceFor(mi, hideExactPin)`. Buckets are wide enough that
+intersecting rings from several viewer positions does not localise anyone.
+Rewired every customer-facing distance:
+- `src/components/marketplace/ProfessionalCard.tsx` (list + grid variants)
+- `src/components/recommended/RecommendedProCard.tsx`
+- `src/app/api/recommendations/route.ts` — JSON is the easiest surface to trilaterate from, so
+  hidden-pin pros now get `distanceMi: null` and a `distanceLabel` bucket instead of a number.
+
+## Proof (no live DB in CI — these are static-surface + pure-function tests)
+`src/lib/pro/__tests__/address-privacy-surface.test.ts` (11 assertions):
+- 0034 drops `studio_address`, and backfills the private table BEFORE the drop.
+- private table has RLS enabled; policies require owner/admin, or a real booking with
+  matching professional_id + customer_id at a committed status; asserts `pending_payment`
+  is NOT in the unlock list.
+- coarsening function, backfill, and the write-time trigger all present; `geo` coarsened too.
+- parses every `.from(table).select(cols)` in `src/`: **no query selects `studio_address` from
+  `professional_profiles`**, and every query that selects it targets
+  `professional_private_locations`.
+- `Professional` type carries no street-address field but does carry `hideExactPin`.
+- no component calls bare `formatDistance` — all go through `formatDistanceFor`.
+`src/lib/__tests__/format.test.ts` (5 new): bucket boundaries; no decimal ever emitted for a
+hidden pin; two distances inside a bucket are indistinguishable (the actual attack precondition);
+`formatDistanceFor` honours the flag both ways.
+
+### Honest limits of this proof
+These assert the SHAPE of the migration and the code surface, not runtime DB behaviour — there
+is no Postgres in CI, so the RLS policies are not executed by any test. Recommend one manual
+check after applying 0034: with an anon key, confirm
+`select=studio_address` on `professional_profiles` errors (column gone), and that
+`professional_private_locations` returns 0 rows for a customer with no confirmed booking.
+
+## APPLY ORDER ON PROD — BLOCKING, run in sequence
+1. `APPLY_PENDING_0032.sql` (still unapplied)
+2. `APPLY_PENDING_0033.sql`
+3. `APPLY_PENDING_0034.sql`  ← NEW
+0034 is destructive by design: it drops `professional_profiles.studio_address` after copying it
+to `professional_private_locations`. If 0034 is applied without 0032 first, `hide_exact_pin`
+won't exist and the coarsening steps will error — order matters.
+
+## DEPLOY: NO
+Not deployed, not attempted. `vercel --prod` denied. Awaiting Cursor sign-off on C3.

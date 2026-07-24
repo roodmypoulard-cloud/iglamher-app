@@ -2,7 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { SmartImage } from "@/components/ui/SmartImage";
 import type { ProfessionalCardView } from "@/lib/data/model";
-import { formatPrice, formatDistance, cn } from "@/lib/format";
+import { formatPrice, formatDistanceFor, cn } from "@/lib/format";
 import { VerifiedIcon } from "@/components/ui/icons";
 import { Rating } from "@/components/ui/Rating";
 import { FavoriteButton } from "./FavoriteButton";
@@ -48,7 +48,7 @@ export function ProfessionalCard({
           <p className="mt-0.5 truncate text-xs text-ink-muted">{pro.primarySpecialty || pro.headline}</p>
           <p className="mt-1.5 flex items-center gap-x-2 truncate text-[11.5px] text-ink-muted">
             <Rating average={pro.ratingAverage} count={pro.reviewCount} className="text-[11.5px]" />
-            {pro.distanceMi != null && <span className="flex-none">· {formatDistance(pro.distanceMi)}</span>}
+            {pro.distanceMi != null && <span className="flex-none">· {formatDistanceFor(pro.distanceMi, pro.hideExactPin)}</span>}
             {pro.startingPriceCents > 0 && (
               <span className="flex-none">· {formatPrice(pro.startingPriceCents, { from: true })}</span>
             )}
@@ -103,7 +103,7 @@ export function ProfessionalCard({
           )}
         </p>
         {pro.distanceMi != null && (
-          <p className="text-[11px] text-ink-muted">{formatDistance(pro.distanceMi)}</p>
+          <p className="text-[11px] text-ink-muted">{formatDistanceFor(pro.distanceMi, pro.hideExactPin)}</p>
         )}
       </div>
     </Link>

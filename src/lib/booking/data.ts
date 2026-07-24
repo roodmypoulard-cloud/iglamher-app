@@ -85,21 +85,31 @@ function addressUnlocked(status: string, paymentStatus: string): boolean {
   return committed && paid;
 }
 
-/** Read a pro's address parts. Best-effort per column group: `neighborhood`
- *  (0033) and `hide_exact_pin` (0032) may not exist on an unmigrated deploy, and
- *  a failed read must degrade to "hidden", never to "show the street address". */
+/** Read a pro's address parts for the CURRENT viewer.
+ *
+ *  The street address lives in `professional_private_locations` (0034), whose
+ *  RLS only returns a row to the pro themselves, an admin, or a customer with a
+ *  committed booking against that pro. This read runs on the viewer's own
+ *  session, so an unentitled viewer gets no row back — the redaction is enforced
+ *  by the database, not by the `audience` argument we pass afterwards.
+ *
+ *  Best-effort per group: `neighborhood` (0033), `hide_exact_pin` (0032) and the
+ *  private table (0034) may be absent on an unmigrated deploy, and any failure
+ *  must degrade to "hidden", never to "show the street address". */
 async function fetchProAddress(
   supabase: Awaited<ReturnType<typeof createSupabaseServerClient>>,
   professionalId: string,
 ): Promise<{ parts: AddressParts; hideExactPin: boolean }> {
-  const [base, privacy] = await Promise.all([
-    supabase.from("professional_profiles").select("studio_address,city,postal_code").eq("user_id", professionalId).maybeSingle(),
+  const [base, privacy, priv] = await Promise.all([
+    supabase.from("professional_profiles").select("city,postal_code").eq("user_id", professionalId).maybeSingle(),
     supabase.from("professional_profiles").select("neighborhood,hide_exact_pin").eq("user_id", professionalId).maybeSingle(),
+    supabase.from("professional_private_locations").select("studio_address").eq("user_id", professionalId).maybeSingle(),
   ]);
-  const b = (base.data ?? {}) as { studio_address?: string | null; city?: string | null; postal_code?: string | null };
+  const b = (base.data ?? {}) as { city?: string | null; postal_code?: string | null };
   const p = (privacy.data ?? {}) as { neighborhood?: string | null; hide_exact_pin?: boolean | null };
+  const s = (priv.data ?? {}) as { studio_address?: string | null };
   return {
-    parts: { addressLine1: b.studio_address, city: b.city, postalCode: b.postal_code, neighborhood: p.neighborhood },
+    parts: { addressLine1: s.studio_address, city: b.city, postalCode: b.postal_code, neighborhood: p.neighborhood },
     // Missing column / failed read ⇒ hidden. Fail closed.
     hideExactPin: privacy.error ? true : p.hide_exact_pin ?? true,
   };

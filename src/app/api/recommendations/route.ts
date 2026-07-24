@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getShelf } from "@/lib/recommend/data";
 import { SHELF_META, type ShelfKey } from "@/lib/recommend/shelves";
 import { rateLimit } from "@/lib/security/rate-limit";
+import { formatDistanceFor } from "@/lib/format";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,10 @@ export async function GET(req: Request) {
       rating: p.ratingAverage,
       reviews: p.reviewCount,
       startingPriceCents: p.startingPriceCents,
-      distanceMi: p.distanceMi != null ? Math.round(p.distanceMi * 10) / 10 : null,
+      // C3: a JSON endpoint is the easiest place to trilaterate from, so pros
+      // who hide their pin get the bucket label and NO numeric distance at all.
+      distanceMi: p.distanceMi != null && !p.hideExactPin ? Math.round(p.distanceMi * 10) / 10 : null,
+      distanceLabel: p.distanceMi != null ? formatDistanceFor(p.distanceMi, p.hideExactPin) : null,
       verified: p.isVerified,
       categories: p.categories,
     })),

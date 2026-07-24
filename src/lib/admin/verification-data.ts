@@ -219,7 +219,9 @@ export async function getApplicationDetail(userId: string): Promise<ApplicationD
   // a pre-migration column never 404s the review page. Admins are entitled to the
   // full submitted address; this is the one surface that shows it.
   const [addrRes, compRes] = await Promise.all([
-    admin.from("professional_profiles").select("studio_address").eq("user_id", userId).maybeSingle(),
+    // 0034 moved the street address out of the publicly-readable table. Admins
+    // read it here with the service-role client, which bypasses RLS.
+    admin.from("professional_private_locations").select("studio_address").eq("user_id", userId).maybeSingle(),
     admin.from("professional_profiles").select("neighborhood,hide_exact_pin,service_locations,needs_location_review").eq("user_id", userId).maybeSingle(),
   ]);
   const addr = (addrRes.data as { studio_address?: string | null } | null) ?? null;

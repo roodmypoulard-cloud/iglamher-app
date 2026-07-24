@@ -3,7 +3,7 @@ import { SmartImage } from "@/components/ui/SmartImage";
 import { VerifiedIcon } from "@/components/ui/icons";
 import { FavoriteButton } from "@/components/marketplace/FavoriteButton";
 import { CardMenu } from "@/components/recommended/CardMenu";
-import { formatPrice, formatDistance } from "@/lib/format";
+import { formatPrice, formatDistanceFor } from "@/lib/format";
 import type { ProfessionalCardView } from "@/lib/data/model";
 
 /** Editorial recommendation card — portfolio image left, details + actions right.
@@ -56,7 +56,7 @@ export function RecommendedProCard({
           {/* Single meta line: Specialty · City · distance (mock) */}
           <p className="mt-px truncate text-[10.5px] text-ink-muted">
             {pro.primarySpecialty} · {pro.city}
-            {pro.distanceMi != null && ` · ${formatDistance(pro.distanceMi)}`}
+            {pro.distanceMi != null && ` · ${formatDistanceFor(pro.distanceMi, pro.hideExactPin)}`}
           </p>
 
           <p className="mt-1 flex items-center gap-1 text-[10.5px] text-ink-secondary">
