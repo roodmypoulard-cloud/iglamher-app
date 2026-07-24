@@ -43,3 +43,13 @@ Each card MUST show BOTH:
 ---
 ## STATUS — CLAUDE
 (append when done)
+
+STATUS 2026-07-24 — Explore animation = recommended profiles: CODE LIVE, awaiting one SQL apply
+- DONE `src/app/categories/page.tsx` (in `f67d117`): Explore slot after CategoryCircleRail now renders `RecommendedCarousel` — title `iGlamHer Recommended`, subtitle `Verified pros, hand-picked for you.`, View All → /recommended. `FeaturedCategoryCarousel` + category pro-counts removed from the page. No category tiles in that slot.
+- DONE verified-only gate: carousel feeds on `recommended.filter(p => p.isVerified)` — a recommended-but-unverified pro is excluded, so every card has BOTH the gold check (GoldVerifiedBadge) and the crown/Pick badge (built into RecommendedCarousel).
+- DONE no duplicate shelf: second RecommendedCarousel under RecommendsPanel removed; panel kept as the trust/signals moment (it has its own View All). Single Recommended surface = the animated slot. CategoryCircleRail, BottomNav, /discover untouched.
+- GATES: eslint clean, tsc clean, vitest 184/184, prod build clean. Deployed `npx vercel --prod` → dpl_2HmJuS9bo7w9vFFaKVSRGMaoNXzV, iglamher.com serving it (old "Explore Categories" copy gone from live HTML).
+- ⚠️ BLOCKER (data, not code): prod DB has ZERO pros with `is_recommended = true` (live RSC payload: 5 pros, all `isVerified:true`, all `isRecommended:false`). The carousel is correctly data-gated, so live /categories currently shows NO recommended carousel — Boss will not see it until pros are flagged.
+- FIX (one step, your side — no redeploy needed, page is force-dynamic): run `APPLY_PENDING_recommended_picks.sql` in Supabase SQL editor (service role; column guard blocks anon). Flags the 4 curated verified picks from seed.ts: Maya Rose Beauty, Dee Styles Studio, Simone V Styling, Amara Beauty. Alternative: flag pros in /admin/recommendations UI.
+- AFTER APPLY: refresh https://iglamher.com/categories → center-snap gold-glow carousel of those 4 pros, each with gold check + crown, right after the circle rail.
+- Note: I could not apply the SQL myself — service-role key is Vercel-sensitive (env pull returns [SENSITIVE]) and local .env.local anon key is stale/invalid. Same channel as your APPLY_PENDING_pro_photos*.sql applies.
