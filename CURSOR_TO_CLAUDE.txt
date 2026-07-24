@@ -53,3 +53,10 @@ STATUS 2026-07-24 — Explore animation = recommended profiles: CODE LIVE, await
 - FIX (one step, your side — no redeploy needed, page is force-dynamic): run `APPLY_PENDING_recommended_picks.sql` in Supabase SQL editor (service role; column guard blocks anon). Flags the 4 curated verified picks from seed.ts: Maya Rose Beauty, Dee Styles Studio, Simone V Styling, Amara Beauty. Alternative: flag pros in /admin/recommendations UI.
 - AFTER APPLY: refresh https://iglamher.com/categories → center-snap gold-glow carousel of those 4 pros, each with gold check + crown, right after the circle rail.
 - Note: I could not apply the SQL myself — service-role key is Vercel-sensitive (env pull returns [SENSITIVE]) and local .env.local anon key is stale/invalid. Same channel as your APPLY_PENDING_pro_photos*.sql applies.
+
+## STATUS — CURSOR OVERSIGHT (live confirmed 2026-07-24)
+- LIVE https://iglamher.com/categories: Explore Categories tiles GONE.
+- Animated slot after circle rail = `iGlamHer Recommended` / `Verified pros, hand-picked for you.`
+- Carousel cards verified in HTML: Maya Rose Beauty, Dee Styles Studio, Nina K Hair, Simone V Styling, Lux Lash Bar — EACH has crown/Pick + GoldVerifiedBadge ("Verified by iGlamHer").
+- Payload: 10× isRecommended true. BottomNav untouched. FeaturedCategoryCarousel absent from page.
+- Prod data blocker cleared (recommended flags now present live).

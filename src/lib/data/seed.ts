@@ -246,6 +246,11 @@ const P9 = "a0000000-0000-4000-8000-000000000009";
 const P10 = "a0000000-0000-4000-8000-00000000000a";
 const P11 = "a0000000-0000-4000-8000-00000000000b";
 const P12 = "a0000000-0000-4000-8000-00000000000c";
+const P13 = "a0000000-0000-4000-8000-00000000000d";
+const P14 = "a0000000-0000-4000-8000-00000000000e";
+const P15 = "a0000000-0000-4000-8000-00000000000f";
+const P16 = "a0000000-0000-4000-8000-000000000010";
+const P17 = "a0000000-0000-4000-8000-000000000011";
 
 export const PROFESSIONALS: Professional[] = [
   pro({
@@ -695,9 +700,61 @@ export const PROFESSIONALS: Professional[] = [
     portfolio: [port(P12, "photo-1522335789203-aabd1fc54bc9", "Glam", 0)],
     reviews: [rev("Anon", 4, "Nice work.", "Glam")],
   }),
+  // ---- #13-17: REGULAR verified pros (NOT iGlamHer-recommended). High review
+  // counts so they populate "Popular near you", clearly separate from Picks. ----
+  pro({
+    userId: P13, slug: "bloom-skincare", businessName: "Bloom Skincare", displayName: "Priya N.",
+    headline: "Glow facials & skincare", primarySpecialty: "Facials & skincare", specialties: ["Facials", "Skincare"],
+    city: "Santa Monica", postalCode: "90401", lat: 34.0195, lng: -118.4912, locationType: "in_salon",
+    isVerified: true, ratingAverage: 4.7, reviewCount: 86, jobsCompleted: 210, instagramHandle: "bloomskincare",
+    igFollowerCount: "12k", bio: "Custom facials for a lit-from-within glow.",
+    avatarUrl: "/pros/skincare.jpg", coverUrl: "/pros/skincare.jpg",
+    services: [svc({ proId: P13, cat: "makeup", name: "Signature Glow Facial", desc: "Deep-cleanse + glow.", min: 60, cents: 9500 }, 0)],
+    portfolio: [], reviews: [rev("Dana", 5, "Skin never looked better.", "Facial")],
+  }),
+  pro({
+    userId: P14, slug: "arch-brow-studio", businessName: "Arch Brow Studio", displayName: "Sofia M.",
+    headline: "Brows & lamination", primarySpecialty: "Brow shaping & lamination", specialties: ["Brows", "Lamination"],
+    city: "West Hollywood", postalCode: "90069", lat: 34.09, lng: -118.3617, locationType: "in_salon",
+    isVerified: true, ratingAverage: 4.8, reviewCount: 64, jobsCompleted: 150, instagramHandle: "archbrowstudio",
+    igFollowerCount: "8k", bio: "Fluffy, snatched brows tailored to your face.",
+    avatarUrl: "/pros/brows.jpg", coverUrl: "/pros/brows.jpg",
+    services: [svc({ proId: P14, cat: "makeup", name: "Brow Lamination + Shape", desc: "Lamination & tint.", min: 45, cents: 7000 }, 0)],
+    portfolio: [], reviews: [rev("Kim", 5, "Best brows in the city.", "Brows")],
+  }),
+  pro({
+    userId: P15, slug: "honey-hair-co", businessName: "Honey Hair Co", displayName: "Tia B.",
+    headline: "Sew-ins & color", primarySpecialty: "Sew-ins & color", specialties: ["Sew-ins", "Color"],
+    city: "Inglewood", postalCode: "90301", lat: 33.9617, lng: -118.3531, locationType: "both",
+    isVerified: true, ratingAverage: 4.6, reviewCount: 72, jobsCompleted: 180, instagramHandle: "honeyhairco",
+    igFollowerCount: "15k", bio: "Flawless installs and dimensional color.",
+    avatarUrl: "/pros/blonde.jpg", coverUrl: "/pros/blonde.jpg",
+    services: [svc({ proId: P15, cat: "hair", name: "Sew-in Install", desc: "Full sew-in.", min: 150, cents: 18000 }, 0)],
+    portfolio: [], reviews: [rev("Rhea", 5, "The install is immaculate.", "Sew-in")],
+  }),
+  pro({
+    userId: P16, slug: "ari-glam", businessName: "Ari Glam", displayName: "Ariana L.",
+    headline: "Everyday soft glam", primarySpecialty: "Soft glam makeup", specialties: ["Makeup", "Soft glam"],
+    city: "Culver City", postalCode: "90232", lat: 34.0211, lng: -118.3965, locationType: "mobile",
+    isVerified: true, ratingAverage: 4.9, reviewCount: 58, jobsCompleted: 140, instagramHandle: "ariglam",
+    igFollowerCount: "9k", bio: "Soft glam that lasts all day and night.",
+    avatarUrl: "/pros/everyday.jpg", coverUrl: "/pros/everyday.jpg",
+    services: [svc({ proId: P16, cat: "makeup", name: "Soft Glam", desc: "Full face soft glam.", min: 60, cents: 8500, loc: "mobile" }, 0)],
+    portfolio: [], reviews: [rev("Mel", 5, "Obsessed with my look.", "Makeup")],
+  }),
+  pro({
+    userId: P17, slug: "lumi-beauty", businessName: "Lumi Beauty", displayName: "Hana K.",
+    headline: "Glass-skin makeup", primarySpecialty: "Glass-skin & K-beauty", specialties: ["Makeup", "Glass skin"],
+    city: "Koreatown", postalCode: "90005", lat: 34.0592, lng: -118.3009, locationType: "both",
+    isVerified: true, ratingAverage: 4.7, reviewCount: 91, jobsCompleted: 230, instagramHandle: "lumibeauty",
+    igFollowerCount: "20k", bio: "Dewy glass-skin looks with a K-beauty finish.",
+    avatarUrl: "/pros/glass.jpg", coverUrl: "/pros/glass.jpg",
+    services: [svc({ proId: P17, cat: "makeup", name: "Glass Skin Glam", desc: "Dewy full glam.", min: 75, cents: 11000 }, 0)],
+    portfolio: [], reviews: [rev("Jen", 5, "That glass-skin glow!", "Makeup")],
+  }),
 ];
 
-export const PRO_IDS = { P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12 };
+export const PRO_IDS = { P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P11, P12, P13, P14, P15, P16, P17 };
 
 // Default viewer location for local/dev distance calc (Downtown LA).
 export const DEFAULT_VIEWER = { lat: 34.0407, lng: -118.2468 };
