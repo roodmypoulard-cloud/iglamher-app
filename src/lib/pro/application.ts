@@ -3,12 +3,13 @@
 
 export type ReviewStatus = "draft" | "pending_review" | "under_review" | "approved" | "rejected" | "needs_more_info";
 
-export const APPLICATION_SECTIONS = ["basics", "portfolio", "social", "documents", "identity"] as const;
+export const APPLICATION_SECTIONS = ["basics", "portfolio", "social", "location", "documents", "identity"] as const;
 export type ApplicationSection = (typeof APPLICATION_SECTIONS)[number];
 export const SECTION_LABELS: Record<ApplicationSection, string> = {
   basics: "Basics (category, city, experience, school, bio)",
   portfolio: "Portfolio photos / link",
   social: "Social & website links",
+  location: "Service location & compliance",
   documents: "Diplomas & certificates",
   identity: "ID (verification only — not stored)",
 };

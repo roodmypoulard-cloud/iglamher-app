@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition } from
 import { useRouter } from "next/navigation";
 import { PortfolioManager } from "@/components/pro/PortfolioManager";
 import { DocumentUploader } from "@/components/pro/DocumentUploader";
+import { ServiceLocationStep } from "@/components/pro/ServiceLocationStep";
 import {
   saveApplicationDraftAction, submitApplicationAction, type MyApplication,
 } from "@/lib/pro/application-actions";
@@ -20,6 +21,7 @@ const STEPS: { key: ApplicationSection; title: string }[] = [
   { key: "basics", title: "Basics" },
   { key: "portfolio", title: "Portfolio" },
   { key: "social", title: "Links" },
+  { key: "location", title: "Location" },
   { key: "documents", title: "Certifications" },
   { key: "identity", title: "Identity" },
 ];
@@ -162,6 +164,15 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
           </div>
         )}
 
+        {cur?.key === "location" && (
+          <ServiceLocationStep
+            initialLocations={[]}
+            initialCompliance={{}}
+            onSaved={() => setStep((st) => st + 1)}
+            onBack={() => setStep((st) => Math.max(0, st - 1))}
+          />
+        )}
+
         {cur?.key === "documents" && (
           <div className="space-y-4">
             <p className="text-sm text-ink-secondary"><strong className="text-ink">Required:</strong> upload at least one certification, license, diploma, or certificate (PDF, JPG, or PNG). This is what our team verifies before your profile goes live.</p>
@@ -200,7 +211,8 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
         )}
       </div>
 
-      {/* Nav */}
+      {/* Nav — the Location step renders its own Back/Continue (it must save first). */}
+      {cur?.key !== "location" && (
       <div className="mt-5 flex items-center justify-between">
         <button type="button" onClick={() => setStep((s) => Math.max(0, s - 1))} disabled={step === 0} className="min-h-[44px] rounded-full border border-border px-5 text-sm font-semibold text-ink-muted disabled:opacity-40">← Back</button>
         {!onReview ? (
@@ -209,6 +221,7 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
           <span className="text-[12px] text-ink-muted">Autosaved — you can leave and finish later.</span>
         )}
       </div>
+      )}
     </div>
   );
 }

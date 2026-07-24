@@ -17,6 +17,7 @@ import { getProfessionalBySlug } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
 import { publicServices, publicPortfolio, publicReviews } from "@/lib/marketplace/visibility";
 import { formatPrice } from "@/lib/format";
+import { VERIFICATION_DISCLAIMER, PROFESSIONAL_RESPONSIBILITY_NOTE } from "@/lib/pro/compliance";
 
 export const dynamic = "force-dynamic";
 
@@ -117,6 +118,16 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
 
           {/* Trust badges */}
           <TrustBadges badges={professionalBadges(pro)} />
+
+          {/* Verification disclaimer — never claims iGlamHer authorized the pro
+              to operate (spec §11). Kept quiet behind an expandable. */}
+          {pro.isVerified && (
+            <details className="group -mt-4 text-[11.5px] text-ink-muted">
+              <summary className="cursor-pointer list-none font-medium text-ink-secondary underline-offset-2 hover:underline">What does verified mean?</summary>
+              <p className="mt-1.5 max-w-prose leading-relaxed">{VERIFICATION_DISCLAIMER}</p>
+              <p className="mt-1.5 max-w-prose leading-relaxed">{PROFESSIONAL_RESPONSIBILITY_NOTE}</p>
+            </details>
+          )}
 
           {/* Meta chips — frosted glass, thin rose-gold rim */}
           <div className="flex flex-wrap gap-2.5 text-[12.5px]">
