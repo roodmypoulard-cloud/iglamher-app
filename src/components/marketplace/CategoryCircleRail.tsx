@@ -1,6 +1,7 @@
 "use client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { SmartImage } from "@/components/ui/SmartImage";
+import { track } from "@/lib/analytics";
 import { cn } from "@/lib/format";
 import type { CategorySlug } from "@/lib/data/model";
 
@@ -21,7 +22,10 @@ export function CategoryCircleRail({
   const select = (slug: string | null) => {
     const next = new URLSearchParams(sp.toString());
     if (slug == null || slug === active) next.delete("category");
-    else next.set("category", slug);
+    else {
+      next.set("category", slug);
+      track("category_viewed", { category: slug, source: "circle_rail" });
+    }
     const qs = next.toString();
     router.replace(qs ? `/categories?${qs}#pros` : "/categories#pros", { scroll: false });
   };

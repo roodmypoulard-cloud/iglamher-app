@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { SmartImage } from "@/components/ui/SmartImage";
 import { FavoriteButton } from "@/components/marketplace/FavoriteButton";
+import { TrackedBookNow } from "@/components/marketplace/TrackedBookNow";
 import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import { formatPrice } from "@/lib/format";
 import { proBadges, BADGE_LABEL } from "@/lib/marketplace/badges";
@@ -70,12 +71,7 @@ export function LuxeProCard({
             </span>
           )}
         </div>
-        <Link
-          href={`/book/${pro.slug}`}
-          className="flex min-h-[38px] items-center justify-center rounded-full rose-gradient text-[12.5px] font-bold text-[#2A1712] shadow-[0_6px_16px_rgba(215,160,143,0.3)] transition-transform active:scale-[0.97]"
-        >
-          Book Now
-        </Link>
+        <TrackedBookNow slug={pro.slug} source="luxe_card" />
       </div>
     </article>
   );

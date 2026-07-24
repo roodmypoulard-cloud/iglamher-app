@@ -3,6 +3,8 @@
 // In dev this logs to the console; wire to a real sink (PostHog/GA) behind this API.
 
 export type AnalyticsEvent =
+  | "booking_page_viewed"
+  | "recommendations_viewed"
   | "search_submitted"
   | "filter_applied"
   | "category_viewed"

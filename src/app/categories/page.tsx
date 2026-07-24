@@ -7,12 +7,15 @@ import { LocationPill } from "@/components/marketplace/LocationPill";
 import { BackButton } from "@/components/ui/BackButton";
 import { MobileFilterSheet } from "@/components/marketplace/Filters";
 import { CategoryCircleRail } from "@/components/marketplace/CategoryCircleRail";
+import { FeaturedCategoryCarousel } from "@/components/marketplace/FeaturedCategoryCarousel";
 import { RecommendsPanel } from "@/components/marketplace/RecommendsPanel";
 import { VerifiedPopularTabs } from "@/components/marketplace/VerifiedPopularTabs";
 import { LuxeProCard } from "@/components/marketplace/LuxeProCard";
 import { TrendingStrip } from "@/components/marketplace/TrendingStrip";
+import { TrackView } from "@/components/marketplace/TrackView";
 import { EmptyState } from "@/components/ui/states";
 import { listCategories, getRecommendedProfessionals, searchProfessionalViews } from "@/lib/data/professionals";
+import { getTrendingProfessionalIds } from "@/lib/data/trending";
 import { getFavoriteProfessionalIds, getRecentlyViewedProfessionals } from "@/lib/data/favorites";
 import { isTopRated, isPopular } from "@/lib/marketplace/badges";
 import { parseSearchParams } from "@/lib/marketplace/params";
@@ -39,10 +42,14 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
   const raw = await searchParams;
   const params = parseSearchParams(raw);
 
-  const [categories, recommended, all, favoritedIds, recentlyViewed] = await Promise.all([
+  const [categories, recommended, all, catalog, trendingIds, favoritedIds, recentlyViewed] = await Promise.all([
     listCategories(),
     getRecommendedProfessionals(params, 12).then((r) => r.pros),
     searchProfessionalViews({ ...params, sort: "recommended" }),
+    // Unfiltered catalog — stable source for per-category counts and trending
+    // mapping, independent of the active category filter.
+    searchProfessionalViews({ sort: "recommended" }),
+    getTrendingProfessionalIds(7, 8),
     getFavoriteProfessionalIds(),
     getRecentlyViewedProfessionals(6).catch(() => []),
   ]);
@@ -58,8 +65,16 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
     nearby: byDistance.slice(0, 10),
   };
 
-  // Trending = most completed bookings (real "most-booked" signal).
-  const trending = [...all].sort((a, b) => b.jobsCompleted - a.jobsCompleted).slice(0, 8);
+  // Trending = REAL recent booking activity (last 7d, widened to 14d if sparse),
+  // NOT lifetime jobsCompleted. Map ranked ids to card views from the catalog.
+  const catalogById = new Map(catalog.map((p) => [p.userId, p]));
+  const trending = trendingIds.map((id) => catalogById.get(id)).filter((p): p is ProfessionalCardView => Boolean(p));
+
+  // Per-category pro counts for the featured carousel (real, from the catalog).
+  const catCounts = new Map<string, number>();
+  for (const p of catalog) for (const c of p.categories) catCounts.set(c, (catCounts.get(c) ?? 0) + 1);
+  const featuredCategories = categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl, proCount: catCounts.get(c.slug) ?? 0 }));
+
   // Near You cards (portrait), distinct from the tab grid's default.
   const nearYou = byDistance.slice(0, 6);
 
@@ -67,6 +82,10 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
 
   return (
     <Shell>
+      <TrackView event="booking_page_viewed" props={{ category: params.category ?? "all" }} />
+      {/* Sections reveal in a gentle stagger (globals gate this on
+          prefers-reduced-motion: no-preference — no forced motion). */}
+      <div className="stagger">
       {/* Back + working location pill (spec §2 — opens the search-area sheet;
           radius feeds the server queries via ?distance=) */}
       <div className="flex items-center justify-between gap-3">
@@ -95,8 +114,17 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
         <CategoryCircleRail categories={categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl }))} />
       </div>
 
+      {/* Featured editorial category carousel — center-snap, gold-glow center */}
+      {featuredCategories.length > 0 && (
+        <section className="mt-5">
+          <SectionHead title="Explore Categories" subtitle="Luxury services for your every need." />
+          <FeaturedCategoryCarousel categories={featuredCategories} />
+        </section>
+      )}
+
       {/* iGlamHer Recommends panel + shelf */}
-      <div className="mt-5">
+      <div className="mt-6">
+        <TrackView event="recommendations_viewed" />
         <RecommendsPanel />
       </div>
       {recommended.length > 0 && (
@@ -115,13 +143,22 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
         <VerifiedPopularTabs lists={lists} favoritedIds={favoritedIds} />
       </section>
 
-      {/* Trending This Week */}
-      {trending.length > 0 && (
-        <section className="mt-8">
-          <SectionHead title="Trending This Week" subtitle="Most-booked professionals right now." href="/search?sort=reviews" />
-          <TrendingStrip pros={trending} />
-        </section>
-      )}
+      {/* Trending This Week — real 7–14 day booking activity, honest fallback when quiet */}
+      <section className="mt-8">
+        {trending.length > 0 ? (
+          <>
+            <SectionHead title="Trending This Week" subtitle="Most-booked professionals over the last 7 days." href="/search?sort=reviews" />
+            <TrendingStrip pros={trending} />
+          </>
+        ) : (
+          <>
+            <SectionHead title="Trending This Week" subtitle="Quiet this week — explore our recommended pros instead." href="/recommended" hrefLabel="Recommended" />
+            <div className="rounded-[16px] border border-rose/20 bg-surface px-4 py-6 text-center">
+              <p className="text-[13px] text-ink-muted">No standout bookings in the last couple of weeks yet — check back soon.</p>
+            </div>
+          </>
+        )}
+      </section>
 
       {/* Near You */}
       {nearYou.length > 0 && (
@@ -160,6 +197,7 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
           />
         </div>
       )}
+      </div>
     </Shell>
   );
 }
