@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/format";
+import { lockGateAction } from "@/lib/admin/gate-actions";
 
 type SVGProps = { className?: string };
 const stroke = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
@@ -56,11 +57,13 @@ export function AdminShell({
   adminName,
   adminAvatarUrl,
   pendingCount,
+  gateConfigured,
 }: {
   children: React.ReactNode;
   adminName: string;
   adminAvatarUrl: string | null;
   pendingCount: number;
+  gateConfigured: boolean;
 }) {
   const pathname = usePathname();
   const router = useRouter();
@@ -130,6 +133,17 @@ export function AdminShell({
           <I.help className="text-rose" />
           Help &amp; Support
         </a>
+        {gateConfigured && (
+          <form action={lockGateAction}>
+            <button
+              type="submit"
+              className="flex min-h-[40px] w-full items-center gap-2.5 rounded-[10px] px-3 text-[13px] font-semibold text-ink-secondary transition-colors hover:bg-surface hover:text-ink"
+            >
+              <svg viewBox="0 0 24 24" width={17} height={17} fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" className="text-rose" aria-hidden><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></svg>
+              Lock admin
+            </button>
+          </form>
+        )}
       </div>
     </nav>
   );

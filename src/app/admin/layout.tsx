@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { AdminShell } from "@/components/admin/AdminShell";
 import { requireAdminPage } from "@/lib/admin/require-admin-page";
 import { getApplicationCounts } from "@/lib/admin/verification-data";
+import { isGateConfigured } from "@/lib/admin/gate";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
 
@@ -30,10 +31,10 @@ export default async function AdminLayout({ children }: { children: ReactNode })
     }
   }
 
-  const counts = await getApplicationCounts();
+  const [counts, gateConfigured] = await Promise.all([getApplicationCounts(), isGateConfigured()]);
 
   return (
-    <AdminShell adminName={adminName} adminAvatarUrl={adminAvatarUrl} pendingCount={counts.awaiting}>
+    <AdminShell adminName={adminName} adminAvatarUrl={adminAvatarUrl} pendingCount={counts.awaiting} gateConfigured={gateConfigured}>
       {children}
     </AdminShell>
   );
