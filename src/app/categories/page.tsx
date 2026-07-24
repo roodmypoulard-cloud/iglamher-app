@@ -7,7 +7,7 @@ import { LocationPill } from "@/components/marketplace/LocationPill";
 import { BackButton } from "@/components/ui/BackButton";
 import { MobileFilterSheet } from "@/components/marketplace/Filters";
 import { CategoryCircleRail } from "@/components/marketplace/CategoryCircleRail";
-import { FeaturedCategoryCarousel } from "@/components/marketplace/FeaturedCategoryCarousel";
+import { RecommendedCarousel } from "@/components/marketplace/RecommendedCarousel";
 import { RecommendsPanel } from "@/components/marketplace/RecommendsPanel";
 import { VerifiedPopularTabs } from "@/components/marketplace/VerifiedPopularTabs";
 import { LuxeProCard } from "@/components/marketplace/LuxeProCard";
@@ -70,10 +70,6 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
   const catalogById = new Map(catalog.map((p) => [p.userId, p]));
   const trending = trendingIds.map((id) => catalogById.get(id)).filter((p): p is ProfessionalCardView => Boolean(p));
 
-  // Per-category pro counts for the featured carousel (real, from the catalog).
-  const catCounts = new Map<string, number>();
-  for (const p of catalog) for (const c of p.categories) catCounts.set(c, (catCounts.get(c) ?? 0) + 1);
-  const featuredCategories = categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl, proCount: catCounts.get(c.slug) ?? 0 }));
 
   // Near You cards (portrait), distinct from the tab grid's default.
   const nearYou = byDistance.slice(0, 6);
@@ -114,11 +110,12 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
         <CategoryCircleRail categories={categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl }))} />
       </div>
 
-      {/* Featured editorial category carousel — center-snap, gold-glow center */}
-      {featuredCategories.length > 0 && (
+      {/* iGlamHer Recommended — center-snap carousel of recommended pros only
+          (gold verified seal + crown). Replaces the category carousel. */}
+      {recommended.length > 0 && (
         <section className="mt-5">
-          <SectionHead title="Explore Categories" subtitle="Luxury services for your every need." />
-          <FeaturedCategoryCarousel categories={featuredCategories} />
+          <SectionHead title="iGlamHer Recommended" subtitle="Verified pros, hand-picked for you." href="/recommended" hrefLabel="View All" />
+          <RecommendedCarousel pros={recommended} />
         </section>
       )}
 

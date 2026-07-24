@@ -1,95 +1,71 @@
 CURSOR → CLAUDE
 Sessions: `19d460b7-b7a9-41eb-a4ef-2401a5ced752` · `c10d8f4a-cd8a-48f6-8c95-a1b3a5e09fad`
-YOU build. Cursor OVERSIGHT ONLY.
+YOU build. Cursor OVERSIGHT ONLY — do not wait for another OK.
 
-# 🚨 USER APPROVED — DEPLOY PROD NOW
-
-Boss said **approve**. Explicit go-ahead. Standing auto-deploy rule. Do NOT ask “say deploy.” Do NOT wait for another OK.
-
-## Ship order (execute NOW)
-1. Finish remaining polish gaps if still WIP (see below) — do not block forever.
-2. Gates green: `npx tsc --noEmit`, lint, unit tests, `npm run build`.
-3. COMMIT polish if any uncommitted work (trending.ts already started).
-4. **`npx vercel --prod` IMMEDIATELY** when green.
-5. Confirm live: https://iglamher.com/categories + https://iglamher-app.vercel.app/categories
-6. Confirm `git diff src/components/marketplace/BottomNav.tsx` empty.
-7. Append STATUS here + short report.
-
-## Already LIVE (do not regress)
-Commit `c9562e9` Book Your Glam luxury `/categories` is already on prod.
+# Boss: “make sure all the button works and polish everything”
+Focus: luxury Booking destination `/categories` (+ sheets / Book Now → `/book/[slug]`).
 Mock: `design-refs/booking-page-luxury.png`
-Soft Luxe only. Real data. No fake pros. No Stripe secrets invented.
+Live target: https://iglamher.com/categories
+Soft Luxe. Auto-deploy when green. NEVER ask “say deploy.”
 
 ## NON-NEGOTIABLE
-- DO NOT edit `src/components/marketplace/BottomNav.tsx`
+- DO NOT edit `src/components/marketplace/BottomNav.tsx` (visual OR behavior)
 - DO NOT redesign `/discover`
-- Soft Luxe; BottomNav untouched; enough bottom padding only
+- No fake pros / invent Stripe secrets
+- No unrelated admin work
+- Enough bottom padding only (Shell already clears BottomNav — keep it)
 
-## Remaining polish (finish quickly if not done — then DEPLOY)
-WIP on disk: `src/lib/data/trending.ts` (good start — wire it into page).
+## AUDIT FINDINGS (Cursor read-only — fix these)
 
-1. **Featured editorial category carousel** — center-snap, neighbors scaled/dimmed, dots, no aggressive autoplay; Soft Luxe; `?category=`
-2. **Trending This Week** — wire `getTrendingProfessionalIds` into `/categories`; NO lifetime `jobsCompleted` as “This Week”; soft empty fallback
-3. **Analytics** via `track()`/`TrackView`: page view, search, category, filter, recommend view, card open, Book Now (`booking_started`), favorite
-4. **Load choreography** + `prefers-reduced-motion`
-5. Header closer to mock ONLY if cheap
+### A. Dead / weak interactive controls
+1. **Trust indicators** in `RecommendsPanel` (Verified / Top Rated / Popular) — plain `<div>`s, not tappable. Wire them:
+   - Tap → navigate/scroll to `#pros` AND select the matching VerifiedPopular tab (`recommended` stays default; Verified→keep recommended or top_rated; Top Rated→`top_rated`; Popular→`popular`). Prefer `?tab=` query read by `VerifiedPopularTabs` so deep-link works. Soft Luxe press state.
+2. **Search clear** — `SearchBar` default variant has NO input clear (X) when `value` is non-empty. Add ≥44px clear control that clears the field (and recent “Clear” already exists — keep it).
+3. **Filters sheet** — chips apply immediately; header says “Done”; no Soft Luxe **Clear All + Apply** footer. Upgrade `MobileFilterSheet`:
+   - Sticky footer: **Clear All** + **Apply**
+   - Apply = commit URL params + close sheet
+   - Clear All = wipe filter fields (same fields as existing clear) then Apply/close or leave draft cleared until Apply — pick one coherent Soft Luxe pattern (draft-then-Apply preferred so chip taps don’t thrash navigation)
+   - Every filter chip must update real draft/URL state (no noop)
+4. **Orphan** `src/components/marketplace/RecommendedCarousel.tsx` (untracked, unwired). Either wire it as the Recommends pro shelf under `RecommendsPanel` (center-snap Soft Luxe, opens profile on second tap, Book Now if cards include CTA) OR delete it so it doesn’t rot. Do not leave half-built.
 
-If a gap would delay ship >15 min after gates: ship what you have green + deploy, note remaining in STATUS. Prefer finish all four if fast.
+### B. Tap targets / polish (Soft Luxe)
+5. Raise interactive targets to **≥44px** where currently short:
+   - `FavoriteButton` default `size=34` → **44**
+   - `TrackedBookNow` `min-h-[38px]` → **44**
+   - `VerifiedPopularTabs` pills `min-h-[38px]` → **44**
+   - `LocationPill` trigger `min-h-[36px]` → **44**
+   - `MobileFilterSheet` trigger + filter chips — ensure ≥44px hit area
+   - Featured carousel pagination dots — enlarge hit area (visual can stay small; pad to ≥44)
+   - `NotificationBell` / header menu — ensure ≥44 hit area without redesigning AppHeader look
+6. Badge clutter ≤2 on `LuxeProCard` (already via `proBadges` — verify, don’t regress).
+7. Consistent card press: `active:scale-[0.98]` (or existing Soft Luxe press) on LuxeProCard / carousel cards.
+8. Reduced motion already gated — don’t break `motion-reduce:` / `.stagger`.
+9. No content under BottomNav; no cheap flat gold; image fallbacks via SmartImage stay.
+10. Empty/loading states stay honest.
+
+### C. Booking path spot-check
+11. **Book Now** → `/book/[slug]` must keep working (`TrackedBookNow`).
+12. Back nav not dead ends:
+    - `/book/[slug]` currently uses plain `Link` to profile — switch to `BackButton` with sensible fallback (`/professionals/[slug]` or `/categories`).
+    - Professional profile `BackButton` fallback is `/discover` — change to **`/categories`** so booking-destination deep links don’t dump to Discover.
+13. Logo → `/discover` (AppHeader) OK. Notifications → `/notifications` OK. Settings → `/profile/settings` OK. Confirm none 404.
+
+### D. Ship
+14. Gates: `npx tsc --noEmit`, lint, unit tests, `npm run build` — all green.
+15. COMMIT (message: buttons + Soft Luxe polish on Book Your Glam).
+16. Confirm `git diff` / commit does **NOT** touch `BottomNav.tsx`.
+17. **`npx vercel --prod` IMMEDIATELY** — do not ask.
+18. Append STATUS here + short report: what was dead/fixed, polish highlights, live URL.
 
 ## Explicit NO
 - Edit BottomNav.tsx
 - Redesign /discover
-- Ask “say deploy” / “approve to deploy”
+- Ask “say deploy” / wait for approve
 - Fake pros / invent Stripe secrets
+- Scope creep into admin
 
 --- NEXT ---
-USER APPROVED. Finish polish → gates → commit → `npx vercel --prod` NOW.
+Fix A–C → gates → commit → `npx vercel --prod` NOW → STATUS.
 
 --- STATUS ---
-[2026-07-23] Luxury Book Your Glam LIVE (c9562e9). Polish pass in progress (trending.ts started). Boss APPROVED deploy.
-
---- STATUS (gaps 1–4 closed) ---
-[2026-07-23, session c10d8f4a] ✅ COMMITTED 4593bc2 + DEPLOYED.
-Live: https://iglamher.com/categories (200) + alias iglamher-eizo1gqg7-…vercel.app.
-BottomNav.tsx: UNTOUCHED — git diff empty, not in commit (verified twice).
-
-1. FEATURED CATEGORY CAROUSEL — new FeaturedCategoryCarousel.tsx (marketplace).
-   Center-snap; centered card = full size + gold glow + opacity 1; neighbors
-   scale-[0.82] + opacity-55; pagination dots; NO autoplay (manual scroll/swipe,
-   rAF-throttled center detection). First tap centers a neighbor, tap-when-
-   centered navigates → ?category=&#pros (same filter as circle rail). proCount
-   = real per-category tally from an unfiltered catalog fetch. Section "Explore
-   Categories" after the circle rail. All scale/opacity use motion-reduce: fallbacks.
-
-2. TRENDING = TRUE 7–14d WINDOW — killed the lifetime-jobsCompleted sort.
-   New src/lib/data/trending.ts (server-only, service-role) counts bookings with
-   status confirmed/in_progress/completed created in last 7d (widens to 14d when
-   <3 pros active), ranked by count then recency; maps ids → catalog card views.
-   Pure ranker split to trending-rank.ts (no server-only) + 5 unit tests
-   (window expiry, tie-break, limit, empty). Honest fallback section when quiet
-   ("Quiet this week — explore Recommended", links /recommended) — never lifetime
-   totals mislabeled "this week".
-
-3. ANALYTICS (existing track()/TrackView, union extended cleanly):
-   +booking_page_viewed (TrackView on /categories mount, w/ category),
-   +recommendations_viewed (TrackView by Recommends panel),
-   category_viewed now fires from circle rail AND featured carousel (source tag),
-   booking_started fires from LuxeProCard Book Now via new TrackedBookNow before
-   nav. search_submitted (SearchBar) + filter_applied (Filters) confirmed firing.
-   No 2nd SDK; sanitize() privacy rules intact.
-
-4. LOAD CHOREOGRAPHY — wrapped page sections in .stagger (globals already gate on
-   prefers-reduced-motion: no-preference); carousel motion uses motion-reduce:.
-   Shell already provides .page-enter + bottom padding (untouched).
-
-5. HEADER — skipped (Shell AppHeader + in-page LocationPill already close; not
-   worth Shell-regression risk per "only if cheap").
-
-RE-CHECK pass: filters still filter server-side (searchProfessionalViews via
-parseSearchParams — unchanged); gold verified only when isVerified (LuxeProCard);
-≤2 badges via proBadges; empty ("No exact match yet") + loading (loading.tsx)
-present; bottom padding via Shell untouched.
-
-GATES: tsc 0, lint 0, vitest 184/184 (22 files, +5 trending), build 0.
-Note: public/pros/ untracked images present (not mine, left unstaged).
-User still owes: APPLY_PENDING_0029/0030, Stripe 1099 toggle, STRIPE_RECOMMEND_PRICE_ID.
+[2026-07-23] Prior polish LIVE (4593bc2). New pass: interactive audit + Soft Luxe polish (Cursor findings above).
