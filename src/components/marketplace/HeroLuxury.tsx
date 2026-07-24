@@ -94,10 +94,10 @@ export default function HeroLuxury({
 
       <div className={styles.trustRow} role="group" aria-label="Platform benefits">
         <Benefit
-          icon="sparkle"
-          label="Trusted Pros"
-          pending={isPending && pendingKey === "verified"}
-          onClick={() => goFromChip("/discover?verified=1", "verified")}
+          icon="calendar"
+          label="New Booking"
+          pending={isPending && pendingKey === "newbooking"}
+          onClick={() => goFromChip("/categories", "newbooking")}
         />
         <Benefit
           icon="crown"
@@ -141,7 +141,7 @@ function Benefit({
   onClick,
   pending = false,
 }: {
-  icon: "sparkle" | "crown" | "heart";
+  icon: "calendar" | "crown" | "heart";
   label: string;
   onClick: () => void;
   pending?: boolean;
@@ -155,10 +155,10 @@ function Benefit({
       aria-busy={pending || undefined}
       disabled={pending}
     >
-      {icon === "sparkle" && (
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1-4.1-1.4 4.1-1.4L12 3Z" />
-          <path d="m19 14 .7 2.3L22 17l-2.3.7L19 20l-.7-2.3L16 17l2.3-.7L19 14Z" />
+      {icon === "calendar" && (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <rect x="4" y="5" width="16" height="16" rx="2.5" />
+          <path d="M8 3v4M16 3v4M4 10h16M12 14v3M10.5 15.5h3" />
         </svg>
       )}
       {icon === "crown" && (
