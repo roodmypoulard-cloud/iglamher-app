@@ -1,151 +1,119 @@
 CURSOR → CLAUDE (session c10d8f4a)
-USER: Make the admin Applications & Recommendations page match this design mock.
-PIXEL REF (OPEN THIS): `/Users/roodmypoulard/iglamher-app/design-refs/admin-applications-recommendations.png`
+USER: Make sure everywhere in the admin is clickable — not dead.
 
 STANDING RULE: gates green → commit → **deploy immediately** with `npx vercel --prod`. Never ask “say deploy”. Confirm live URL in STATUS.
 
-Soft Luxe only: black / espresso / warm rose gold / soft blush. No purple AI defaults. Express Connect; do not invent Stripe secrets. No unrelated product features.
+Soft Luxe only. Prefer real routes/actions. If a feature isn’t ready: Soft Luxe “coming soon” page/state with clear copy + way back — NEVER a control that ignores clicks. No inventing Stripe secrets. Scope = admin clickability only (`src/app/admin/**`, `src/components/admin/**`).
 
-## Context (already shipped — reuse, don’t rebuild from scratch)
-- `AdminShell` + `/admin/layout.tsx` already exist (commit 6dc27a7). Sidebar nav, top search, bell, admin identity are in place.
-- Data/actions already exist: `getApplicationCounts`, `getApplicationsByTab`, `listPendingCustomerIds`, application review actions (approve / request changes / reject / ban), `getRecommendationRoster`, `AdminRecommendToggle`, Customer ID review rows.
-- Dedicated pages exist (`/admin/recommendations`, `/admin/verifications`, etc.) — keep them. Primary visual target is the composite **Applications & Recommendations** surface shown in the PNG (title already mapped in AdminShell to `/admin/applications`).
-- Migrations APPLY_PENDING_0029 + 0030 still await user paste — do not invent fake revenue; use real `recommendation_subscriptions` / MRR when available, otherwise honest labeled placeholders.
+## Inventory (Cursor audit — fix these)
 
-## Goal
-Open the PNG side-by-side and make `/admin/applications` (the page titled “Admin · Applications & Recommendations”) visually match the mock composition. Desktop dashboard first; mobile usable is secondary.
+### CRITICAL — looks interactive / list rows with no action
 
-## Match checklist (must hit)
+1. **Dashboard queue rows are dead** — `src/app/admin/page.tsx` `Queue` component
+   - Verification queue / Moderation reports / Open disputes render `<li>` with label only — no Review link, no navigation.
+   - FIX: each verification row → `/admin/applications?tab=awaiting&selected={userId}` (id is already user_id).
+   - Reports/disputes: if no detail route exists, create `/admin/disputes/[id]` Soft Luxe coming-soon detail (show reason/status from list, “Resolution tools coming soon”, back to `/admin/disputes`). Rows must be Links.
 
-### 1. Sidebar polish (AdminShell)
-- iGlamHer + ADMIN lockup in rose/gold (already close).
-- Nav order as mock: Dashboard, Applications (active gold when on applications), Verifications, Recommendations (optional “New” badge), Disputes, Analytics, Integrations, Professionals, Customers, Settings, Audit Logs.
-- Add bottom **“Grow with iGlamHer”** promo card (diamond / star icon + short line + “View Analytics” → `/admin/analytics`) above Help & Support — currently missing.
-- Profile chip: show name + “Super Admin” (or real role if you have it) like the mock; don’t invent fake avatar names beyond the logged-in admin.
+2. **Disputes page rows are dead** — `src/app/admin/disputes/page.tsx`
+   - Same: list items with no Review/open. Wire to the same detail route (or inline sheet with real next step). Every row clickable.
 
-### 2. Top header (already in shell — refine if needed)
-- Title + subtitle for applications route already set — keep wording close to mock: “Admin · Applications & Recommendations” / “Review professional applications, verify identity, and manage paid featured recommendations.”
-- Search, notifications badge (real awaiting count), admin identity.
-- On `/admin/applications`, **remove duplicate page-level h1 / “← Admin” chrome** that fights the shell (current applications page still has its own header).
+3. **Applications stat cards are dead** — `src/app/admin/applications/page.tsx` `StatCard`
+   - 7 cards are plain `<div>`s. Dashboard SummaryCards already navigate — mirror that:
+     - Pending → `?tab=awaiting`
+     - Approved → `?tab=approved`
+     - Changes → `?tab=changes`
+     - Rejected → `?tab=rejected`
+     - Customer ID Checks → `/admin/verifications`
+     - Active Featured / Monthly Revenue → `/admin/recommendations`
 
-### 3. Stat cards row (7 cards on this page)
-Pending Applications · Approved Pros · Changes Requested · Rejected · Customer ID Checks · Active Featured Placements · Monthly Revenue.
-- Icons + Soft Luxe card chrome like mock.
-- Wire **real** counts from existing admin data.
-- % vs last month: only if you already have honest period-over-period data; otherwise omit trend or show “—” / “vs last month unavailable” — **do not invent fake % or fake revenue**.
-- Monthly Revenue = real recommendation MRR (`formatPrice(stats.mrrCents)`) when wired; if infra not applied in prod yet, still show computed MRR from DB with honest empty/$0.
+4. **Dashboard Metric row is dead** — `src/app/admin/page.tsx` `Metric` (Professionals, Active, Verified, Featured, At-risk, Fraud flags, etc.)
+   - Make each a Link to the most relevant queue/page:
+     - Professionals / Active / Verified / Featured / Avg* → `/admin/professionals` (Featured can go `/admin/recommendations` if clearer)
+     - At-risk / Fraud flags → `/admin/disputes` (or professionals with a note) — pick the best existing destination; if none, Soft Luxe coming-soon at `/admin/disputes?focus=fraud` still clickable.
 
-### 4. Middle split (the big gap vs current list-only page)
-**Left — Pro Applications Queue**
-- Tabs: Awaiting Review / Changes Requested / Approved / Rejected with counts.
-- Rich rows: avatar, business name, specialty, location, completion % (circular if easy / honest from existing fields), status tags (e.g. Portfolio Uploaded, ID Submitted when true), date, Review / Request Changes actions.
-- Selected row: rose-gold border glow.
-- Prefer **inline selection** driving the right panel (URL `?id=` or `?tab=&selected=` is fine) so admins don’t leave the dashboard for every review. Keep `/admin/applications/[id]` as deep-link fallback if useful.
+5. **Header profile chip is dead** — `AdminShell.tsx` avatar + “Super Admin” block
+   - Wrap in Link → `/admin/settings` (passcode + kill switches). Must be keyboard-focusable.
 
-**Right — Application Review panel**
-- Reuse existing detail/actions from `/admin/applications/[id]` + `VerificationReviewActions` / `ApplicationMedia`.
-- Show: photo, name, specialty/location, rating/reliability when available, About, Portfolio thumbs, Links, Documents & ID, checklist, admin notes, Approve / Request Changes / Reject / Ban.
-- Empty state when nothing selected: “Select an application to review.”
+6. **Bell should land on awaiting queue** — currently `/admin/applications`
+   - Change to `/admin/applications?tab=awaiting`.
 
-### 5. Bottom row (3 widgets)
-1. **Customer ID Checks** — compact table/list using existing `listPendingCustomerIds` + review actions (link out to `/admin/verifications` if full flow lives there).
-2. **Featured Recommendations ($2.99/mo)** — metrics + toggle roster from `getRecommendationRoster` / `AdminRecommendToggle` (can be a condensed embed of recommendations page; link “Manage all” → `/admin/recommendations`).
-3. **App Preview** phone mock of Recommended for You + “View in App” → `/recommended`. Reuse the preview already on recommendations page if present.
+7. **Customer list rows have no action** — `src/app/admin/customers/page.tsx`
+   - Add “View” / row Link → `/admin/customers` detail OR Soft Luxe `/admin/customers/[id]` coming-soon (name/email/status + back). Prefer real page if easy; coming-soon OK.
 
-### 6. Visual system
-- Dark Soft Luxe, gold/bronze active states, generous spacing, editorial display for titles.
-- Match mock density: wide desktop composition, not a narrow max-w list.
-- Do not break other admin section pages; they should keep using AdminShell.
+8. **Admin search customer hits have no action** — `src/app/admin/search/page.tsx`
+   - Pros already have Review. Customers need a Link (same customer destination as above). Empty-query state can link back or focus header search — don’t leave a dead button.
 
-## Out of scope / defer honestly
-- Fake impressions/clicks/conversion for featured placements (already noted “tracking not enabled”).
-- Creating Stripe Price live keys — user creates `STRIPE_RECOMMEND_PRICE_ID` in Stripe Dashboard.
-- Pro-side subscribe button.
-- Don’t expand into campaigns, new payment models, or unrelated routes.
+### ALREADY OK (don’t break)
+- Sidebar NAV items → real pages
+- Grow “View Analytics” → `/admin/analytics`
+- Help & Support → mailto
+- Lock admin → `lockGateAction`
+- Header search → `/admin/search?q=`
+- Application queue rows → `?selected=`
+- Review panel Approve / Request Changes / Reject / Ban → real actions
+- Featured toggles, Kill switches, AdminProRow Review/Feature/Recommend
+- Manage all / View all / View in app / Full page ↗
+- Dashboard SummaryCards (pending/approved/etc.) already link
+
+### POLISH (if quick)
+- Grow promo card: make whole card or primary CTA clearly clickable (already has CTA — OK if CTA works).
+- Featured roster names on applications bottom widget: optional Link to `/admin/applications/{userId}` beside toggle.
+- Campaigns exists at `/admin/campaigns` but not in sidebar — either add nav item OR leave (dashboard SECTIONS already links). Prefer add “Campaigns” under Analytics if it fits Soft Luxe density; else leave with dashboard link only.
+
+## Fix bar
+1. Grep admin for dead patterns after: no `#` hrefs, no noop onClick, no gold/rose buttons that don’t fire.
+2. Every list row that looks selectable has Review/open Link or navigates.
+3. Every stat/metric card navigates.
+4. Header search + bell + profile all work.
+5. Coming-soon pages: Soft Luxe, honest copy, ← back link — not blank.
 
 ## Done criteria
-1. PNG opened; `/admin/applications` composition matches mock (sidebar promo, 7 stats, split queue+review, bottom 3 widgets).
-2. Real data wired where available; no fake revenue/% trends.
-3. Gates: tsc, lint, unit tests, build green (e2e if you normally run them).
-4. Commit + **deploy prod immediately**.
-5. Append STATUS here with: commit sha, live URL (`https://iglamher-app.vercel.app/admin/applications`), what matched, what deferred, any SQL user must still paste (0029/0030).
+1. Inventory items above fixed.
+2. Gates: `npx tsc --noEmit`, lint, unit tests, production build green.
+3. Commit + **`npx vercel --prod` immediately**.
+4. Append STATUS: commit sha, live URL `https://iglamher-app.vercel.app/admin`, what was dead → what now works, intentional coming-soon routes created.
 
 --- NEXT ---
-Align /admin/applications to design-refs/admin-applications-recommendations.png; gates → commit → deploy.
+Wire all dead admin controls (dashboard queues/metrics, applications stats, disputes rows, header profile, bell→awaiting, customer/search actions). Soft Luxe coming-soon only where no real feature yet. Gates → commit → deploy.
 --- STATUS ---
-[2026-07-23, session c10d8f4a] ✅ /admin/applications MATCHES MOCK — DEPLOYED.
-
-Opened the PNG and rebuilt the composite Applications & Recommendations surface.
-Commit: my admin files were swept into HEAD **e745272** by the parallel session's
-`git add -A` (misleading message — it reads as a /recommended commit, but the diff
-INCLUDES all my admin work; verified in HEAD). Deployed:
-https://iglamher-app.vercel.app/admin/applications → 200 (correctly gates
-non-admins to /signin).
-
-MATCHED vs mock:
-1. Sidebar (AdminShell): added bottom "Grow with iGlamHer" promo card (diamond
-   icon + line + "View Analytics" → /admin/analytics) above Help & Support;
-   profile chip now reads "Super Admin". Nav order already matched.
-2. Header: shell already provides title/subtitle/search/bell/identity — REMOVED
-   the old page-level "← Admin" h1 chrome that fought the shell.
-3. 7 stat cards (real data): Pending (counts.awaiting), Approved, Changes,
-   Rejected, Customer ID Checks (listPendingCustomerIds.length), Active Featured
-   Placements (roster isRecommended&&isActive), Monthly Revenue
-   (formatPrice(roster.stats.mrrCents)). NO fake %/trend lines — omitted per
-   "don't invent" (honest: no period-over-period data wired).
-4. Middle split: LEFT Pro Applications Queue (tabs+counts, rich rows w/ avatar,
-   specialty·city, Portfolio/ID-submitted tags, status, date — new
-   ApplicationQueueRow, selected row = rose-gold glow). RIGHT inline Application
-   Review (reuses getApplicationDetail + PortfolioGallery + DocumentViewer +
-   VerificationReviewActions; About/Portfolio/Docs&ID/Approve·Changes·Reject·Ban;
-   "Full page ↗" deep-link kept). Selection via ?selected= (defaults to first
-   row). Empty state: "Select an application to review."
-5. Bottom row: Customer ID Checks widget (listPendingCustomerIds + existing
-   CustomerIdReviewRow, "View all →" /admin/verifications) + Featured
-   Recommendations widget (active/placements/MRR tiles + roster w/
-   AdminRecommendToggle, "Manage all →" /admin/recommendations).
-
-DEFERRED (honest): App-Preview phone mock (3rd bottom widget in PNG) — the
-real preview already lives on /admin/recommendations; linked "Manage all" there
-rather than duplicate. No fake impressions/clicks/conversion. No Stripe live
-keys. Trend %s omitted (no real period data).
-
-Gates: tsc 0, lint 0, vitest 179/179, build 0 (one transient build exit-1 on
-first run, clean on rerun). USER still owes: APPLY_PENDING_0029 + 0030 (featured
-subscription infra / MRR goes real once pasted; shows $0/empty honestly until
-then), Stripe 1099 toggle, STRIPE_RECOMMEND_PRICE_ID in Stripe Dashboard.
-
+(awaiting Claude)
 --- STATUS ---
-[2026-07-23] 0029 + 0030 PASTED + VERIFIED LIVE. recommendation_subscriptions
-exists (200/[]). 0029 guard LIVE-FIRE VERIFIED: real customer session PATCH
-is_id_verified=true -> P0001 "identity verification is set by admins only"
-(customer@iglamher.test HAS a customer_profiles row, so this was a true
-exercise, unlike earlier inconclusive guard probes). DB side of the admin
-redesign is fully live. Remaining: user approve -> deploy admin UI; then
-optional Stripe price (STRIPE_RECOMMEND_PRICE_ID) + pro-side subscribe flow.
+[2026-07-23, session c10d8f4a] ✅ ADMIN CLICKABILITY — DEPLOYED. Commit 13b8b10.
+Live: https://iglamher-app.vercel.app/admin (200, gates non-admins to /signin).
 
---- STATUS (polish pass, session c10d8f4a) ---
-[2026-07-23] ✅ POLISH LANDED — DEPLOYED (commit e745272).
+DEAD → NOW WORKS:
+1. Dashboard queue rows (admin/page.tsx Queue) — were label-only <li>. Now each
+   is a Link: Verification → /admin/applications?tab=awaiting&selected={user_id};
+   Reports → /admin/disputes/{id}?type=report&label&status; Disputes →
+   /admin/disputes/{id}?label&status.
+2. Disputes page rows (admin/disputes/page.tsx) — same, now Links → detail.
+3. Applications 7 stat cards — were <div>. Now Links: Pending/Approved/Changes/
+   Rejected → ?tab=…; Customer ID → /admin/verifications; Featured + Monthly
+   Revenue → /admin/recommendations.
+4. Dashboard Metric row (8 cards) — now Links: Professionals/Active/Verified/
+   AvgRating/AvgReliability → /admin/professionals; Featured →
+   /admin/recommendations; At-risk + Fraud flags → /admin/disputes.
+5. Header profile chip — was <div>. Now Link → /admin/settings, keyboard-
+   focusable (focus-visible ring).
+6. Bell → /admin/applications?tab=awaiting (was bare /admin/applications).
+7. Customers list rows → Link /admin/customers/{id} (+ "View →").
+8. Search customer hits → Link /admin/customers/{id} (+ "View" pill). Pros
+   already had Review.
+POLISH: applications bottom featured-roster names → Link ?selected={id};
+Campaigns added to sidebar nav + header title (existed at /admin/campaigns,
+wasn't reachable from nav).
 
-Checklist vs mock, all done:
-1. TOP CHROME: page-local RecommendedTopbar (Back · wordmark+"Beauty on Demand"
-   · bell + gold hamburger, one 56px bar); Shell header={false} on this page
-   only — Discover untouched.
-2. DECLUTTER: count line + standalone SortSelect row REMOVED (imports cleaned).
-3. LOCATION: AreaControl flattened to plain text line + Change > (sheet kept).
-4. TIP BOX: thin gold border (border-gold/40, bg-gold/[0.05]).
-5. RAIL: stays 48px/19px; labels don't wrap.
-6. SEARCH+FILTERS: MobileFilterSheet gained optional triggerClassName (default
-   unchanged elsewhere); on /recommended the trigger is a 56px rounded-full
-   pill matching the search bar.
-7. CARD: rose-gold serif name; single "Specialty · City · distance" meta line;
-   Mobile/Studio pill removed; ⋯ CardMenu (View profile + Share/copy-link,
-   Escape/outside-tap close); View Profile = rose outline; Book Now unchanged.
-   Composed on top of parallel session's density work (file raced mid-edit;
-   re-read + reapplied cleanly).
+NEW COMING-SOON ROUTES (Soft Luxe, honest copy, ← back — never blank):
+- /admin/customers/[id] — REAL read-only detail (name/email/phone/role/status/
+  joined from profiles) + "account management tools coming soon" note.
+- /admin/disputes/[id] — case detail; surfaces real reason/status from the open
+  queues (falls back to label/status query params), "Resolution tools coming
+  soon" + links to Professionals / Settings. Handles both disputes & reports.
 
-NOTE: commit e745272 also carries the parallel session's in-flight ADMIN
-applications redesign files that were on disk at stage time. I re-ran ALL
-gates on the exact committed tree: tsc 0, lint 0, vitest 179/179, build 0 —
-then deployed. https://iglamher-app.vercel.app/recommended → 200, new topbar
-tagline confirmed serving.
+SWEEP: grep admin for href="#" / onClick={()=>{}} → NONE. Every list row that
+looks selectable now navigates; every stat/metric card navigates; header search
++ bell + profile all work.
+
+GATES: tsc 0, lint 0, vitest 179/179, build 0. No Stripe secrets invented; the
+coming-soon routes carry no fake data. User still owes: APPLY_PENDING_0029/0030,
+Stripe 1099 toggle, STRIPE_RECOMMEND_PRICE_ID.
