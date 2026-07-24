@@ -69,14 +69,17 @@ export default async function AdminSearchPage({ searchParams }: { searchParams: 
             {customers.map((c) => {
               const name = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—";
               return (
-                <li key={c.id} className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3.5">
-                  <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-full bg-rose/12 text-[13px] font-bold text-rose" aria-hidden>
-                    {name.slice(0, 1).toUpperCase()}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-bold text-ink">{name}</p>
-                    <p className="truncate text-[12px] text-ink-muted">{c.email ?? "no email"} · {c.role}</p>
-                  </div>
+                <li key={c.id}>
+                  <Link href={`/admin/customers/${c.id}`} className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3.5 transition-colors hover:border-rose/50">
+                    <span className="grid h-[38px] w-[38px] flex-none place-items-center rounded-full bg-rose/12 text-[13px] font-bold text-rose" aria-hidden>
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-bold text-ink">{name}</p>
+                      <p className="truncate text-[12px] text-ink-muted">{c.email ?? "no email"} · {c.role}</p>
+                    </div>
+                    <span aria-hidden className="flex-none rounded-full border border-rose/50 px-3 py-1.5 text-[12px] font-semibold text-rose">View</span>
+                  </Link>
                 </li>
               );
             })}

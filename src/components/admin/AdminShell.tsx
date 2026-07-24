@@ -30,6 +30,7 @@ const NAV: Array<{ href: string; label: string; icon: keyof typeof I; badge?: st
   { href: "/admin/recommendations", label: "Recommendations", icon: "recommendations", badge: "New" },
   { href: "/admin/disputes", label: "Disputes", icon: "disputes" },
   { href: "/admin/analytics", label: "Analytics", icon: "analytics" },
+  { href: "/admin/campaigns", label: "Campaigns", icon: "recommendations" },
   { href: "/admin/integrations", label: "Integrations", icon: "integrations" },
   { href: "/admin/professionals", label: "Professionals", icon: "professionals" },
   { href: "/admin/customers", label: "Customers", icon: "customers" },
@@ -43,6 +44,7 @@ const TITLES: Array<[string, string, string]> = [
   ["/admin/recommendations", "Admin · Featured Recommendations", "Manage the $2.99/month featured placement program and its revenue."],
   ["/admin/disputes", "Admin · Disputes & Reports", "Resolve booking disputes and moderation reports."],
   ["/admin/analytics", "Admin · Analytics", "Marketplace performance across bookings, revenue and growth."],
+  ["/admin/campaigns", "Admin · Campaigns", "Promotions, coupons and marketing pushes."],
   ["/admin/integrations", "Admin · Integrations", "What's connected, what's waiting on configuration."],
   ["/admin/professionals", "Admin · Professionals", "Activate, feature and manage professional accounts."],
   ["/admin/customers", "Admin · Customers", "Look up customer accounts and their status."],
@@ -200,7 +202,7 @@ export function AdminShell({
               </div>
             </form>
 
-            <Link href="/admin/applications" aria-label={`${pendingCount} items awaiting review`} className="relative grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-border text-ink-secondary transition-colors hover:border-rose/50">
+            <Link href="/admin/applications?tab=awaiting" aria-label={`${pendingCount} items awaiting review`} className="relative grid h-9 w-9 flex-none place-items-center rounded-[10px] border border-border text-ink-secondary transition-colors hover:border-rose/50">
               <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M10 21h4" /></svg>
               {pendingCount > 0 && (
                 <span className="absolute -right-1.5 -top-1.5 grid h-4.5 min-w-[18px] place-items-center rounded-full bg-rose px-1 text-[9.5px] font-extrabold text-[#2A1712]">
@@ -209,7 +211,11 @@ export function AdminShell({
               )}
             </Link>
 
-            <div className="flex flex-none items-center gap-2.5">
+            <Link
+              href="/admin/settings"
+              aria-label="Admin account & settings"
+              className="flex flex-none items-center gap-2.5 rounded-[10px] px-1 py-0.5 transition-colors hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose/50"
+            >
               {adminAvatarUrl ? (
                 <Image src={adminAvatarUrl} alt="" width={34} height={34} className="h-[34px] w-[34px] rounded-full object-cover ring-1 ring-rose/40" />
               ) : (
@@ -221,7 +227,7 @@ export function AdminShell({
                 <span className="block text-[12.5px] font-bold leading-tight text-ink">{adminName}</span>
                 <span className="block text-[10px] font-semibold uppercase tracking-wide text-rose">Super Admin</span>
               </span>
-            </div>
+            </Link>
           </div>
         </header>
 

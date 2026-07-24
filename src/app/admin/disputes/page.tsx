@@ -1,10 +1,11 @@
+import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin/require-admin-page";
 import { getOpenDisputes, getOpenReports, type QueueItem } from "@/lib/admin/data";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Admin · Disputes · iGlamHer" };
 
-function QueueCard({ title, items, empty }: { title: string; items: QueueItem[]; empty: string }) {
+function QueueCard({ title, items, empty, hrefFor }: { title: string; items: QueueItem[]; empty: string; hrefFor: (i: QueueItem) => string }) {
   return (
     <section className="rounded-[16px] border border-border bg-surface p-4">
       <div className="mb-3 flex items-center justify-between">
@@ -18,9 +19,14 @@ function QueueCard({ title, items, empty }: { title: string; items: QueueItem[];
       ) : (
         <ul className="divide-y divide-border/50">
           {items.map((it) => (
-            <li key={it.id} className="py-2.5">
-              <p className="text-sm font-semibold text-ink">{it.label}</p>
-              <p className="text-[12px] text-ink-muted">{it.sub}</p>
+            <li key={it.id}>
+              <Link href={hrefFor(it)} className="flex items-center justify-between gap-2 rounded-[10px] px-2 py-2.5 transition-colors hover:bg-bg-elevated">
+                <span className="min-w-0">
+                  <span className="block truncate text-sm font-semibold text-ink">{it.label}</span>
+                  <span className="block text-[12px] text-ink-muted">{it.sub}</span>
+                </span>
+                <span aria-hidden className="flex-none text-[13px] font-semibold text-rose">Open →</span>
+              </Link>
             </li>
           ))}
         </ul>
@@ -34,8 +40,18 @@ export default async function AdminDisputesPage() {
   const [disputes, reports] = await Promise.all([getOpenDisputes(), getOpenReports()]);
   return (
     <div className="mx-auto grid max-w-5xl gap-4 lg:grid-cols-2">
-      <QueueCard title="Open disputes" items={disputes} empty="No open disputes." />
-      <QueueCard title="Moderation reports" items={reports} empty="No open reports." />
+      <QueueCard
+        title="Open disputes"
+        items={disputes}
+        empty="No open disputes."
+        hrefFor={(i) => `/admin/disputes/${i.id}?label=${encodeURIComponent(i.label)}&status=${encodeURIComponent(i.sub)}`}
+      />
+      <QueueCard
+        title="Moderation reports"
+        items={reports}
+        empty="No open reports."
+        hrefFor={(i) => `/admin/disputes/${i.id}?type=report&label=${encodeURIComponent(i.label)}&status=${encodeURIComponent(i.sub)}`}
+      />
     </div>
   );
 }

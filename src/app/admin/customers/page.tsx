@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { requireAdminPage } from "@/lib/admin/require-admin-page";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
@@ -61,25 +62,28 @@ export default async function AdminCustomersPage({ searchParams }: { searchParam
             const name = `${c.first_name ?? ""} ${c.last_name ?? ""}`.trim() || "—";
             const status = c.account_status ?? "active";
             return (
-              <li key={c.id} className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3.5">
-                {c.avatar_url ? (
-                  <Image src={c.avatar_url} alt="" width={38} height={38} className="h-[38px] w-[38px] rounded-full object-cover" />
-                ) : (
-                  <span className="grid h-[38px] w-[38px] place-items-center rounded-full bg-rose/12 text-[13px] font-bold text-rose" aria-hidden>
-                    {name.slice(0, 1).toUpperCase()}
+              <li key={c.id}>
+                <Link href={`/admin/customers/${c.id}`} className="flex items-center gap-3 rounded-[14px] border border-border bg-surface p-3.5 transition-colors hover:border-rose/50">
+                  {c.avatar_url ? (
+                    <Image src={c.avatar_url} alt="" width={38} height={38} className="h-[38px] w-[38px] rounded-full object-cover" />
+                  ) : (
+                    <span className="grid h-[38px] w-[38px] place-items-center rounded-full bg-rose/12 text-[13px] font-bold text-rose" aria-hidden>
+                      {name.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-ink">{name}</p>
+                    <p className="truncate text-[12px] text-ink-muted">{c.email ?? "no email"} · joined {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
+                  </div>
+                  <span
+                    className={`flex-none rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide ${
+                      status === "active" ? "bg-success/15 text-success" : status === "paused" ? "bg-warning/15 text-warning" : "bg-danger/15 text-danger"
+                    }`}
+                  >
+                    {status}
                   </span>
-                )}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-ink">{name}</p>
-                  <p className="truncate text-[12px] text-ink-muted">{c.email ?? "no email"} · joined {new Date(c.created_at).toLocaleDateString("en-US", { month: "short", year: "numeric" })}</p>
-                </div>
-                <span
-                  className={`flex-none rounded-full px-2.5 py-1 text-[10.5px] font-bold uppercase tracking-wide ${
-                    status === "active" ? "bg-success/15 text-success" : status === "paused" ? "bg-warning/15 text-warning" : "bg-danger/15 text-danger"
-                  }`}
-                >
-                  {status}
-                </span>
+                  <span aria-hidden className="flex-none text-[13px] font-semibold text-rose">View →</span>
+                </Link>
               </li>
             );
           })}

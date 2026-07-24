@@ -45,15 +45,15 @@ const StatIcons = {
   revenue: (p: SVG) => <svg viewBox="0 0 24 24" width={16} height={16} {...s} className={p.className}><circle cx="12" cy="12" r="9" /><path d="M14.5 9.3A2.7 2.7 0 0 0 12 8c-1.5 0-2.5.8-2.5 2s1 1.7 2.5 2 2.5.9 2.5 2-1 2-2.5 2a2.7 2.7 0 0 1-2.5-1.3M12 6.5v11" /></svg>,
 };
 
-function StatCard({ Icon, label, value }: { Icon: (p: SVG) => React.ReactElement; label: string; value: string | number }) {
+function StatCard({ Icon, label, value, href }: { Icon: (p: SVG) => React.ReactElement; label: string; value: string | number; href: string }) {
   return (
-    <div className="rounded-[16px] border border-border bg-surface p-4">
+    <Link href={href} scroll={false} className="rounded-[16px] border border-border bg-surface p-4 transition-colors hover:border-rose/50">
       <div className="flex items-center gap-2 text-ink-muted">
         <span className="grid h-7 w-7 flex-none place-items-center rounded-full bg-rose/10 text-rose"><Icon /></span>
         <span className="text-[11px] font-semibold leading-tight">{label}</span>
       </div>
       <p className="mt-2.5 font-display text-[26px] font-bold leading-none text-ink">{value}</p>
-    </div>
+    </Link>
   );
 }
 
@@ -102,13 +102,13 @@ export default async function AdminApplicationsPage({
     <div className="mx-auto w-full max-w-[1240px] space-y-5">
       {/* Stat cards row */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7">
-        <StatCard Icon={StatIcons.pending} label="Pending Applications" value={counts.awaiting} />
-        <StatCard Icon={StatIcons.approved} label="Approved Pros" value={counts.approved} />
-        <StatCard Icon={StatIcons.changes} label="Changes Requested" value={counts.changes} />
-        <StatCard Icon={StatIcons.rejected} label="Rejected" value={counts.rejected} />
-        <StatCard Icon={StatIcons.id} label="Customer ID Checks" value={customerIds.length} />
-        <StatCard Icon={StatIcons.featured} label="Active Featured Placements" value={featuredCount} />
-        <StatCard Icon={StatIcons.revenue} label="Monthly Revenue" value={formatPrice(roster.stats.mrrCents)} />
+        <StatCard href="/admin/applications?tab=awaiting" Icon={StatIcons.pending} label="Pending Applications" value={counts.awaiting} />
+        <StatCard href="/admin/applications?tab=approved" Icon={StatIcons.approved} label="Approved Pros" value={counts.approved} />
+        <StatCard href="/admin/applications?tab=changes" Icon={StatIcons.changes} label="Changes Requested" value={counts.changes} />
+        <StatCard href="/admin/applications?tab=rejected" Icon={StatIcons.rejected} label="Rejected" value={counts.rejected} />
+        <StatCard href="/admin/verifications" Icon={StatIcons.id} label="Customer ID Checks" value={customerIds.length} />
+        <StatCard href="/admin/recommendations" Icon={StatIcons.featured} label="Active Featured Placements" value={featuredCount} />
+        <StatCard href="/admin/recommendations" Icon={StatIcons.revenue} label="Monthly Revenue" value={formatPrice(roster.stats.mrrCents)} />
       </div>
 
       {/* Middle split: queue (left) + review (right) */}
@@ -270,10 +270,10 @@ export default async function AdminApplicationsPage({
                     ) : (
                       <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-full bg-rose/12 text-[13px] font-bold text-rose" aria-hidden>{r.name.slice(0, 1)}</span>
                     )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12.5px] font-bold text-ink">{r.name}</p>
+                    <Link href={`/admin/applications?selected=${r.userId}`} scroll={false} className="min-w-0 flex-1">
+                      <p className="truncate text-[12.5px] font-bold text-ink hover:text-rose">{r.name}</p>
                       <p className="truncate text-[11px] text-ink-muted">{r.specialty} · {r.city}</p>
-                    </div>
+                    </Link>
                     <span className="flex-none text-[11px] text-ink-muted">{r.periodEnd ? fmtDate(r.periodEnd) : r.recommendedUntil ? fmtDate(r.recommendedUntil) : ""}</span>
                     <AdminRecommendToggle userId={r.userId} initialRecommended={r.isRecommended} />
                   </li>
