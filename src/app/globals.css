@@ -297,3 +297,4 @@ body {
   --color-ink-secondary: #5B4E48;
   --color-ink-muted: #8A7A72;
 }
+@utility scrollbar-none { scrollbar-width: none; }
