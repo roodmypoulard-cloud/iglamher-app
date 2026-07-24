@@ -79,21 +79,21 @@ Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
               - generic [ref=e52]:
                 - paragraph [ref=e53]: Service location
                 - generic [ref=e54]:
-                  - button "Any" [ref=e55]
+                  - button "Any" [pressed] [ref=e55]
                   - button "At studio" [ref=e56]
                   - button "Mobile" [ref=e57]
                   - button "Both" [ref=e58]
               - generic [ref=e59]:
                 - paragraph [ref=e60]: Minimum rating
                 - generic [ref=e61]:
-                  - button "Any" [ref=e62]
+                  - button "Any" [pressed] [ref=e62]
                   - button "4★+" [ref=e63]
                   - button "4.5★+" [ref=e64]
                   - button "4.8★+" [ref=e65]
               - generic [ref=e66]:
                 - paragraph [ref=e67]: Max distance
                 - generic [ref=e68]:
-                  - button "Any" [ref=e69]
+                  - button "Any" [pressed] [ref=e69]
                   - button "5 mi" [ref=e70]
                   - button "10 mi" [ref=e71]
                   - button "25 mi" [ref=e72]
@@ -281,45 +281,47 @@ Error: page.waitForLoadState: Test timeout of 30000ms exceeded.
                   - generic [ref=e270]: Mobile · Santa Monica
                   - generic [ref=e271]: from $90
                 - paragraph [ref=e272]: 14.1 mi away
-            - link "Save to favorites Tori A. Braiding 4.7 out of 5, 1 reviews Studio · Long Beach from $80 18.9 mi away" [ref=e273] [cursor=pointer]:
-              - /url: /professionals/crown-by-tori
-              - button "Save to favorites" [ref=e276]:
-                - img [ref=e277]
-              - generic [ref=e279]:
-                - paragraph [ref=e280]:
-                  - text: Tori A.
-                  - img [ref=e281]
-                - paragraph [ref=e283]: Braiding
-                - paragraph [ref=e284]:
-                  - generic [ref=e285]:
-                    - generic [ref=e286]:
-                      - generic [ref=e287]: ★
-                      - generic [ref=e288]: "4.7"
-                      - generic [ref=e289]: (1)
-                    - generic [ref=e290]: 4.7 out of 5, 1 reviews
-                - paragraph [ref=e291]:
-                  - generic [ref=e292]: Studio · Long Beach
-                  - generic [ref=e293]: from $80
-                - paragraph [ref=e294]: 18.9 mi away
-            - link "Save to favorites Remy D. Precision cuts 4.6 out of 5, 1 reviews Mobile · Burbank from $45 10.3 mi away" [ref=e295] [cursor=pointer]:
+            - link "Save to favorites Remy D. Precision cuts 4.6 out of 5, 1 reviews Mobile · Burbank from $45 10.3 mi away" [ref=e273] [cursor=pointer]:
               - /url: /professionals/remy-cuts
+              - button "Save to favorites" [ref=e277]:
+                - img [ref=e278]
+              - generic [ref=e280]:
+                - paragraph [ref=e281]:
+                  - text: Remy D.
+                  - img [ref=e282]
+                - paragraph [ref=e284]: Precision cuts
+                - paragraph [ref=e285]:
+                  - generic [ref=e286]:
+                    - generic [ref=e287]:
+                      - generic [ref=e288]: ★
+                      - generic [ref=e289]: "4.6"
+                      - generic [ref=e290]: (1)
+                    - generic [ref=e291]: 4.6 out of 5, 1 reviews
+                - paragraph [ref=e292]:
+                  - generic [ref=e293]: Mobile · Burbank
+                  - generic [ref=e294]: from $45
+                - paragraph [ref=e295]: 10.3 mi away
+            - link "Save to favorites Tori A. Braiding 4.7 out of 5, 1 reviews Studio · Long Beach from $80 18.9 mi away" [ref=e296] [cursor=pointer]:
+              - /url: /professionals/crown-by-tori
               - button "Save to favorites" [ref=e299]:
                 - img [ref=e300]
               - generic [ref=e302]:
-                - paragraph [ref=e303]: Remy D.
-                - paragraph [ref=e304]: Precision cuts
-                - paragraph [ref=e305]:
-                  - generic [ref=e306]:
-                    - generic [ref=e307]:
-                      - generic [ref=e308]: ★
-                      - generic [ref=e309]: "4.6"
-                      - generic [ref=e310]: (1)
-                    - generic [ref=e311]: 4.6 out of 5, 1 reviews
-                - paragraph [ref=e312]:
-                  - generic [ref=e313]: Mobile · Burbank
-                  - generic [ref=e314]: from $45
-                - paragraph [ref=e315]: 10.3 mi away
-  - alert [ref=e316]
+                - paragraph [ref=e303]:
+                  - text: Tori A.
+                  - img [ref=e304]
+                - paragraph [ref=e306]: Braiding
+                - paragraph [ref=e307]:
+                  - generic [ref=e308]:
+                    - generic [ref=e309]:
+                      - generic [ref=e310]: ★
+                      - generic [ref=e311]: "4.7"
+                      - generic [ref=e312]: (1)
+                    - generic [ref=e313]: 4.7 out of 5, 1 reviews
+                - paragraph [ref=e314]:
+                  - generic [ref=e315]: Studio · Long Beach
+                  - generic [ref=e316]: from $80
+                - paragraph [ref=e317]: 18.9 mi away
+  - alert [ref=e318]
 ```
 
 # Test source

@@ -7,6 +7,7 @@ import { CategoryRail } from "@/components/recommended/CategoryRail";
 import { AreaControl } from "@/components/recommended/AreaControl";
 import { RecommendedProCard } from "@/components/recommended/RecommendedProCard";
 import { RecommendedTopbar } from "@/components/recommended/RecommendedTopbar";
+import { RecommendedCarousel } from "@/components/marketplace/RecommendedCarousel";
 import { GridSkeleton } from "@/components/ui/states";
 import { getRecommendedProfessionals, listCategories } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
@@ -118,7 +119,10 @@ async function Results({ raw }: { raw: RawSearchParams }) {
 export default async function RecommendedPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
   const raw = await searchParams;
   const q = typeof raw.q === "string" ? raw.q : "";
-  const categories = await listCategories();
+  const [categories, { pros: featured }] = await Promise.all([
+    listCategories(),
+    getRecommendedProfessionals({}, 12),
+  ]);
 
   return (
     <Shell header={false}>
@@ -132,6 +136,14 @@ export default async function RecommendedPage({ searchParams }: { searchParams: 
           Discover trusted beauty professionals selected for quality, reliability, and client care.
         </p>
       </div>
+
+      {/* Featured animation — the center-snap carousel of recommended profiles
+          (crown + gold check), shown the moment you tap "Recommended". */}
+      {featured.length > 0 && (
+        <div className="mt-3">
+          <RecommendedCarousel pros={featured} />
+        </div>
+      )}
 
       {/* Info card — thin gold border like the mock */}
       <div className="mt-2.5 flex items-center gap-2 rounded-[12px] border border-gold/40 bg-gold/[0.05] px-3 py-1.5">
