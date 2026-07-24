@@ -1,112 +1,165 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import Link from "next/link";
 import { Shell } from "@/components/marketplace/Shell";
-import { BackButton } from "@/components/ui/BackButton";
 import { SearchBar } from "@/components/marketplace/SearchBar";
-import { CategoryTiles } from "@/components/marketplace/CategoryTiles";
-import { ProShelf } from "@/components/marketplace/ProShelf";
-import { LookbookCover } from "@/components/marketplace/LookbookCover";
+import { LocationPill } from "@/components/marketplace/LocationPill";
+import { BackButton } from "@/components/ui/BackButton";
+import { MobileFilterSheet } from "@/components/marketplace/Filters";
+import { CategoryCircleRail } from "@/components/marketplace/CategoryCircleRail";
+import { RecommendsPanel } from "@/components/marketplace/RecommendsPanel";
+import { VerifiedPopularTabs } from "@/components/marketplace/VerifiedPopularTabs";
+import { LuxeProCard } from "@/components/marketplace/LuxeProCard";
+import { TrendingStrip } from "@/components/marketplace/TrendingStrip";
 import { EmptyState } from "@/components/ui/states";
-import {
-  listCategories, getRecommendedProfessionals, getFeaturedProfessionals, searchProfessionalViews,
-} from "@/lib/data/professionals";
-import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
+import { listCategories, getRecommendedProfessionals, searchProfessionalViews } from "@/lib/data/professionals";
+import { getFavoriteProfessionalIds, getRecentlyViewedProfessionals } from "@/lib/data/favorites";
+import { isTopRated, isPopular } from "@/lib/marketplace/badges";
+import { parseSearchParams } from "@/lib/marketplace/params";
+import type { ProfessionalCardView } from "@/lib/data/model";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "The Lookbook · iGlamHer" };
+export const metadata: Metadata = { title: "Book Your Glam · iGlamHer" };
 
-const CrownIcon = () => (
-  <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="text-rose" aria-hidden>
-    <path d="M4 17h16l-1-7.5-3.6 2.8L12 6l-3.4 6.3L5 9.5 4 17Z" /><path d="M4 19.4h16" />
-  </svg>
-);
-const StarIcon = () => (
-  <svg viewBox="0 0 24 24" width={15} height={15} fill="currentColor" className="text-gold" aria-hidden>
-    <path d="m12 2 2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.2l-6.1 3.4 1.4-6.8L2.2 9.1l6.9-.8L12 2Z" />
-  </svg>
-);
+type RawSearchParams = Record<string, string | string[] | undefined>;
 
-export default async function LookbookPage() {
-  const [categories, recommended, featured, popular, favoritedIds] = await Promise.all([
+function SectionHead({ title, subtitle, href, hrefLabel = "See All" }: { title: string; subtitle?: string; href?: string; hrefLabel?: string }) {
+  return (
+    <div className="mb-3 flex items-end justify-between gap-3">
+      <div className="min-w-0">
+        <h2 className="font-display text-[19px] font-bold leading-none text-ink">{title}</h2>
+        {subtitle && <p className="mt-1 text-[12px] text-ink-muted">{subtitle}</p>}
+      </div>
+      {href && <Link href={href} className="flex-none text-[12.5px] font-semibold text-rose hover:underline">{hrefLabel}</Link>}
+    </div>
+  );
+}
+
+export default async function BookYourGlamPage({ searchParams }: { searchParams: Promise<RawSearchParams> }) {
+  const raw = await searchParams;
+  const params = parseSearchParams(raw);
+
+  const [categories, recommended, all, favoritedIds, recentlyViewed] = await Promise.all([
     listCategories(),
-    getRecommendedProfessionals({}, 10).then((r) => r.pros),
-    getFeaturedProfessionals(6),
-    searchProfessionalViews({ sort: "reviews" }).then((v) => v.slice(0, 12)),
+    getRecommendedProfessionals(params, 12).then((r) => r.pros),
+    searchProfessionalViews({ ...params, sort: "recommended" }),
     getFavoriteProfessionalIds(),
+    getRecentlyViewedProfessionals(6).catch(() => []),
   ]);
 
-  // Cover = the strongest single pro: first recommended, else top featured, else
-  // most-reviewed. Everything downstream dedupes against whoever's on the cover.
-  const cover = recommended[0] ?? featured[0] ?? popular[0] ?? null;
+  // Build the four Verified & Popular tab lists from real signals.
+  const byRating = [...all].sort((a, b) => b.ratingAverage - a.ratingAverage || b.reviewCount - a.reviewCount);
+  const byReviews = [...all].sort((a, b) => b.reviewCount - a.reviewCount);
+  const byDistance = [...all].sort((a, b) => (a.distanceMi ?? Infinity) - (b.distanceMi ?? Infinity));
+  const lists: Record<"recommended" | "top_rated" | "popular" | "nearby", ProfessionalCardView[]> = {
+    recommended: (recommended.length ? recommended : all).slice(0, 10),
+    top_rated: byRating.filter(isTopRated).slice(0, 10),
+    popular: byReviews.filter(isPopular).slice(0, 10),
+    nearby: byDistance.slice(0, 10),
+  };
 
-  const shownIds = new Set<string>(cover ? [cover.userId] : []);
-  const recShelf = recommended.filter((p) => !shownIds.has(p.userId));
-  recShelf.forEach((p) => shownIds.add(p.userId));
-  const popularShelf = popular.filter((p) => !shownIds.has(p.userId)).slice(0, 8);
+  // Trending = most completed bookings (real "most-booked" signal).
+  const trending = [...all].sort((a, b) => b.jobsCompleted - a.jobsCompleted).slice(0, 8);
+  // Near You cards (portrait), distinct from the tab grid's default.
+  const nearYou = byDistance.slice(0, 6);
+
+  const activeCat = params.category ? categories.find((c) => c.slug === params.category)?.name : null;
 
   return (
     <Shell>
-      <div className="mb-3">
-        <BackButton fallback="/bookings" label="Back" />
+      {/* Back + working location pill (spec §2 — opens the search-area sheet;
+          radius feeds the server queries via ?distance=) */}
+      <div className="flex items-center justify-between gap-3">
+        <BackButton fallback="/bookings" label="Back" className="!min-h-[36px] !border-0 !bg-transparent !px-0 !py-0 text-[13px] !backdrop-blur-none" />
+        <Suspense>
+          <LocationPill />
+        </Suspense>
       </div>
 
-      {/* Masthead — magazine, serif restraint */}
-      <div className="flex items-baseline justify-between border-b border-gold/25 pb-2">
-        <h1 className="font-display text-[26px] font-bold leading-none text-ink">The Lookbook</h1>
-        <span className="text-[9.5px] font-semibold uppercase tracking-[0.24em] text-ink-muted">Beauty · Los Angeles</span>
-      </div>
-      <p className="mt-2 text-[12.5px] leading-snug text-ink-secondary">
-        The month&apos;s finest looks and the artists behind them — book any of them in a tap.
-      </p>
+      {/* Hero */}
+      <header className="mt-4">
+        <h1 className="font-display text-[34px] font-bold leading-[1.02] text-ink">Book Your Glam</h1>
+        <p className="mt-1 text-[13.5px] text-ink-secondary">Luxury beauty, verified for you.</p>
+      </header>
 
+      {/* Search + filter */}
+      <div className="mt-4 flex items-center gap-2.5">
+        <div className="min-w-0 flex-1">
+          <SearchBar basePath="/categories" placeholder="What service are you booking for?" />
+        </div>
+        <MobileFilterSheet />
+      </div>
+
+      {/* Circular category selector */}
       <div className="mt-4">
-        <SearchBar placeholder="Search a service, style, or artist…" />
+        <CategoryCircleRail categories={categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl }))} />
       </div>
 
-      {/* Cover story — full-bleed real pro photo */}
-      {cover && (
-        <div className="mt-5">
-          <LookbookCover pro={cover} />
+      {/* iGlamHer Recommends panel + shelf */}
+      <div className="mt-5">
+        <RecommendsPanel />
+      </div>
+      {recommended.length > 0 && (
+        <div className="scrollbar-none -mx-5 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1">
+          {recommended.slice(0, 8).map((p) => (
+            <div key={p.userId} className="snap-start">
+              <LuxeProCard pro={p} favorited={favoritedIds.includes(p.userId)} />
+            </div>
+          ))}
         </div>
       )}
 
-      {/* Recommended shelf */}
-      <ProShelf
-        title="Recommended"
-        subtitle="Hand-picked, approved by iGlamHer"
-        icon={<CrownIcon />}
-        pros={recShelf}
-        favoritedIds={favoritedIds}
-        seeAllHref="/recommended"
-      />
-
-      {/* Popular shelf */}
-      <ProShelf
-        title="Most booked"
-        subtitle="The city&apos;s most-loved artists"
-        icon={<StarIcon />}
-        pros={popularShelf}
-        favoritedIds={favoritedIds}
-        seeAllHref="/search?sort=reviews"
-      />
-
-      {/* Browse by service — editorial framing over real category photography */}
-      <section className="mt-9">
-        <div className="mb-1 flex items-end justify-between">
-          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-rose">The services</span>
-          <Link href="/search" className="text-[12px] font-semibold text-rose hover:underline">All artists</Link>
-        </div>
-        <h2 className="mb-4 font-display text-[22px] font-semibold text-ink">Browse by craft</h2>
-        {categories.length === 0 ? (
-          <EmptyState
-            title="No categories yet"
-            body="We're curating our beauty categories — check back soon."
-            action={{ label: "Back to home", href: "/discover" }}
-          />
-        ) : (
-          <CategoryTiles categories={categories} />
-        )}
+      {/* Verified & Popular with tabs */}
+      <section id="pros" className="mt-8 scroll-mt-4">
+        <SectionHead title="Verified & Popular" subtitle={activeCat ? `Showing ${activeCat}` : "Professionals trusted and loved by clients."} href="/search" hrefLabel="See All" />
+        <VerifiedPopularTabs lists={lists} favoritedIds={favoritedIds} />
       </section>
+
+      {/* Trending This Week */}
+      {trending.length > 0 && (
+        <section className="mt-8">
+          <SectionHead title="Trending This Week" subtitle="Most-booked professionals right now." href="/search?sort=reviews" />
+          <TrendingStrip pros={trending} />
+        </section>
+      )}
+
+      {/* Near You */}
+      {nearYou.length > 0 && (
+        <section className="mt-8">
+          <SectionHead title="Near You" subtitle="Beauty professionals around Los Angeles." />
+          <div className="scrollbar-none -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1">
+            {nearYou.map((p) => (
+              <div key={p.userId} className="snap-start">
+                <LuxeProCard pro={p} favorited={favoritedIds.includes(p.userId)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Recently viewed — only when the customer has history (spec §9) */}
+      {recentlyViewed.length > 0 && (
+        <section className="mt-8">
+          <SectionHead title="Recently Viewed" subtitle="Pick up where you left off." />
+          <div className="scrollbar-none -mx-5 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1">
+            {recentlyViewed.map((p) => (
+              <div key={p.userId} className="snap-start">
+                <LuxeProCard pro={p} favorited={favoritedIds.includes(p.userId)} />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {all.length === 0 && (
+        <div className="mt-6">
+          <EmptyState
+            title="No exact match yet"
+            body="Try adjusting your service, location, price, or availability filters."
+            action={{ label: "Browse recommended", href: "/recommended" }}
+          />
+        </div>
+      )}
     </Shell>
   );
 }
