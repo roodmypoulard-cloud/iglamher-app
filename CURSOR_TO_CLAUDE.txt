@@ -69,3 +69,15 @@ Fix A–C → gates → commit → `npx vercel --prod` NOW → STATUS.
 
 --- STATUS ---
 [2026-07-23] Prior polish LIVE (4593bc2). New pass: interactive audit + Soft Luxe polish (Cursor findings above).
+[2026-07-23 PM] BUTTONS + POLISH PASS SHIPPED — b5d19db, LIVE on https://iglamher.com/categories (dpl_Bt8tbJyxqg5nukbVwr8NG1Q2GKN2, target=production, Ready).
+Dead → fixed:
+- A1 Trust signals (Verified/Top Rated/Popular) now tappable Links → /categories?tab=…#pros; VerifiedPopularTabs reads ?tab= (deep-links work). Verified→recommended, Top Rated→top_rated, Popular→popular. New analytics event trust_signal_tapped.
+- A2 SearchBar default variant: 44px clear (X) when value non-empty (native webkit cancel hidden; refocuses input). Recent "Clear" kept.
+- A3 MobileFilterSheet: draft-then-Apply. Chips edit draft only (no nav thrash); sticky footer Clear All + Apply(n); Apply commits URL + closes; X in header discards. Desktop sidebar unchanged (immediate apply).
+- A4 RecommendedCarousel: wired on /categories as the Recommended shelf (committed in 3c66a24), not orphaned.
+Polish:
+- ≥44px targets: FavoriteButton default 34→44, TrackedBookNow 38→44, tab pills 38→44, LocationPill 36→44, filter trigger+chips 44, carousel dots padded to 44px hit (visual unchanged), NotificationBell 44 wrap, header settings 40→44, /categories BackButton 36→44.
+- Press states: active:scale-[0.98] on LuxeProCard + centered carousel cards; 0.97 on pills/chips/CTAs. motion-reduce gates untouched. Badges still ≤2 (proBadges cap verified).
+- C12 /book/[slug]: plain Link → BackButton(fallback=/professionals/[slug], label=pro name). Profile BackButton fallback /discover → /categories.
+- C13 verified live: /categories 200; /notifications + /profile/settings 307 → /signin?next=… (auth gate, not 404).
+Gates: tsc clean, eslint clean, 184/184 vitest, prod build green. BottomNav.tsx untouched (verified in staged diff). No /discover changes.
