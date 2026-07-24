@@ -99,3 +99,8 @@ STILL MISSING / MUST BUILD:
 Finish the luxury Booking `/categories` redesign to match design-refs/booking-page-luxury.png + EVERY brief detail. Close all gaps above. Gates → commit → auto-deploy. §35 report. BottomNav untouched.
 --- STATUS ---
 (awaiting Claude complete luxury Booking pass)
+[fork addendum] Preview HTML w/ real screenshots WRITTEN to the parent's
+artifact path (/Users/roodmypoulard/.claude/jobs/19d460b7/tmp/iglamher-
+customer-mode-preview.html) — PARENT: republish via Artifact tool (same path =
+same URL) so Boss sees it, then await his approve to deploy. Shots also at
+/tmp/lux_top.png, /tmp/lux_mid.png, /tmp/lux_low.png.
