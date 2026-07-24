@@ -48,7 +48,7 @@ describe("recommendation engine", () => {
   });
 
   it("demotes low-reliability professionals via the trust multiplier", () => {
-    const recs = recommend(PROFESSIONALS, baseCtx, 12);
+    const recs = recommend(PROFESSIONALS, baseCtx, 20);
     const remy = recs.find((r) => r.slug === "remy-cuts"); // reliability 76
     const maya = recs.find((r) => r.slug === "maya-rose-beauty"); // reliability 92
     expect(maya!.matchScore).toBeGreaterThan(remy!.matchScore);

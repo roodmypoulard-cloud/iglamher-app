@@ -12,9 +12,9 @@ describe("public visibility in search", () => {
     expect(slugs(all)).not.toContain("gigi-glam"); // suspended / unapproved
   });
 
-  it("returns exactly the 10 active professionals with no filters", () => {
+  it("returns exactly the 15 active professionals with no filters", () => {
     const all = searchProfessionals(PROFESSIONALS, {}, ctx);
-    expect(all).toHaveLength(10);
+    expect(all).toHaveLength(15);
   });
 });
 

@@ -20,7 +20,7 @@ describe("recommendation shelves", () => {
   });
 
   it("new providers surfaces the least-experienced first", () => {
-    const r = newProviders(PROFESSIONALS, v, 12);
+    const r = newProviders(PROFESSIONALS, v, 20);
     for (let i = 1; i < r.length; i++) expect(r[i].jobsCompleted).toBeGreaterThanOrEqual(r[i - 1].jobsCompleted);
     // Remy (22 jobs) should appear before Amara (720 jobs).
     expect(slugs(r).indexOf("remy-cuts")).toBeLessThan(slugs(r).indexOf("amara-beauty"));
