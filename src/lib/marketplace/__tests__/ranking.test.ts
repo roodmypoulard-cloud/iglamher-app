@@ -65,7 +65,7 @@ describe("filters", () => {
 
   it("verified filter excludes unverified pros", () => {
     const r = searchProfessionals(PROFESSIONALS, { verifiedOnly: true }, ctx);
-    expect(slugs(r)).not.toContain("remy-cuts"); // unverified
+    expect(slugs(r)).not.toContain("kai-style-co"); // unverified
     for (const v of r) expect(v.isVerified).toBe(true);
   });
 
