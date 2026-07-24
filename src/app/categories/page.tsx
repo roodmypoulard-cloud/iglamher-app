@@ -7,7 +7,6 @@ import { LocationPill } from "@/components/marketplace/LocationPill";
 import { BackButton } from "@/components/ui/BackButton";
 import { MobileFilterSheet } from "@/components/marketplace/Filters";
 import { CategoryCircleRail } from "@/components/marketplace/CategoryCircleRail";
-import { FeaturedCategoryCarousel } from "@/components/marketplace/FeaturedCategoryCarousel";
 import { RecommendedCarousel } from "@/components/marketplace/RecommendedCarousel";
 import { RecommendsPanel } from "@/components/marketplace/RecommendsPanel";
 import { VerifiedPopularTabs } from "@/components/marketplace/VerifiedPopularTabs";
@@ -71,10 +70,10 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
   const catalogById = new Map(catalog.map((p) => [p.userId, p]));
   const trending = trendingIds.map((id) => catalogById.get(id)).filter((p): p is ProfessionalCardView => Boolean(p));
 
-  // Per-category pro counts for the featured carousel (real, from the catalog).
-  const catCounts = new Map<string, number>();
-  for (const p of catalog) for (const c of p.categories) catCounts.set(c, (catCounts.get(c) ?? 0) + 1);
-  const featuredCategories = categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl, proCount: catCounts.get(c.slug) ?? 0 }));
+  // The animated Explore-slot carousel shows recommended pros only, and every
+  // card must carry the gold verified seal — so recommended-but-unverified
+  // pros are excluded here rather than shown without the check.
+  const recommendedVerified = recommended.filter((p) => p.isVerified);
 
   // Near You cards (portrait), distinct from the tab grid's default.
   const nearYou = byDistance.slice(0, 6);
@@ -115,27 +114,24 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
         <CategoryCircleRail categories={categories.map((c) => ({ slug: c.slug, name: c.name, imageUrl: c.imageUrl }))} />
       </div>
 
-      {/* Featured editorial category carousel — center-snap, gold-glow center */}
-      {featuredCategories.length > 0 && (
+      {/* Animated center-snap carousel — iGlamHer-recommended pros ONLY, each
+          verified (gold seal) and crowned. This is the single Recommended
+          surface on the page; no category tiles here. */}
+      {recommendedVerified.length > 0 && (
         <section className="mt-5">
-          <SectionHead title="Explore Categories" subtitle="Luxury services for your every need." />
-          <FeaturedCategoryCarousel categories={featuredCategories} />
+          <TrackView event="recommendations_viewed" />
+          <SectionHead title="iGlamHer Recommended" subtitle="Verified pros, hand-picked for you." href="/recommended" hrefLabel="View All" />
+          <RecommendedCarousel pros={recommendedVerified} />
         </section>
       )}
 
-      {/* iGlamHer Recommends panel + shelf — center-snap carousel of recommended
-          pros only (gold verified seal + crown), the single Recommended surface. */}
+      {/* iGlamHer Recommends trust panel — signals only; the carousel above is
+          the sole recommended-pros shelf. */}
       <div className="mt-6">
-        <TrackView event="recommendations_viewed" />
         <Suspense>
           <RecommendsPanel />
         </Suspense>
       </div>
-      {recommended.length > 0 && (
-        <div className="mt-3">
-          <RecommendedCarousel pros={recommended} />
-        </div>
-      )}
 
       {/* Verified & Popular with tabs */}
       <section id="pros" className="mt-8 scroll-mt-4">

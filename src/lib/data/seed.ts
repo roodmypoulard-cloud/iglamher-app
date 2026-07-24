@@ -545,8 +545,8 @@ export const PROFESSIONALS: Professional[] = [
     jobsCompleted: 260,
     instagramHandle: "luxlashbar",
     igFollowerCount: "11.1k",
-    avatarUrl: "/pros/lashes.jpg",
-    coverUrl: "/pros/lashes.jpg",
+    avatarUrl: "/pros/hybridlash.jpg",
+    coverUrl: "/pros/hybridlash.jpg",
     bio: "Lashes, lifts and brow lamination. Studio in Glendale, mobile for bridal parties.",
     services: [
       svc({ proId: P8, cat: "lashes", name: "Hybrid Set", desc: "Texture + volume.", min: 100, cents: 9500 }, 0),
@@ -582,8 +582,8 @@ export const PROFESSIONALS: Professional[] = [
     reliabilityScore: 76,
     instagramHandle: "remycuts",
     igFollowerCount: "2.1k",
-    avatarUrl: "/pros/naturalhair.jpg",
-    coverUrl: "/pros/naturalhair.jpg",
+    avatarUrl: "/pros/bob.jpg",
+    coverUrl: "/pros/bob.jpg",
     bio: "Mobile barber bringing clean fades and beard work to your door across the Valley.",
     services: [
       svc({ proId: P9, cat: "hair", name: "Skin Fade", desc: "Clean, sharp fade.", min: 45, cents: 4500, loc: "mobile", instant: true }, 0),

@@ -1,33 +1,45 @@
-CURSOR → CLAUDE (hotfix — continue NOW)
-Session preference: resume `fd7de470-fa5f-46fe-9517-8c94b1201f94` if available, else fresh in `/Users/roodmypoulard/iglamher-app`.
-YOU build. Cursor OVERSIGHT. Do NOT ask deploy.
+CURSOR → CLAUDE (Boss feedback — Explore animation = recommended profiles)
+Session preference: resume `19d460b7-b7a9-41eb-a4ef-2401a5ced752` or `c10d8f4a-cd8a-48f6-8c95-a1b3a5e09fad` if available, else fresh in `/Users/roodmypoulard/iglamher-app`.
+YOU build. Cursor OVERSIGHT ONLY. Do NOT ask deploy — auto-deploy when green.
 
-## Regression to fix (from 3c66a24)
-`/categories` lost **Explore Categories** `FeaturedCategoryCarousel` (center-snap category cards + dots + `?category=`). Mock + prior polish require it. Boss audit list explicitly includes featured carousel cards/dots.
+## Boss feedback (they did NOT see the intended change)
+> the explore category animation needs to be iglamher recommendation profiles only and make sure those account have the gold check mark and the iglamHer crown
 
-Also: recommended pros render TWICE — `RecommendedCarousel` section AND the `LuxeProCard` shelf under `RecommendsPanel`. That’s clutter.
+## What went wrong
+- `3c66a24` correctly swapped the Explore Categories center-snap animation to `RecommendedCarousel` (pros + gold seal + crown).
+- Later hotfix `b0e1893` / `bd38939` wrongly restored `FeaturedCategoryCarousel` (Makeup/Hair category tiles). Live still shows category labels — Boss saw the wrong thing.
+
+## Goal (unmistakable)
+The **animated center-snap carousel** that sits right after `CategoryCircleRail` on `/categories` (Book Your Glam) must show **iGlamHer recommended professional profiles only** — names, photos, specialty — NOT category tiles.
+
+Each card MUST show BOTH:
+1. **Gold verification check** (`GoldVerifiedBadge` / `isVerified`) — visible on every card
+2. **iGlamHer crown / Pick badge** (same Soft Luxe crown treatment already in `RecommendedCarousel`)
 
 ## Do (tight)
-1. **Restore** Explore Categories section after the circle rail:
-   - `FeaturedCategoryCarousel` with real `proCount` from catalog (same as before 3c66a24)
-   - Title/subtitle: “Explore Categories” / “Luxury services for your every need.”
-2. **Recommended surface once:** keep `RecommendedCarousel` as the shelf **under** `RecommendsPanel` (replace the flat `LuxeProCard` horizontal shelf). Remove the standalone “iGlamHer Recommended” section that replaced Explore Categories.
-3. Keep all button polish from `b5d19db` (trust signals, search clear, draft Filters Apply/Clear All, ≥44px, BackButton fallbacks).
-4. Gates → commit → `npx vercel --prod` NOW.
-5. Confirm BottomNav.tsx untouched.
-6. Append STATUS.
+1. **Replace** `FeaturedCategoryCarousel` in the Explore slot (after circle rail) with `RecommendedCarousel` (or equivalent profile cards). Keep the center-snap + gold-glow + dots animation language.
+2. **Data:** only real recommended pros (`is_recommended` / `getRecommendedProfessionals`). Prefer **admin-recommended AND verified** so every card has the gold check. If a recommended pro is not verified → **exclude** from this carousel (do not show a card missing the gold check).
+3. **Copy:** make the section unmistakably recommended profiles, e.g. title `iGlamHer Recommended` / subtitle `Verified pros, hand-picked for you.` + “View All” → `/recommended`. Do NOT keep “Explore Categories” / category pro-counts if that reads as Makeup/Hair tiles.
+4. **No duplicate shelf:** do not render recommended pros twice. If `RecommendedCarousel` is in the Explore slot, remove the second `RecommendedCarousel` under `RecommendsPanel` (restore a simple `LuxeProCard` shelf under the panel OR leave panel alone without a second carousel — pick the cleaner Soft Luxe option; recommended surface once in the animated slot is the priority).
+5. **Keep** `CategoryCircleRail` intact (circular category selector is separate — Boss called out the Explore *animation* only).
+6. Do **NOT** touch `BottomNav.tsx`. Do **NOT** redesign `/discover`.
+7. Soft Luxe only. Real DB / existing recommend engine — no fake pros.
+8. Gates: lint + tsc + unit tests + prod build → commit → `npx vercel --prod` NOW.
+9. Confirm live https://iglamher.com/categories (or prod alias) shows recommended pros in that carousel with **gold check + crown** on each card. Append STATUS.
+
+## Reference
+- Working pattern: commit `3c66a24` + existing `src/components/marketplace/RecommendedCarousel.tsx`
+- Mock: `design-refs/booking-page-luxury.png` (adapt Explore section to recommended profiles)
+- Page: `src/app/categories/page.tsx`
 
 ## NO
 - Edit BottomNav
-- Redesign /discover
+- Redesign Discover homepage
+- Invent Stripe secrets
 - Ask “say deploy”
+- Generic category tiles in that animation slot
+- Cards without gold check or without crown
 
 ---
-## STATUS — CLAUDE (hotfix complete, 2026-07-23)
-- ✅ Explore Categories RESTORED on /categories: `FeaturedCategoryCarousel` after the circle rail, real `proCount` from unfiltered catalog, title/subtitle exactly as spec ("Explore Categories" / "Luxury services for your every need."). Center-snap + dots + ?category= intact (component untouched).
-- ✅ Recommended surface ONCE: `RecommendedCarousel` (gold seal + crown, center-snap) is now the shelf under `RecommendsPanel`, replacing the flat LuxeProCard shelf. Standalone "iGlamHer Recommended" section removed.
-- ✅ b5d19db button polish untouched (no edits outside src/app/categories/page.tsx).
-- ✅ BottomNav.tsx: zero diff, confirmed.
-- ✅ Gates: eslint clean, tsc clean, 184/184 unit tests, prod build passes.
-- ✅ Commit b0e1893 on main.
-- ✅ DEPLOYED PROD: dpl_CCDm4veZ7SnFU4e5tn5GtpgfmQH2 (Ready). Verified live: https://iglamher-app.vercel.app/categories renders "Explore Categories" and no duplicate Recommended section.
+## STATUS — CLAUDE
+(append when done)
