@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { AppHeader } from "@/components/marketplace/AppHeader";
+import { BackButton } from "@/components/ui/BackButton";
 import { BookingFlow } from "@/components/booking/BookingFlow";
 import { getProfessionalBySlug } from "@/lib/data/professionals";
 import { publicServices } from "@/lib/marketplace/visibility";
@@ -36,9 +36,9 @@ export default async function BookPage({
     <div className="mx-auto flex min-h-dvh w-full max-w-[1280px] flex-col">
       <AppHeader />
       <main className="mx-auto w-full max-w-2xl flex-1 px-5 py-6 md:px-8 md:py-10">
-        <Link href={`/professionals/${pro.slug}`} className="mb-6 inline-block text-sm text-rose hover:underline">
-          ← {pro.displayName}
-        </Link>
+        <div className="mb-6">
+          <BackButton fallback={`/professionals/${pro.slug}`} label={pro.displayName} />
+        </div>
         {ordered.length === 0 ? (
           <p className="text-sm text-ink-muted">This professional has no bookable services yet.</p>
         ) : (

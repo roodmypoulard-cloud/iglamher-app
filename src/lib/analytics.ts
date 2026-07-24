@@ -9,6 +9,7 @@ export type AnalyticsEvent =
   | "filter_applied"
   | "category_viewed"
   | "professional_viewed"
+  | "trust_signal_tapped"
   | "service_viewed"
   | "favorite_added"
   | "favorite_removed"

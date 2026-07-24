@@ -27,6 +27,12 @@ export function SearchBar({
   const [open, setOpen] = useState(false);
   const [recent, setRecent] = useState<string[]>([]);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  function clear() {
+    setValue("");
+    inputRef.current?.focus();
+  }
 
   useEffect(() => {
     // Refresh the recent-search list from localStorage when the panel opens.
@@ -103,6 +109,7 @@ export function SearchBar({
           )}
         />
         <input
+          ref={inputRef}
           type="search"
           value={value}
           autoFocus={autoFocus}
@@ -114,9 +121,22 @@ export function SearchBar({
             "w-full rounded-[14px] border border-border bg-surface py-3.5 text-[15px] text-ink caret-rose placeholder:text-ink-muted",
             "transition-[box-shadow,border-color,transform] duration-200 ease-out",
             "focus:border-rose/80 focus:shadow-[0_8px_24px_rgba(215,160,143,0.14)] focus:outline-none focus:-translate-y-px",
-            iconRight ? "pl-4 pr-11" : "pl-11 pr-4",
+            "[&::-webkit-search-cancel-button]:hidden",
+            iconRight ? "pl-4 pr-11" : value ? "pl-11 pr-12" : "pl-11 pr-4",
           )}
         />
+        {value && !iconRight && (
+          <button
+            type="button"
+            onClick={clear}
+            aria-label="Clear search"
+            className="absolute right-1 top-1/2 grid h-11 w-11 -translate-y-1/2 place-items-center rounded-full text-ink-muted transition-[color,transform] hover:text-ink active:scale-90"
+          >
+            <svg viewBox="0 0 24 24" width={16} height={16} fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" aria-hidden>
+              <path d="M6 6l12 12M18 6 6 18" />
+            </svg>
+          </button>
+        )}
       </form>
 
       {open && <Suggestions recent={recent} onPick={go} onClear={() => { clearRecentSearches(); setRecent([]); }} />}

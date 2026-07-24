@@ -12,7 +12,7 @@ export function FavoriteButton({
   professionalId,
   professionalSlug,
   initialFavorited = false,
-  size = 34,
+  size = 44,
   variant = "chip",
 }: {
   professionalId: string;

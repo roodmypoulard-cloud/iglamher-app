@@ -1,18 +1,39 @@
+"use client";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { track } from "@/lib/analytics";
 
 /** iGlamHer Recommends feature panel (spec §7) — the page's hero trust moment.
  *  Deep black→warm-brown, fine rose-gold border, soft edge glow, and the three
- *  recommendation signals. Purely presentational; the recommended pros render
- *  in the shelf beside/under it. */
-function Signal({ icon, label, sub }: { icon: React.ReactNode; label: string; sub: string }) {
+ *  recommendation signals. Each signal is a real control: tapping it jumps to
+ *  the Verified & Popular grid (#pros) with the matching tab pre-selected via
+ *  ?tab=, so the links also work as shareable deep links. */
+function Signal({
+  icon,
+  label,
+  sub,
+  tab,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  sub: string;
+  tab: "recommended" | "top_rated" | "popular";
+}) {
+  const sp = useSearchParams();
+  const next = new URLSearchParams(sp.toString());
+  next.set("tab", tab);
   return (
-    <div className="flex items-center gap-2">
+    <Link
+      href={`/categories?${next.toString()}#pros`}
+      onClick={() => track("trust_signal_tapped", { tab })}
+      className="-mx-1 flex min-h-[44px] items-center gap-2 rounded-[12px] px-1 transition-[transform,background-color] duration-150 hover:bg-white/[0.04] active:scale-[0.97]"
+    >
       <span className="grid h-8 w-8 flex-none place-items-center rounded-full border border-gold/40 bg-black/30 text-gold">{icon}</span>
       <span className="min-w-0">
         <span className="block text-[11.5px] font-bold leading-tight text-ink">{label}</span>
         <span className="block truncate text-[9.5px] text-ink-muted">{sub}</span>
       </span>
-    </div>
+    </Link>
   );
 }
 
@@ -38,16 +59,16 @@ export function RecommendsPanel() {
           iGlamHer Recommends
           <svg viewBox="0 0 24 24" width={16} height={16} fill="currentColor" className="text-gold" aria-hidden><path d="m12 3 1.4 4.1L17.5 8.5l-4.1 1.4L12 14l-1.4-4.1L6.5 8.5l4.1-1.4L12 3Z" /></svg>
         </h2>
-        <Link href="/recommended" className="flex-none rounded-full border border-gold/50 px-3.5 py-1.5 text-[11.5px] font-bold text-gold transition-colors hover:bg-gold/10">
+        <Link href="/recommended" className="flex min-h-[44px] flex-none items-center rounded-full border border-gold/50 px-3.5 text-[11.5px] font-bold text-gold transition-[background-color,transform] hover:bg-gold/10 active:scale-[0.97]">
           View All
         </Link>
       </div>
       <p className="mt-1 text-[12px] text-ink-secondary">Handpicked professionals you&apos;ll love.</p>
 
       <div className="mt-3.5 grid grid-cols-3 gap-2 border-t border-white/5 pt-3.5">
-        <Signal icon={<ShieldCheck />} label="Verified" sub="Gold Verified Badge" />
-        <Signal icon={<Star />} label="Top Rated" sub="Loved by clients" />
-        <Signal icon={<Flame />} label="Popular" sub="Trending now" />
+        <Signal icon={<ShieldCheck />} label="Verified" sub="Gold Verified Badge" tab="recommended" />
+        <Signal icon={<Star />} label="Top Rated" sub="Loved by clients" tab="top_rated" />
+        <Signal icon={<Flame />} label="Popular" sub="Trending now" tab="popular" />
       </div>
     </section>
   );

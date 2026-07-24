@@ -31,7 +31,7 @@ export function LocationPill() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label={`Search area: Los Angeles, CA${distance ? `, within ${distance} miles` : ""}. Change`}
-        className="flex min-h-[36px] items-center gap-1.5 rounded-full border border-gold/40 bg-surface/60 px-3.5 text-[12px] font-semibold text-ink-secondary backdrop-blur-sm transition-colors hover:border-gold/70"
+        className="flex min-h-[44px] items-center gap-1.5 rounded-full border border-gold/40 bg-surface/60 px-3.5 text-[12px] font-semibold text-ink-secondary backdrop-blur-sm transition-[border-color,transform] hover:border-gold/70 active:scale-[0.97]"
       >
         <svg viewBox="0 0 24 24" width={13} height={13} fill="none" stroke="currentColor" strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round" className="flex-none text-gold" aria-hidden>
           <path d="M12 21s-7-5.5-7-11a7 7 0 0 1 14 0c0 5.5-7 11-7 11Z" /><circle cx="12" cy="10" r="2.5" />

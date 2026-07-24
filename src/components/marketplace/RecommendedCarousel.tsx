@@ -81,7 +81,7 @@ export function RecommendedCarousel({ pros }: { pros: ProfessionalCardView[] }) 
               className={cn(
                 "relative aspect-[3/4] w-[172px] flex-none snap-center overflow-hidden rounded-[20px] border transition-[transform,opacity,box-shadow,border-color] duration-300 ease-out motion-reduce:transition-none",
                 on
-                  ? "scale-100 border-gold opacity-100 shadow-[0_0_28px_rgba(201,154,75,0.45)] motion-reduce:scale-100"
+                  ? "scale-100 border-gold opacity-100 shadow-[0_0_28px_rgba(201,154,75,0.45)] active:scale-[0.98] motion-reduce:scale-100"
                   : "scale-[0.82] border-rose/20 opacity-55 motion-reduce:scale-90 motion-reduce:opacity-70",
               )}
             >
@@ -115,15 +115,19 @@ export function RecommendedCarousel({ pros }: { pros: ProfessionalCardView[] }) 
         })}
       </div>
 
-      <div className="mt-2 flex items-center justify-center gap-1.5" aria-hidden>
+      {/* Dots stay visually small; each sits in a 44px-tall padded button so
+          the hit area meets the tap-target minimum. */}
+      <div className="mt-1 flex items-center justify-center" aria-hidden>
         {pros.map((p, i) => (
           <button
             key={p.userId}
             type="button"
             tabIndex={-1}
             onClick={() => centerTo(i)}
-            className={cn("h-1.5 rounded-full transition-all duration-200", i === active ? "w-4 bg-gold" : "w-1.5 bg-rose/30")}
-          />
+            className="grid h-11 min-w-[30px] place-items-center px-1"
+          >
+            <span className={cn("h-1.5 rounded-full transition-all duration-200", i === active ? "w-4 bg-gold" : "w-1.5 bg-rose/30")} />
+          </button>
         ))}
       </div>
     </div>

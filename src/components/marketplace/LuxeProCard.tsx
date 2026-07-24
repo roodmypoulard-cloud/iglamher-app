@@ -25,7 +25,7 @@ export function LuxeProCard({
 
   return (
     <article
-      className="group relative flex flex-col overflow-hidden rounded-[18px] border border-rose/25 bg-surface shadow-[0_12px_30px_rgba(0,0,0,0.35)] transition-[transform,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-rose/50"
+      className="group relative flex flex-col overflow-hidden rounded-[18px] border border-rose/25 bg-surface shadow-[0_12px_30px_rgba(0,0,0,0.35)] transition-[transform,border-color,box-shadow] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] hover:-translate-y-0.5 hover:border-rose/50 active:scale-[0.98]"
       style={{ width }}
     >
       <Link href={profileHref} className="relative block aspect-[3/4] w-full overflow-hidden" aria-label={`View ${pro.displayName}`}>

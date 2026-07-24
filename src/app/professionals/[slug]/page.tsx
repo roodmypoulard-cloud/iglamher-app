@@ -73,7 +73,7 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
       {/* Hero — cinematic cover blended into the palette */}
       <div className="relative aspect-[16/8] w-full overflow-hidden md:aspect-[16/6] md:rounded-b-[28px]">
         <div className="absolute left-4 top-4 z-20" style={{ paddingTop: "env(safe-area-inset-top)" }}>
-          <BackButton fallback="/discover" />
+          <BackButton fallback="/categories" />
         </div>
         <div className="ken-burns absolute inset-0">
           <Image src={pro.coverUrl || pro.avatarUrl} alt="" fill sizes="100vw" className="img-luxe object-cover" priority />

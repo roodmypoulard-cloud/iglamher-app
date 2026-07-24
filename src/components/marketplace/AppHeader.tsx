@@ -36,7 +36,7 @@ export function AppHeader() {
         <Link
           href="/profile/settings"
           aria-label="Account settings"
-          className="menu-gold grid h-10 w-10 place-items-center rounded-full border border-rose/30 bg-surface/60"
+          className="menu-gold grid h-11 w-11 place-items-center rounded-full border border-rose/30 bg-surface/60"
         >
           <span aria-hidden className="flex w-[18px] flex-col gap-[4.5px]">
             <span className="menu-gold-bar" />

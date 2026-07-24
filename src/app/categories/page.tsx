@@ -85,7 +85,7 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
       {/* Back + working location pill (spec §2 — opens the search-area sheet;
           radius feeds the server queries via ?distance=) */}
       <div className="flex items-center justify-between gap-3">
-        <BackButton fallback="/bookings" label="Back" className="!min-h-[36px] !border-0 !bg-transparent !px-0 !py-0 text-[13px] !backdrop-blur-none" />
+        <BackButton fallback="/bookings" label="Back" className="!min-h-[44px] !border-0 !bg-transparent !px-0 !py-0 text-[13px] !backdrop-blur-none" />
         <Suspense>
           <LocationPill />
         </Suspense>
@@ -122,7 +122,9 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
       {/* iGlamHer Recommends panel + shelf */}
       <div className="mt-6">
         <TrackView event="recommendations_viewed" />
-        <RecommendsPanel />
+        <Suspense>
+          <RecommendsPanel />
+        </Suspense>
       </div>
       {recommended.length > 0 && (
         <div className="scrollbar-none -mx-5 mt-3 flex snap-x snap-mandatory gap-3 overflow-x-auto px-5 pb-1">
@@ -137,7 +139,9 @@ export default async function BookYourGlamPage({ searchParams }: { searchParams:
       {/* Verified & Popular with tabs */}
       <section id="pros" className="mt-8 scroll-mt-4">
         <SectionHead title="Verified & Popular" subtitle={activeCat ? `Showing ${activeCat}` : "Professionals trusted and loved by clients."} href="/search" hrefLabel="See All" />
-        <VerifiedPopularTabs lists={lists} favoritedIds={favoritedIds} />
+        <Suspense>
+          <VerifiedPopularTabs lists={lists} favoritedIds={favoritedIds} />
+        </Suspense>
       </section>
 
       {/* Trending This Week — real 7–14 day booking activity, honest fallback when quiet */}

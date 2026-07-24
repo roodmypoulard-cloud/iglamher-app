@@ -1,5 +1,6 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { LuxeProCard } from "@/components/marketplace/LuxeProCard";
 import { EmptyState } from "@/components/ui/states";
 import { cn } from "@/lib/format";
@@ -13,9 +14,13 @@ const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "nearby", label: "Nearby" },
 ];
 
+function isTabKey(v: string | null): v is TabKey {
+  return TABS.some((t) => t.key === v);
+}
+
 /** Verified & Popular (spec §10) — gold-outlined active tab, swaps the pro grid
  *  client-side (all four lists are pre-rendered server-side, so switching is
- *  instant). */
+ *  instant). Honors ?tab= so trust signals and shared links can deep-link a tab. */
 export function VerifiedPopularTabs({
   lists,
   favoritedIds,
@@ -23,9 +28,19 @@ export function VerifiedPopularTabs({
   lists: Record<TabKey, ProfessionalCardView[]>;
   favoritedIds: string[];
 }) {
-  const [tab, setTab] = useState<TabKey>(
-    (["recommended", "top_rated", "popular", "nearby"] as TabKey[]).find((k) => lists[k].length > 0) ?? "recommended",
-  );
+  const sp = useSearchParams();
+  const tabParam = sp.get("tab");
+  const [tab, setTab] = useState<TabKey>(() => {
+    if (isTabKey(tabParam)) return tabParam;
+    return (["recommended", "top_rated", "popular", "nearby"] as TabKey[]).find((k) => lists[k].length > 0) ?? "recommended";
+  });
+
+  useEffect(() => {
+    // Follow ?tab= changes from in-page links (trust signals) after mount.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (isTabKey(tabParam)) setTab(tabParam);
+  }, [tabParam]);
+
   const pros = lists[tab];
 
   return (
@@ -41,7 +56,7 @@ export function VerifiedPopularTabs({
               aria-selected={on}
               onClick={() => setTab(t.key)}
               className={cn(
-                "min-h-[38px] flex-none rounded-full px-4 text-[12.5px] font-semibold transition-colors duration-200",
+                "min-h-[44px] flex-none rounded-full px-4 text-[12.5px] font-semibold transition-[color,transform] duration-200 active:scale-[0.97]",
                 on ? "border border-gold/70 bg-surface-hover text-ink shadow-[0_0_12px_rgba(201,154,75,0.2)]" : "border border-border text-ink-muted hover:text-ink-secondary",
               )}
             >
