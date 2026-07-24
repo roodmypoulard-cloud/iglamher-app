@@ -1,106 +1,95 @@
-CURSOR → CLAUDE (session 19d460b7-b7a9-41eb-a4ef-2401a5ced752 — YOU build; Cursor OVERSIGHT ONLY)
+CURSOR → CLAUDE
+Sessions: `19d460b7-b7a9-41eb-a4ef-2401a5ced752` · `c10d8f4a-cd8a-48f6-8c95-a1b3a5e09fad`
+YOU build. Cursor OVERSIGHT ONLY.
 
-Boss pasted the FULL luxury Booking redesign brief + design mock in THIS session. Respect EVERY detail. Do not invent a parallel design. Do not fall back to “The Lookbook” (commit 6f8890a) — that pass is SUPERSEDED by this brief.
+# 🚨 USER APPROVED — DEPLOY PROD NOW
 
-## Design mock (OPEN + MATCH)
-`/Users/roodmypoulard/iglamher-app/design-refs/booking-page-luxury.png`
-(also Boss’s Downloads copy already in your chat as Image #8)
+Boss said **approve**. Explicit go-ahead. Standing auto-deploy rule. Do NOT ask “say deploy.” Do NOT wait for another OK.
 
-Soft Luxe ONLY: deep black / charcoal / rose+champagne gold / ivory. NO purple. NO cheap bright yellow gold. Controlled glow.
+## Ship order (execute NOW)
+1. Finish remaining polish gaps if still WIP (see below) — do not block forever.
+2. Gates green: `npx tsc --noEmit`, lint, unit tests, `npm run build`.
+3. COMMIT polish if any uncommitted work (trending.ts already started).
+4. **`npx vercel --prod` IMMEDIATELY** when green.
+5. Confirm live: https://iglamher.com/categories + https://iglamher-app.vercel.app/categories
+6. Confirm `git diff src/components/marketplace/BottomNav.tsx` empty.
+7. Append STATUS here + short report.
 
-## Destination (confirm in code — already true)
-Bookings → “New booking” → `/categories`
-Redesign ONLY `/categories` (+ supporting marketplace components as needed).
-DO NOT redesign homepage Discover categories (`/discover`).
-DO NOT touch pro profile booking/payment/auth/role logic beyond wiring Book Now into the existing flow.
+## Already LIVE (do not regress)
+Commit `c9562e9` Book Your Glam luxury `/categories` is already on prod.
+Mock: `design-refs/booking-page-luxury.png`
+Soft Luxe only. Real data. No fake pros. No Stripe secrets invented.
 
-## CRITICAL — BottomNav (NON-NEGOTIABLE)
-File: `src/components/marketplace/BottomNav.tsx`
-- DO NOT change, replace, resize, reorder, rename, or rebuild BottomNav.
-- Exact same buttons / icons / labels / spacing / dimensions / behavior.
-- Real nav is Home · Bookings · Create (FAB) · Messages · Profile — NOT the mock’s Home/Discover/Booking strip. Ignore mock BottomNav visuals.
-- No second bottom nav. No floating Booking button.
-- Only ensure page has enough bottom safe padding so content isn’t hidden behind the fixed bar.
-- `git diff` on BottomNav.tsx MUST stay empty (or trivial page-side padding only — never edit BottomNav.tsx).
+## NON-NEGOTIABLE
+- DO NOT edit `src/components/marketplace/BottomNav.tsx`
+- DO NOT redesign `/discover`
+- Soft Luxe; BottomNav untouched; enough bottom padding only
 
-## Required page structure order (must match brief §1 + mock)
-1. Luxury header — logo + soft rose-gold glow, location pill (working, not dead), notifications
-2. Compact hero — “Book Your Glam” + “Luxury beauty, verified for you.”
-3. Search — placeholder “What service are you booking for?” + working Filters sheet (Clear All, Apply, result count; filters MUST filter)
-4. Animated circular category selector — Makeup, Hair, Lashes, Nails, Skincare, Brows + DB extras; gold halo active; 180–250ms ease-out; reduced-motion safe
-5. Optional featured category carousel — editorial center-snap (mock right panel)
-6. iGlamHer Recommends feature panel — distinct (glow/border), selective; trust indicators (Verified / Top Rated / Popular); View All
-7. Verified & Popular — tabs Recommended / Top Rated / Popular / Nearby + premium portrait cards (≤2 badges; Book Now → real book flow; gold Verified tooltip only if `isVerified`)
-8. Trending This Week — real recent activity (7–14d bookings/views/saves — not permanent labels)
-9. Near You — distance/fallback city; works without geo permission
-10. Recently viewed — only if history exists
-11. Existing BottomNav unchanged
+## Remaining polish (finish quickly if not done — then DEPLOY)
+WIP on disk: `src/lib/data/trending.ts` (good start — wire it into page).
 
-## Data / admin (do not invent parallel systems)
-Wire EXISTING fields:
-- `is_verified` → gold badge ONLY when true
-- `is_recommended` + `recommended_until` → iGlamHer Pick / Recommends
-- `is_featured` / review signals → Popular / Top Rated via `src/lib/marketplace/badges.ts` (already started)
-Admin verify/recommend controls already exist — extend/wire, do NOT invent duplicate tables or fake hard-coded pros.
+1. **Featured editorial category carousel** — center-snap, neighbors scaled/dimmed, dots, no aggressive autoplay; Soft Luxe; `?category=`
+2. **Trending This Week** — wire `getTrendingProfessionalIds` into `/categories`; NO lifetime `jobsCompleted` as “This Week”; soft empty fallback
+3. **Analytics** via `track()`/`TrackView`: page view, search, category, filter, recommend view, card open, Book Now (`booking_started`), favorite
+4. **Load choreography** + `prefers-reduced-motion`
+5. Header closer to mock ONLY if cheap
 
-## Empty / loading / error (brief §24–26)
-Include specified copy (“No exact match yet”, “Let’s expand your search”, etc.). No raw API errors.
-
-## Analytics
-Hook via existing analytics system where available (page view, search, category, filter, recommend, card, Book Now, etc.).
-
-## Gap list vs current disk (Lookbook 6f8890a + WIP)
-CURRENT `/categories` = Lookbook masthead + LookbookCover + Recommended/Most-booked ProShelves + CategoryTiles.
-WIP already started (KEEP / finish): `badges.ts`, `GoldVerifiedBadge.tsx`, `LuxeProCard.tsx`, `CategoryCircleRail.tsx`.
-
-STILL MISSING / MUST BUILD:
-[ ] Replace Lookbook-only layout with full §1 structure (header → hero → search/filters → circles → optional carousel → Recommends panel → Verified&Popular tabs → Trending → Near You → Recently viewed)
-[ ] Luxury header (logo glow + location pill + notifications) — all clickable
-[ ] Hero copy exact: “Book Your Glam” / “Luxury beauty, verified for you.”
-[ ] Search placeholder exact + Filters sheet that ACTUALLY filters (Clear All / Apply / result count)
-[ ] Circular category rail wired to real `listCategories()` + selection updates results
-[ ] Featured editorial category carousel (optional but in mock — include)
-[ ] iGlamHer Recommends distinct panel + trust indicators + View All → real recommended list
-[ ] Verified & Popular tabs (Recommended / Top Rated / Popular / Nearby) with working sort/filter
-[ ] LuxeProCard: ≤2 badges, gold Verified only if verified + tooltip, Book Now → existing book flow
-[ ] Trending This Week from real recent activity
-[ ] Near You section with location fallback
-[ ] Recently viewed (if history exists)
-[ ] Bottom padding for BottomNav; BottomNav.tsx UNTOUCHED
-[ ] Reduced motion + load animations per §17–19
-[ ] Empty/loading/error states per brief
-[ ] Analytics hooks where system exists
-[ ] NO homepage Discover redesign
-[ ] Gates: tsc, lint, unit, playwright, build — ALL green
-[ ] Commit
-[ ] AUTO-DEPLOY `npx vercel --prod` (Boss pasted this as final direction — ship when green; do NOT ask “say deploy” / “approve”)
-[ ] Final report: exact 10-point summary from brief §35
-
-## Done bar
-1. Implement full brief on `/categories` + needed marketplace components.
-2. Gates green.
-3. Commit with clear message.
-4. `npx vercel --prod` immediately.
-5. Confirm live https://iglamher-app.vercel.app/categories
-6. Confirm Bookings → New booking still → `/categories`
-7. Confirm `git diff src/components/marketplace/BottomNav.tsx` empty
-8. Append STATUS here + print §35 10-point report in chat.
+If a gap would delay ship >15 min after gates: ship what you have green + deploy, note remaining in STATUS. Prefer finish all four if fast.
 
 ## Explicit NO
-- Do not hand UI back to Cursor Design Mode.
-- Do not edit BottomNav.tsx.
-- Do not redesign `/discover`.
-- Do not hard-code fake pros.
-- Do not invent Stripe secrets.
-- Do not add a second bottom nav / floating Booking CTA.
-- Do not keep shipping Lookbook-only as “done.”
+- Edit BottomNav.tsx
+- Redesign /discover
+- Ask “say deploy” / “approve to deploy”
+- Fake pros / invent Stripe secrets
 
 --- NEXT ---
-Finish the luxury Booking `/categories` redesign to match design-refs/booking-page-luxury.png + EVERY brief detail. Close all gaps above. Gates → commit → auto-deploy. §35 report. BottomNav untouched.
+USER APPROVED. Finish polish → gates → commit → `npx vercel --prod` NOW.
+
 --- STATUS ---
-(awaiting Claude complete luxury Booking pass)
-[fork addendum] Preview HTML w/ real screenshots WRITTEN to the parent's
-artifact path (/Users/roodmypoulard/.claude/jobs/19d460b7/tmp/iglamher-
-customer-mode-preview.html) — PARENT: republish via Artifact tool (same path =
-same URL) so Boss sees it, then await his approve to deploy. Shots also at
-/tmp/lux_top.png, /tmp/lux_mid.png, /tmp/lux_low.png.
+[2026-07-23] Luxury Book Your Glam LIVE (c9562e9). Polish pass in progress (trending.ts started). Boss APPROVED deploy.
+
+--- STATUS (gaps 1–4 closed) ---
+[2026-07-23, session c10d8f4a] ✅ COMMITTED 4593bc2 + DEPLOYED.
+Live: https://iglamher.com/categories (200) + alias iglamher-eizo1gqg7-…vercel.app.
+BottomNav.tsx: UNTOUCHED — git diff empty, not in commit (verified twice).
+
+1. FEATURED CATEGORY CAROUSEL — new FeaturedCategoryCarousel.tsx (marketplace).
+   Center-snap; centered card = full size + gold glow + opacity 1; neighbors
+   scale-[0.82] + opacity-55; pagination dots; NO autoplay (manual scroll/swipe,
+   rAF-throttled center detection). First tap centers a neighbor, tap-when-
+   centered navigates → ?category=&#pros (same filter as circle rail). proCount
+   = real per-category tally from an unfiltered catalog fetch. Section "Explore
+   Categories" after the circle rail. All scale/opacity use motion-reduce: fallbacks.
+
+2. TRENDING = TRUE 7–14d WINDOW — killed the lifetime-jobsCompleted sort.
+   New src/lib/data/trending.ts (server-only, service-role) counts bookings with
+   status confirmed/in_progress/completed created in last 7d (widens to 14d when
+   <3 pros active), ranked by count then recency; maps ids → catalog card views.
+   Pure ranker split to trending-rank.ts (no server-only) + 5 unit tests
+   (window expiry, tie-break, limit, empty). Honest fallback section when quiet
+   ("Quiet this week — explore Recommended", links /recommended) — never lifetime
+   totals mislabeled "this week".
+
+3. ANALYTICS (existing track()/TrackView, union extended cleanly):
+   +booking_page_viewed (TrackView on /categories mount, w/ category),
+   +recommendations_viewed (TrackView by Recommends panel),
+   category_viewed now fires from circle rail AND featured carousel (source tag),
+   booking_started fires from LuxeProCard Book Now via new TrackedBookNow before
+   nav. search_submitted (SearchBar) + filter_applied (Filters) confirmed firing.
+   No 2nd SDK; sanitize() privacy rules intact.
+
+4. LOAD CHOREOGRAPHY — wrapped page sections in .stagger (globals already gate on
+   prefers-reduced-motion: no-preference); carousel motion uses motion-reduce:.
+   Shell already provides .page-enter + bottom padding (untouched).
+
+5. HEADER — skipped (Shell AppHeader + in-page LocationPill already close; not
+   worth Shell-regression risk per "only if cheap").
+
+RE-CHECK pass: filters still filter server-side (searchProfessionalViews via
+parseSearchParams — unchanged); gold verified only when isVerified (LuxeProCard);
+≤2 badges via proBadges; empty ("No exact match yet") + loading (loading.tsx)
+present; bottom padding via Shell untouched.
+
+GATES: tsc 0, lint 0, vitest 184/184 (22 files, +5 trending), build 0.
+Note: public/pros/ untracked images present (not mine, left unstaged).
+User still owes: APPLY_PENDING_0029/0030, Stripe 1099 toggle, STRIPE_RECOMMEND_PRICE_ID.
