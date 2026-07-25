@@ -141,7 +141,9 @@ BOSS OPS REQUIRED (full detail in OPS_CHECKLIST.md)
    Connect 1099 reporting; one live E2E deposit→hold→capture→transfer→refund.
 3. Supabase: run VERIFY_CRON.sql; optionally provision Upstash Redis env.
 4. Counsel review of legal pages before any "lawyer-approved" claim.
-5. Push to GitHub to light up CI.
+5. Regenerate the GitHub PAT with `workflow` scope (current token was
+   rejected pushing .github/workflows/ci.yml), then git push origin main —
+   all commits from this pass are local until then.
 
 HONEST DEBT / OUT OF SCOPE (unchanged from brief)
 - E (legal phase 2–3: license jurisdiction checks, booking restrictions,

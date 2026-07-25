@@ -39,6 +39,13 @@ Updated 2026-07-25. Work through top to bottom; each item says how to verify it.
       (decision logged in PRODUCT_DECISIONS.md).
 
 ## 6. GitHub CI
-- [ ] Push to GitHub → the new `.github/workflows/ci.yml` runs lint, typecheck,
-      unit tests, and a production build on every push/PR to main. First run
-      proves it green; protect `main` on green checks if desired.
+- [ ] **BLOCKER: the saved Personal Access Token can't push workflow files.**
+      `git push` was rejected ("refusing to allow a Personal Access Token to
+      create or update workflow ... without `workflow` scope"). Regenerate the
+      PAT at github.com → Settings → Developer settings → tokens with the
+      `workflow` scope added (or run `gh auth login`), update the stored
+      credential, then `git push origin main`. All 12 commits from this pass
+      are local until then.
+- [ ] After the push, `.github/workflows/ci.yml` runs lint, typecheck, unit
+      tests, and a production build on every push/PR to main. First run proves
+      it green; protect `main` on green checks if desired.
