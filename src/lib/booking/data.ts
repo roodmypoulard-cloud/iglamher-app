@@ -75,6 +75,9 @@ export interface BookingDetail extends BookingSummary {
    *  `exact: false` ⇒ approximate area only, because the booking isn't yet
    *  confirmed + paid. Never contains a street address unless `exact` is true. */
   professionalLocation: { text: string; exact: boolean };
+  /** Pending reschedule proposal (status = change_requested). Null when there is
+   *  none or migration 0036 hasn't landed (degrades to no reschedule UI). */
+  proposedChange: { startsAt: string; endsAt: string; note: string | null; requestedByViewer: boolean } | null;
 }
 
 /** The exact address unlocks only once the booking is actually locked in:
@@ -147,12 +150,15 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   // Degrades to false if migrations 0020/0021 aren't applied. These three lookups
   // are independent → run them in parallel so the detail page isn't 3 serial hops.
   const dir = viewerRole === "professional" ? "pro_to_customer" : "customer_to_pro";
-  const [rev, tip, pay, convo] = await withTimeout(
+  const [rev, tip, pay, convo, change] = await withTimeout(
     Promise.all([
       supabase.from("reviews").select("id").eq("booking_id", id).eq("direction", dir).maybeSingle(),
       supabase.from("tips").select("id").eq("booking_id", id).maybeSingle(),
       supabase.from("payments").select("status").eq("booking_id", id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
       supabase.from("conversations").select("id, is_unlocked").eq("booking_id", id).maybeSingle(),
+      // Separate query on purpose: these columns arrive with 0036, and an error
+      // here must degrade to "no reschedule UI", not break the whole page.
+      supabase.from("bookings").select("change_requested_starts_at, change_requested_ends_at, change_requested_by, change_note").eq("id", id).maybeSingle(),
     ]),
     DB_TIMEOUT_MS,
     "booking detail extras",
@@ -160,6 +166,23 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
   const reviewedByViewer = Boolean(rev.data);
   const tipped = Boolean(tip.data);
   const convoRow = convo.data as { id?: string; is_unlocked?: boolean } | null;
+
+  // Reschedule proposal — only meaningful while status = change_requested.
+  const ch = (change.error ? null : change.data) as {
+    change_requested_starts_at?: string | null;
+    change_requested_ends_at?: string | null;
+    change_requested_by?: string | null;
+    change_note?: string | null;
+  } | null;
+  const proposedChange =
+    String(r.status) === "change_requested" && ch?.change_requested_starts_at && ch?.change_requested_ends_at
+      ? {
+          startsAt: String(ch.change_requested_starts_at),
+          endsAt: String(ch.change_requested_ends_at),
+          note: ch.change_note ?? null,
+          requestedByViewer: ch.change_requested_by === auth.user.id,
+        }
+      : null;
 
   // Payment status: prefer the payments row; fall back to booking-status-derived.
   let paymentStatus = "unpaid";
@@ -196,6 +219,7 @@ export async function getBookingDetail(id: string): Promise<BookingDetail | null
     conversationId: convoRow?.id ?? null,
     messagingUnlocked: Boolean(convoRow?.is_unlocked),
     professionalLocation,
+    proposedChange,
   };
 }
 

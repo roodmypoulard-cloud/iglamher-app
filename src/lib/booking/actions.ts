@@ -289,6 +289,142 @@ export async function updateBookingStatusAction(
   return { ok: true, status: move.to };
 }
 
+// ---- reschedule (change_requested) ----
+
+const changeRequestSchema = z.object({
+  bookingId: z.string().uuid(),
+  startUtc: z.string().datetime(),
+  endUtc: z.string().datetime(),
+  note: z.string().trim().max(400).optional(),
+});
+
+export type ChangeResult = { ok: true } | { ok: false; error: string };
+
+/** Either party proposes a new time for a confirmed booking. Nothing moves until
+ *  the OTHER party accepts — the original slot stays reserved meanwhile. */
+export async function requestBookingChangeAction(raw: unknown): Promise<ChangeResult> {
+  const limited = await rateLimitGuard("booking");
+  if (limited) return { ok: false, error: limited };
+  const parsed = changeRequestSchema.safeParse(raw);
+  if (!parsed.success) return { ok: false, error: "Pick a valid new time." };
+  if (!isLiveSupabase()) return { ok: false, error: "Connect Supabase to manage bookings." };
+  const { bookingId, startUtc, endUtc, note } = parsed.data;
+  const start = new Date(startUtc);
+  const end = new Date(endUtc);
+  if (start.getTime() <= Date.now()) return { ok: false, error: "The new time must be in the future." };
+  if (end.getTime() <= start.getTime()) return { ok: false, error: "Pick a valid new time." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, error: "Please sign in." };
+
+  const { data: booking } = await supabase.from("bookings").select("status, customer_id, professional_id").eq("id", bookingId).maybeSingle();
+  if (!booking) return { ok: false, error: "Booking not found." };
+  const b = booking as { status: BookingStatus; customer_id: string; professional_id: string };
+  const actor: Actor | null =
+    b.customer_id === auth.user.id ? "customer" : b.professional_id === auth.user.id ? "professional" : null;
+  if (!actor) return { ok: false, error: "Not authorized for this booking." };
+  if (!canTransition(b.status, "change_requested", actor)) {
+    return { ok: false, error: `Cannot request a change on a ${b.status} booking.` };
+  }
+
+  // Service-role write with a status guard: only flips a still-confirmed booking.
+  const admin = createAdminClient();
+  const { data: flipped, error } = await admin
+    .from("bookings")
+    .update({
+      status: "change_requested",
+      change_requested_starts_at: start.toISOString(),
+      change_requested_ends_at: end.toISOString(),
+      change_requested_by: auth.user.id,
+      change_note: note ?? null,
+    })
+    .eq("id", bookingId)
+    .eq("status", b.status)
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    // 42703 = columns missing (migration 0036 not applied) — honest, not a crash.
+    if (error.code === "42703") return { ok: false, error: "Rescheduling isn't available yet. Please message the other party instead." };
+    return { ok: false, error: error.message };
+  }
+  if (!flipped) return { ok: false, error: "This booking just changed — refresh and try again." };
+
+  await supabase.from("booking_status_events").insert({ booking_id: bookingId, status: "change_requested", actor_id: auth.user.id, note: note ?? null });
+  try {
+    const otherId = actor === "customer" ? b.professional_id : b.customer_id;
+    const title = "New time proposed";
+    const body = "A new appointment time was proposed for your booking. Review it to accept or keep the original time.";
+    await admin.from("notifications").insert({ user_id: otherId, type: "booking", title, body, data: { bookingId } });
+    await emailUserBestEffort(otherId, "booking", title, body);
+  } catch { /* notifications are best-effort */ }
+  return { ok: true };
+}
+
+/** Respond to a proposed change: the other party accepts/declines; the requester
+ *  may withdraw (decline their own request). Either way the booking returns to
+ *  confirmed — with the new time only on acceptance. */
+export async function respondBookingChangeAction(bookingId: string, decision: "accept" | "decline"): Promise<ChangeResult> {
+  if (!z.string().uuid().safeParse(bookingId).success) return { ok: false, error: "Invalid booking." };
+  if (!isLiveSupabase()) return { ok: false, error: "Connect Supabase to manage bookings." };
+
+  const supabase = await createSupabaseServerClient();
+  const { data: auth } = await supabase.auth.getUser();
+  if (!auth.user) return { ok: false, error: "Please sign in." };
+
+  const { data: booking, error: loadError } = await supabase
+    .from("bookings")
+    .select("status, customer_id, professional_id, change_requested_starts_at, change_requested_ends_at, change_requested_by")
+    .eq("id", bookingId)
+    .maybeSingle();
+  if (loadError || !booking) return { ok: false, error: "Booking not found." };
+  const b = booking as {
+    status: BookingStatus; customer_id: string; professional_id: string;
+    change_requested_starts_at: string | null; change_requested_ends_at: string | null; change_requested_by: string | null;
+  };
+  const isParty = b.customer_id === auth.user.id || b.professional_id === auth.user.id;
+  if (!isParty) return { ok: false, error: "Not authorized for this booking." };
+  if (b.status !== "change_requested") return { ok: false, error: "There is no pending change request." };
+  const isRequester = b.change_requested_by === auth.user.id;
+  // The requester can only withdraw; accepting your own proposal is meaningless.
+  if (isRequester && decision === "accept") return { ok: false, error: "The other party has to accept the new time." };
+
+  const clearChange = { change_requested_starts_at: null, change_requested_ends_at: null, change_requested_by: null, change_note: null };
+  const patch: Record<string, unknown> =
+    decision === "accept" && b.change_requested_starts_at && b.change_requested_ends_at
+      ? { status: "confirmed", starts_at: b.change_requested_starts_at, ends_at: b.change_requested_ends_at, ...clearChange }
+      : { status: "confirmed", ...clearChange };
+
+  const admin = createAdminClient();
+  const { data: flipped, error } = await admin
+    .from("bookings")
+    .update(patch)
+    .eq("id", bookingId)
+    .eq("status", "change_requested")
+    .select("id")
+    .maybeSingle();
+  if (error) {
+    // 23P01 = the bookings_no_overlap exclusion constraint rejected the new time.
+    if (error.code === "23P01") return { ok: false, error: "That time overlaps another booking. Decline and propose a different time." };
+    return { ok: false, error: error.message };
+  }
+  if (!flipped) return { ok: false, error: "This booking just changed — refresh and try again." };
+
+  const accepted = decision === "accept";
+  const eventNote = accepted ? "New time accepted" : isRequester ? "Change request withdrawn" : "Change request declined — original time kept";
+  await supabase.from("booking_status_events").insert({ booking_id: bookingId, status: "confirmed", actor_id: auth.user.id, note: eventNote });
+  try {
+    const otherId = b.customer_id === auth.user.id ? b.professional_id : b.customer_id;
+    const title = accepted ? "New time confirmed" : "Original time kept";
+    const body = accepted
+      ? "The proposed new time was accepted — your booking has been updated."
+      : "The change request was closed. Your booking keeps its original time.";
+    await admin.from("notifications").insert({ user_id: otherId, type: "booking", title, body, data: { bookingId } });
+    await emailUserBestEffort(otherId, "booking", title, body);
+  } catch { /* notifications are best-effort */ }
+  return { ok: true };
+}
+
 /**
  * Refund the customer's deposit on cancellation, honoring the cancellation policy.
  * The deposit was charged on the booking's primary PaymentIntent. Idempotent via a

@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { Shell } from "@/components/marketplace/Shell";
 import { BackButton } from "@/components/ui/BackButton";
 import { BookingLifecycleActions } from "@/components/booking/BookingLifecycleActions";
+import { RescheduleActions } from "@/components/booking/RescheduleActions";
 import { ReviewForm } from "@/components/booking/ReviewForm";
 import { TipForm } from "@/components/booking/TipForm";
 import { ChevronRight } from "@/components/ui/icons";
@@ -103,6 +104,14 @@ export default async function BookingDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <BookingLifecycleActions bookingId={b.id} status={b.status} viewerRole={b.viewerRole} />
+      <RescheduleActions
+        bookingId={b.id}
+        status={b.status}
+        viewerRole={b.viewerRole}
+        startsAt={b.startsAt}
+        endsAt={b.endsAt}
+        proposedChange={b.proposedChange}
+      />
 
       {b.status === "completed" && (
         <section className="mt-6 space-y-4">
