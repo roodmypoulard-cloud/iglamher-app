@@ -29,7 +29,7 @@ is stateless, so it scales horizontally behind either.
 | Supabase → Auth → **Site URL** | `https://<domain>` |
 | Supabase → Auth → **Redirect URLs** | `https://<domain>/**` |
 | Google Cloud → OAuth client → **Redirect URI** | `https://<supabase-ref>.supabase.co/auth/v1/callback` |
-| Stripe → Webhooks → **Endpoint** | `https://<domain>/api/stripe/webhook` (events: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded`) → copy the signing secret to `STRIPE_WEBHOOK_SECRET` |
+| Stripe → Webhooks → **Endpoint** | `https://<domain>/api/stripe/webhook` → copy the signing secret to `STRIPE_WEBHOOK_SECRET`. Subscribe to ALL events the handler processes: `payment_intent.succeeded`, `payment_intent.payment_failed`, `payment_intent.canceled`, `charge.refunded` (deposit + balance money path), `account.updated` (Connect payout-eligibility sync), `charge.dispute.created`, `charge.dispute.updated`, `charge.dispute.closed`, `charge.dispute.funds_withdrawn`, `charge.dispute.funds_reinstated` (chargebacks → admin queue), `customer.subscription.created`, `customer.subscription.updated`, `customer.subscription.deleted`, `invoice.paid`, `invoice.payment_failed` (Featured Recommendations subscription) |
 | Stripe → Connect → **onboarding return/refresh** | handled in-app: `/pro/payouts?done=1` and `?refresh=1` |
 
 CORS: the app is same-origin (API routes under the app domain); no extra CORS config needed.

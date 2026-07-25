@@ -198,3 +198,27 @@ Each: interface + env-gated wrapper + working local fallback + documented integr
   zero schema change. Column guard extended: placement is platform-only (a pro
   can never PATCH themselves into the paid shelf).
 - EasyBookingSheet.tsx deleted (booking explainer lives at /how-it-works).
+
+## Everything-to-10 hardening pass (2026-07-25)
+- **Referral rewards deferred to first paid booking.** Welcome credit used to be
+  granted the moment a code was applied — free money for throwaway sign-ups.
+  Now nothing is granted at apply; ALL rewards (referred welcome credit,
+  referrer credit + points) grant once in `src/lib/referral/qualify.ts` on the
+  referred user's first paid booking (status-guarded `pending→rewarded` flip in
+  the payment webhook). This also implemented the referrer payout, which was
+  documented but never wired. Dead `sameDevice`/`sameIp` fraud inputs removed
+  rather than pretending device fingerprinting exists.
+- **Reschedule shipped on existing rails (0036).** `change_requested` existed in
+  the status machine since 0001 with no action/UI. Decision: propose/accept/
+  decline on the shared booking detail page, original slot stays reserved until
+  acceptance, `bookings_no_overlap` guards the new time. No calendar-sync or
+  multi-slot negotiation — that's future work if demand shows.
+- **Public visibility = active AND admin-approved** at every layer (service
+  layer previously only checked `isActive`, so single-profile fetches could
+  surface unapproved pros the list query filtered). Stripe-Connect readiness
+  deliberately does NOT gate visibility: deposits are platform charges, so an
+  un-onboarded pro can safely take bookings — their payout waits in the
+  earnings ledger until Connect onboarding completes.
+- **Rate limiting**: Upstash Redis (distributed) when configured, else
+  per-instance memory — documented degradation, never silent. New limits on
+  booking create / messages / loyalty / referral / report+block.
