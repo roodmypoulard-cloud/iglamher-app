@@ -2,9 +2,15 @@
 // via RLS (0003/0004). A professional is only publicly discoverable when active.
 import type { Professional, ServiceRow, PortfolioRow } from "@/lib/data/model";
 
-/** Inactive / suspended / onboarding-incomplete pros are never public. */
-export function isPubliclyVisible(pro: Pick<Professional, "isActive">): boolean {
-  return pro.isActive === true;
+/**
+ * Inactive / suspended / onboarding-incomplete pros are never public, and
+ * neither is a profile no admin has approved (isVerified — the listing gate,
+ * which curated demo profiles also satisfy). Mirrors the live query filter
+ * `is_active AND (is_verified OR is_demo)` so the service layer, single-profile
+ * fetches, and seed data all enforce the same rule.
+ */
+export function isPubliclyVisible(pro: Pick<Professional, "isActive" | "isVerified">): boolean {
+  return pro.isActive === true && pro.isVerified === true;
 }
 
 /** Services shown publicly: active, not archived (soft-deleted). */

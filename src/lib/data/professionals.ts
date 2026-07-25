@@ -36,6 +36,7 @@ interface ProRow {
   hide_exact_pin?: boolean | null;      // 0032
   is_active: boolean;
   is_verified: boolean;
+  is_demo?: boolean | null;
   identity_verified?: boolean | null;       // 0033 — labeled badges, admin-set
   license_verified?: boolean | null;        // 0033
   insurance_verified?: boolean | null;      // 0033
@@ -107,7 +108,10 @@ function mapPro(row: ProRow): Professional {
     // Missing column (pre-0032) ⇒ hidden: fail closed, never leak by default.
     hideExactPin: row.hide_exact_pin ?? true,
     isActive: row.is_active,
-    isVerified: row.is_verified,
+    // The listing gate: admin approval, which curated demo profiles satisfy by
+    // construction (same semantics as the seed data, where demo pros are
+    // verified). Per-credential claims are the labeled C4 flags below, never this.
+    isVerified: row.is_verified || Boolean(row.is_demo),
     // Pre-0033 these columns don't exist ⇒ false ⇒ no badge is claimed. Failing
     // closed here is the point: an unmigrated deploy under-claims, never over-claims.
     identityVerified: Boolean(row.identity_verified),
