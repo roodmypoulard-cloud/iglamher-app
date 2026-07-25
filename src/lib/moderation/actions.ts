@@ -4,6 +4,7 @@
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isLiveSupabase } from "@/lib/data/source";
+import { rateLimitGuard } from "@/lib/security/guard";
 
 export type ModResult = { ok: true } | { ok: false; error: string };
 
@@ -15,6 +16,8 @@ const reportSchema = z.object({
 });
 
 export async function reportContentAction(raw: unknown): Promise<ModResult> {
+  const limited = await rateLimitGuard("report");
+  if (limited) return { ok: false, error: limited };
   const parsed = reportSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Invalid report." };
   if (!isLiveSupabase()) return { ok: false, error: "Connect Supabase to submit reports." };
@@ -33,6 +36,8 @@ export async function reportContentAction(raw: unknown): Promise<ModResult> {
 }
 
 export async function blockUserAction(blockedId: string): Promise<ModResult> {
+  const limited = await rateLimitGuard("report");
+  if (limited) return { ok: false, error: limited };
   if (!z.string().uuid().safeParse(blockedId).success) return { ok: false, error: "Invalid user." };
   if (!isLiveSupabase()) return { ok: false, error: "Connect Supabase to block users." };
   const supabase = await createSupabaseServerClient();

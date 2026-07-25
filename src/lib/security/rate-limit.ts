@@ -76,6 +76,9 @@ export const LIMITS = {
   booking: { limit: 10, windowMs: 60_000 },
   phoneSend: { limit: 5, windowMs: 15 * 60_000 }, // 5 SMS sends / 15 min (per phone, per account, per IP)
   phoneCheck: { limit: 10, windowMs: 15 * 60_000 }, // 10 code checks / 15 min (brute-force guard)
+  loyalty: { limit: 10, windowMs: 60_000 }, // redemptions are RPC-atomic; this just stops hammering
+  referral: { limit: 10, windowMs: 15 * 60_000 }, // code-guessing guard on top of DB velocity caps
+  report: { limit: 15, windowMs: 60 * 60_000 }, // reports/blocks — enough for real use, stops flooding
 } as const;
 
 const registry = new Map<string, RateLimiter>();

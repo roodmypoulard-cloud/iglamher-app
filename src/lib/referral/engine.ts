@@ -44,8 +44,6 @@ export function generateReferralCode(seed: string, prefix = "GLAM"): string {
 export interface FraudCheckInput {
   referrerId: string;
   referredId: string;
-  sameDevice?: boolean;
-  sameIp?: boolean;
   referredAccountAgeHours?: number;
   referrerReferralsLast24h?: number;
   /** How many referral applications came from this IP in the last 24h. */
@@ -62,14 +60,16 @@ export const IP_REFERRAL_LIMIT_24H = 5;
 /** Per-referrer referral cap in a rolling 24h window. */
 export const REFERRER_VELOCITY_LIMIT_24H = 20;
 
-/** Reject self-referrals and obvious abuse; the reward only pays out when ok. */
+/**
+ * Reject self-referrals and obvious abuse at apply time. The real Sybil defence
+ * is that NOTHING is granted on apply — all rewards are deferred to the referred
+ * user's first PAID booking (see qualify.ts). Device fingerprinting was
+ * deliberately removed: no collection exists, so a sameDevice signal would have
+ * been a fake check that never fired.
+ */
 export function checkReferralFraud(input: FraudCheckInput): FraudResult {
   const reasons: string[] = [];
   if (input.referrerId === input.referredId) reasons.push("Self-referral");
-  if (input.sameDevice) reasons.push("Same device as referrer");
-  if (input.sameIp && input.referredAccountAgeHours != null && input.referredAccountAgeHours < 1) {
-    reasons.push("Same IP + brand-new account");
-  }
   if ((input.referrerReferralsLast24h ?? 0) >= REFERRER_VELOCITY_LIMIT_24H) {
     reasons.push("Referral velocity too high");
   }
@@ -77,11 +77,6 @@ export function checkReferralFraud(input: FraudCheckInput): FraudResult {
     reasons.push("Too many sign-ups from this network");
   }
   return { ok: reasons.length === 0, reasons };
-}
-
-/** A referral qualifies when the referred user completes their first paid booking. */
-export function qualifies(referredCompletedBookings: number): boolean {
-  return referredCompletedBookings >= 1;
 }
 
 export function rewardFor(kind: ReferralKind): ReferralRewardConfig {

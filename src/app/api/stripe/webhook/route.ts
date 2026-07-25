@@ -7,6 +7,7 @@ import { reverseBookingPayout, payoutAmountCents } from "@/lib/payments/payouts"
 import { ensureBookingConversationUnlocked } from "@/lib/messaging/unlock";
 import { emailUserBestEffort } from "@/lib/integrations/notifications";
 import { syncRecommendationSubscription, recordRecommendationInvoice } from "@/lib/payments/recommendation-subscription";
+import { qualifyReferralOnFirstPaidBooking } from "@/lib/referral/qualify";
 
 // ============================================================
 // Stripe webhook — the SOURCE OF TRUTH for payment state (not the browser).
@@ -116,6 +117,16 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
       // (row is non-null only when this delivery flipped the status).
       if (row) {
         await admin.from("booking_status_events").insert({ booking_id: bookingId, status: "confirmed", note: "Payment succeeded (webhook)" });
+        // Referral qualification: a first PAID booking unlocks pending referral
+        // rewards for either party (customer referred, or pro receiving their
+        // first paid booking). Idempotent via status-guarded update; best-effort
+        // so a grant hiccup never fails the webhook.
+        try {
+          if (row.customer_id) await qualifyReferralOnFirstPaidBooking(admin, row.customer_id, bookingId);
+          if (row.professional_id) await qualifyReferralOnFirstPaidBooking(admin, row.professional_id, bookingId);
+        } catch (e) {
+          captureError(e, { where: "referral.qualify", bookingId });
+        }
       }
       // Booking-confirmed notifications (best-effort; only fires on the pending→confirmed transition).
       if (row?.professional_id && row?.customer_id) {

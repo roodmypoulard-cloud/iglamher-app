@@ -8,6 +8,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { scanForContactInfo, guardMessage } from "./contact-guard";
 import { emailUserBestEffort } from "@/lib/integrations/notifications";
+import { rateLimitGuard } from "@/lib/security/guard";
 
 const schema = z.object({
   conversationId: z.string().uuid(),
@@ -17,6 +18,8 @@ const schema = z.object({
 export type SendResult = { ok: true } | { ok: false; error: string; blocked?: boolean };
 
 export async function sendMessageAction(raw: unknown): Promise<SendResult> {
+  const limited = await rateLimitGuard("message");
+  if (limited) return { ok: false, error: limited };
   const parsed = schema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Message can't be empty." };
   const { conversationId, body } = parsed.data;

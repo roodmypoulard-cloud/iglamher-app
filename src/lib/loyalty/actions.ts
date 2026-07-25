@@ -8,12 +8,15 @@ import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { pointsForRedemption } from "./engine";
+import { rateLimitGuard } from "@/lib/security/guard";
 
 export type LoyaltyResult = { ok: true; message: string } | { ok: false; error: string };
 
 const redeemSchema = z.object({ discountCents: z.coerce.number().int().min(500).max(50000) });
 
 export async function redeemPointsAction(raw: unknown): Promise<LoyaltyResult> {
+  const limited = await rateLimitGuard("loyalty");
+  if (limited) return { ok: false, error: limited };
   const parsed = redeemSchema.safeParse(raw);
   if (!parsed.success) return { ok: false, error: "Enter a valid amount ($5 minimum)." };
   if (!isLiveSupabase()) return { ok: false, error: "Connect the backend to redeem." };

@@ -1,12 +1,14 @@
 "use server";
-// Referral mutations. Applying a code records a referral (fraud-checked); it
-// qualifies + pays out when the referred user completes their first booking.
+// Referral mutations. Applying a code only RECORDS a pending referral (fraud-
+// checked). All rewards — welcome credit included — are granted in qualify.ts
+// when the referred user's first booking is actually paid (Sybil defence).
 import { headers } from "next/headers";
 import { z } from "zod";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isLiveSupabase } from "@/lib/data/source";
 import { checkReferralFraud, rewardFor } from "./engine";
+import { rateLimitGuard } from "@/lib/security/guard";
 
 export type ReferralActionResult = { ok: true; message: string } | { ok: false; error: string };
 
@@ -14,6 +16,8 @@ const codeSchema = z.string().trim().min(4).max(20);
 
 /** A new/eligible user applies a referral code. */
 export async function applyReferralCodeAction(rawCode: string): Promise<ReferralActionResult> {
+  const limited = await rateLimitGuard("referral");
+  if (limited) return { ok: false, error: limited };
   const parsed = codeSchema.safeParse(rawCode);
   if (!parsed.success) return { ok: false, error: "Invalid code." };
   if (!isLiveSupabase()) return { ok: false, error: "Connect the backend to use referral codes." };
@@ -81,10 +85,15 @@ export async function applyReferralCodeAction(rawCode: string): Promise<Referral
   });
   if (error) return { ok: false, error: error.message };
 
-  // Welcome credit to the referred user (referrer pays out on qualification).
+  // No credit here — welcome + referrer rewards are granted by qualify.ts when
+  // the first booking is paid. Granting on apply was a Sybil hole (free money
+  // for fake sign-ups with no real activity).
   const reward = rewardFor(referrer.kind === "professional" ? "professional" : "customer");
-  if (reward.referredCreditCents > 0) {
-    await admin.from("account_credits").insert({ user_id: auth.user.id, amount_cents: reward.referredCreditCents, reason: "referral_welcome" });
-  }
-  return { ok: true, message: reward.referredCreditCents > 0 ? `Code applied — $${(reward.referredCreditCents / 100).toFixed(0)} welcome credit added!` : "Referral code applied." };
+  return {
+    ok: true,
+    message:
+      reward.referredCreditCents > 0
+        ? `Code applied — your $${(reward.referredCreditCents / 100).toFixed(0)} welcome credit unlocks when your first booking is paid.`
+        : "Referral code applied.",
+  };
 }

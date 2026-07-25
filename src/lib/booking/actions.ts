@@ -15,6 +15,7 @@ import { getStripe, isStripeConfigured } from "@/lib/payments/stripe";
 import { awardBookingPoints } from "@/lib/loyalty/award";
 import { isBookingsPaused } from "@/lib/ops/settings";
 import { emailUserBestEffort } from "@/lib/integrations/notifications";
+import { rateLimitGuard } from "@/lib/security/guard";
 
 const draftSchema = z.object({
   professionalId: z.string().uuid(),
@@ -31,6 +32,8 @@ export type DraftResult =
   | { ok: false; error: string };
 
 export async function createBookingDraftAction(raw: unknown): Promise<DraftResult> {
+  const limited = await rateLimitGuard("booking");
+  if (limited) return { ok: false, error: limited };
   // Operational kill-switch: admin can pause new bookings without downtime.
   if (await isBookingsPaused()) {
     return { ok: false, error: "New bookings are temporarily paused. Please try again shortly." };

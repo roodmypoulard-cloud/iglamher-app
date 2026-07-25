@@ -4,7 +4,7 @@ import {
   maxRedeemableCents, pointsForRedemption, canRedeem,
 } from "@/lib/loyalty/engine";
 import {
-  generateReferralCode, checkReferralFraud, qualifies, rewardFor,
+  generateReferralCode, checkReferralFraud, rewardFor,
 } from "@/lib/referral/engine";
 import {
   platformMetrics, activeUsers, bookingFunnel, lifetimeValue, retentionRate,
@@ -60,7 +60,6 @@ describe("referral engine", () => {
   });
   it("rejects self-referral and abuse", () => {
     expect(checkReferralFraud({ referrerId: "u1", referredId: "u1" }).ok).toBe(false);
-    expect(checkReferralFraud({ referrerId: "u1", referredId: "u2", sameDevice: true }).ok).toBe(false);
     expect(checkReferralFraud({ referrerId: "u1", referredId: "u2" }).ok).toBe(true);
   });
   it("enforces IP and referrer velocity caps (Phase 10 hardening)", () => {
@@ -69,15 +68,11 @@ describe("referral engine", () => {
     expect(checkReferralFraud({ referrerId: "u1", referredId: "u2", ipReferralsLast24h: 4 }).ok).toBe(true);
     // 20+ referrals from one referrer in 24h → blocked
     expect(checkReferralFraud({ referrerId: "u1", referredId: "u2", referrerReferralsLast24h: 20 }).ok).toBe(false);
-    // same IP + brand-new account is still caught
-    expect(
-      checkReferralFraud({ referrerId: "u1", referredId: "u2", sameIp: true, referredAccountAgeHours: 0.5 }).ok,
-    ).toBe(false);
   });
-  it("qualifies on first completed booking and pays the configured reward", () => {
-    expect(qualifies(0)).toBe(false);
-    expect(qualifies(1)).toBe(true);
+  it("pays the configured rewards per referral kind (granted only at first paid booking)", () => {
     expect(rewardFor("professional").referrerCreditCents).toBe(5000);
+    expect(rewardFor("professional").referredCreditCents).toBe(0);
+    expect(rewardFor("customer")).toEqual({ referrerCreditCents: 1500, referredCreditCents: 1500, referrerPoints: 250 });
   });
 });
 
