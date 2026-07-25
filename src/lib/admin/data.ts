@@ -154,6 +154,26 @@ export async function getOpenReports(): Promise<QueueItem[]> {
   }));
 }
 
+/** Open Stripe card disputes (chargebacks) recorded by the webhook. */
+export async function getOpenCardDisputes(): Promise<QueueItem[]> {
+  if (!isLiveSupabase()) return [];
+  const supabase = await createSupabaseServerClient();
+  const { data, error } = await supabase
+    .from("stripe_disputes")
+    .select("id, reason, status, amount_cents, evidence_due_by, created_at")
+    .in("status", ["needs_response", "warning_needs_response", "under_review", "warning_under_review"])
+    .order("created_at")
+    .limit(200);
+  // Table lands with migration 0035 — an empty queue (not a crash) until then.
+  if (error) return [];
+  return ((data as unknown as Array<{ id: string; reason: string | null; status: string; amount_cents: number; evidence_due_by: string | null; created_at: string }>) ?? []).map((r) => ({
+    id: r.id,
+    label: `$${(r.amount_cents / 100).toFixed(2)} · ${r.reason ?? "chargeback"}`,
+    sub: r.evidence_due_by ? `${r.status} · evidence due ${new Date(r.evidence_due_by).toLocaleDateString()}` : r.status,
+    createdAt: r.created_at,
+  }));
+}
+
 export async function getOpenDisputes(): Promise<QueueItem[]> {
   if (!isLiveSupabase()) return [];
   const supabase = await createSupabaseServerClient();

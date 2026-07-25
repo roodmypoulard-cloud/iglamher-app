@@ -199,6 +199,84 @@ async function handleEvent(admin: Admin, event: { type: string; data: { object: 
       return;
     }
 
+    // ---- Connect account lifecycle ----
+    // Mirror Stripe's own flags whenever the account changes, so payout
+    // eligibility stays correct even if the pro never revisits /pro/earnings
+    // (which is the only place the pull-based syncConnectStatus runs).
+    case "account.updated": {
+      const acct = event.data.object as import("stripe").Stripe.Account;
+      if (!acct.id) return;
+      const payoutsEnabled = Boolean(acct.payouts_enabled);
+      const { data } = await admin
+        .from("professional_profiles")
+        .update({
+          connect_details_submitted: Boolean(acct.details_submitted),
+          connect_charges_enabled: Boolean(acct.charges_enabled),
+          connect_payouts_enabled: payoutsEnabled,
+          connect_onboarded_at: payoutsEnabled ? new Date().toISOString() : null,
+        })
+        .eq("stripe_account_id", acct.id)
+        .select("user_id")
+        .maybeSingle();
+      // No matching profile = an account from the other test/live mode or an
+      // orphan — nothing to sync, and not an error worth a Stripe retry.
+      log.info("webhook.account_updated", { account: acct.id, payoutsEnabled, matched: Boolean(data) });
+      return;
+    }
+
+    // ---- Card disputes (chargebacks) ----
+    // Record every dispute lifecycle event so the admin queue reflects reality;
+    // the money already moved (Stripe withdraws on creation), so this is about
+    // visibility + evidence deadlines, not blocking the webhook.
+    case "charge.dispute.created":
+    case "charge.dispute.updated":
+    case "charge.dispute.closed":
+    case "charge.dispute.funds_withdrawn":
+    case "charge.dispute.funds_reinstated": {
+      const d = event.data.object as import("stripe").Stripe.Dispute;
+      const piId = typeof d.payment_intent === "string" ? d.payment_intent : d.payment_intent?.id ?? null;
+      let bookingId: string | null = null;
+      if (piId) {
+        const { data: payment } = await admin.from("payments").select("booking_id").eq("stripe_payment_intent_id", piId).maybeSingle();
+        bookingId = (payment as { booking_id?: string } | null)?.booking_id ?? null;
+      }
+      const { error } = await admin.from("stripe_disputes").upsert(
+        {
+          id: d.id,
+          stripe_charge_id: typeof d.charge === "string" ? d.charge : d.charge?.id ?? null,
+          stripe_payment_intent_id: piId,
+          booking_id: bookingId,
+          amount_cents: d.amount ?? 0,
+          currency: d.currency ?? "usd",
+          reason: d.reason ?? null,
+          status: d.status ?? "needs_response",
+          evidence_due_by: d.evidence_details?.due_by ? new Date(d.evidence_details.due_by * 1000).toISOString() : null,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "id" },
+      );
+      if (error) {
+        // 42P01 = table missing (migration 0035 not applied yet). Ack rather
+        // than retry-loop; the record lands on the next lifecycle event.
+        if (error.code === "42P01") {
+          captureError(error, { where: "stripe_disputes.upsert", note: "apply migration 0035" });
+          return;
+        }
+        throw error;
+      }
+      // Mark the underlying payment disputed while the dispute is open so the
+      // money path never reads as clean "succeeded" during a chargeback.
+      if (piId) {
+        if (event.type === "charge.dispute.created") {
+          await admin.from("payments").update({ status: "disputed" }).eq("stripe_payment_intent_id", piId);
+        } else if (event.type === "charge.dispute.closed" && d.status === "won") {
+          await admin.from("payments").update({ status: "succeeded" }).eq("stripe_payment_intent_id", piId);
+        }
+      }
+      log.info("webhook.dispute", { dispute: d.id, status: d.status, bookingId });
+      return;
+    }
+
     // ---- $2.99/mo Featured Recommendations subscription lifecycle ----
     // checkout.session.completed for subscriptions carries no line items here;
     // the subscription.* events that follow are the source of truth.
