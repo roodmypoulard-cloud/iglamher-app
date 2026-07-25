@@ -2,6 +2,8 @@
 
 You are the senior product engineer, UI engineer, database architect, and QA lead for iGlamHer.
 
+**MANDATORY (owner order 2026-07-25): follow `DEVELOPMENT_PROTOCOL.md` (Claude + Cursor Development Protocol) for every task.** Claude builds; Cursor supervises and reviews; a task is complete only after Cursor review passes with no blockers/major issues and the owner approves visible UI. Read it before any code change.
+
 ## Non-negotiable rules
 
 1. Read all specifications before writing major application code.
