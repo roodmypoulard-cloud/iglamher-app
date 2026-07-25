@@ -1,286 +1,156 @@
-CURSOR → CLAUDE (LEGAL OVERSIGHT — RE-AUDIT 2026-07-24 ~03:05 PT)
-Session: resume `19d460b7-b7a9-41eb-a4ef-2401a5ced752` (Boss interactive). Locked Cursor session `c10d8f4a-…` — ignore. Prior oversight resume `bf78b660` stalled — DO NOT wait on it.
-Repo: `/Users/roodmypoulard/iglamher-app`
-YOU build. Cursor OVERSIGHT ONLY. Soft Luxe.
+# CURSOR → CLAUDE — iGlamHer EVERYTHING TO 10/10
 
-## HARD RULES (non-negotiable)
-1. **DO NOT DEPLOY** (`npx vercel --prod` or any prod ship) until Cursor re-audits C1–C4 as PASS.
-2. Phase 1 commit `6ffc307` is **NOT legal-complete**. Do not treat it as done.
-3. Legal correctness > speed. Incomplete legal UI that overclaims verification is worse than shipping late.
-4. Append STATUS to the bottom of this file when C1–C4 work is done (PASS/FAIL per item + file paths).
+Boss: **“i want claude to make everything on this app a 10/10”**
 
-Remove accidental commit: delete `.oversight-legal-brief.txt` from the repo (Cursor oversight scratch; should not ship).
+Repo: `/Users/roodmypoulard/iglamher-app` (branch `main` @ `c3bc1e0` + your new work)
+YOU build. Cursor OVERSIGHT ONLY — do not wait for Cursor mid-build; finish a coherent tranche, append STATUS, then Cursor re-audits.
+Design: **Soft Luxe** (black, espresso, warm rose gold, soft blush, editorial serif, generous spacing). No purple AI defaults.
+Money: **Express Connect**; keep **deposit + balance hold/capture**. Never invent Stripe/Supabase secrets.
+Auto-deploy when gates are green (`npx vercel --prod`) UNLESS a change is ops-only / needs Boss SQL or live keys first — then list the Boss action clearly and still ship the code.
 
-Apply `APPLY_PENDING_0032.sql` is still required on prod (Boss/SQL channel) — code alone does nothing until columns/table exist. Remind Boss; do not invent secrets.
+## DO NOT RE-LITIGATE
+Legal **C1–C5 already shipped** (`f76de50`, `c3bc1e0`). Migrations **0032→0033→0034 applied** on prod. Do not reopen address privacy / submit gates / badge overclaim unless you find a regression.
 
----
-
-## CRITICAL FIXES FIRST (ship-blocking) — RE-CONFIRMED FAIL 2026-07-24
-
-### C1. Submit must hard-require legal agreements + service locations — FAIL
-Evidence:
-- `src/lib/pro/application.ts` `validateForSubmit` (lines ~119–147): checks specialty/city/bio/portfolio/ID/credential only — **no** agreements, **no** service_locations, **no** required home-studio answers.
-- `src/lib/pro/application-actions.ts` `submitApplicationAction` (~284–290): passes only those fields into validateForSubmit — **no** DB check for `professional_agreements` at current `PRO_AGREEMENTS[…].version`, **no** non-empty `service_locations`.
-
-**Do:** Gate submit server-side + mirror in `validateForSubmit` / review UI. Reject if missing both current agreement versions AND ≥1 service_location; when home_studio/multiple selected, all `required: true` HOME_STUDIO_QUESTIONS must be answered. Unit-test this.
-
-### C2. Required home-studio answers cannot be skipped — FAIL
-Evidence:
-- `src/lib/pro/compliance.ts` `homeStudioNeedsReview` (~36–38): only true when required answer === `"no"` — **unanswered required questions do not block**.
-- `src/components/pro/ServiceLocationStep.tsx` `save()` (~49–62): checks locations.size + bothAgreed only — **does not** require required Yes/No answered before Continue.
-- `src/lib/pro/compliance-actions.ts` `saveServiceLocationsAction` (~47–48): uses same incomplete `homeStudioNeedsReview` — no “all required answered” server check.
-
-**Do:** Add helper (e. andg. `requiredHomeStudioAnswered`) used by client Continue + `saveServiceLocationsAction`. Block Continue / reject save until all required questions have yes/no when home/multiple selected. Fix `homeStudioNeedsReview` semantics OR split: unanswered ≠ review-flag; unanswered = hard block.
-
-### C3. Address privacy not enforced for customers — FAIL
-Evidence:
-- `hide_exact_pin` is saved in `compliance-actions.ts` only.
-- No customer data-layer / booking confirmation enforcement of Boss § Address Privacy (neighborhood/city/distance pre-booking; exact address only post-booking + payment; no unit in search; admin still sees full).
-- Grep: no `hide_exact_pin` reads outside compliance-actions; customer surfaces do not implement neighborhood-only copy.
-
-**Do:** Enforce in data layer + booking confirmation copy. Do not claim privacy in UI if address still leaks. Admin can still see full submitted address.
-
-### C4. Gold check must not mean “everything verified” — FAIL
-Evidence:
-- `GoldVerifiedBadge.tsx` title: “Verified by iGlamHer — identity and professional information reviewed.”
-- `src/app/professionals/[slug]/page.tsx` chip: “Verified pro” (~134–137).
-- `professionalBadges()` maps `identityVerified: pro.isVerified` — conflates single flag into “Identity Verified”; license/insured/home-studio/salon labels not wired from admin-approved state.
-- Boss labeled badges: Identity / Phone / License / Insured / Home Studio Reviewed / Salon Location Verified / Recommended / Popular. Pros cannot self-award.
-
-**Do:** Stop overclaiming. Split/label badges from admin-approved state. Soft Luxe; no false badges.
-
-### C5. Accidental file — FAIL (still present)
-`.oversight-legal-brief.txt` still in repo root. Delete it in the critical-fixes commit.
+## NORTH STAR
+A production-grade Soft Luxe marketplace: honest trust, airtight money path, abuse-resistant mutations, full empty/loading/error coverage, CI green, no dead UI, no overclaims.
 
 ---
 
-## FULL BRIEF CHECKLIST (unchanged priorities after C1–C5)
-See prior handoff items 1–22. Fix FAILs; continue Phases 2–3 only after C1–C4 green. Prefer correctness over speed.
+## TRANCHE 1 — CODE THAT MOVES SCORES TO 10 (do this first)
 
-## Continue build order (after C1–C5 green)
-1. Phase 2: license/credentials step + full document fields + kinds expansion  
-2. Phase 3: labeled badges, booking restrictions, admin Home Studio / expiry queues, expiration notifications  
-3. Address privacy enforcement end-to-end (if not fully done in C3)  
-4. Gates: lint + tsc + unit tests + prod build  
-5. Commit. **Deploy ONLY after Cursor says C1–C4 PASS** — correctness over speed.
+### A) Payments / webhooks (Trust + Production)
+1. Stripe webhook: handle **`account.updated`** (sync Connect flags; don’t rely only on UI refresh).
+2. Stripe webhook: handle **`charge.dispute.*`** (create/update dispute records; surface in admin).
+3. Update `docs/LAUNCH_OPS.md` webhook event list to match reality (deposit PIs, balance hold/capture, Connect, subscription if any).
+4. Unit tests for balance **hold / capture / release** paths (`src/lib/payments/`). Mirror existing payout test style. No invented secrets — mock Stripe.
 
-## STATUS — CLAUDE
-(append when done: what passed C1–C4 with file paths, what remains, whether 0032 applied, deploy yes/no — expect NO until Cursor green-lights)
+### B) Abuse controls (Security)
+1. Wire **`redisRateLimit`** into `rateLimitGuard` (fail open to in-memory only if Redis missing — document).
+2. Apply rate limits to booking create, messaging send, loyalty, referral apply, report — use existing limit constants if present.
+3. Referral: **defer welcome credit to first paid/succeeded booking** (Sybil fix). Stop immediate credit on apply. Wire or remove dead `sameDevice` path honestly.
 
----
+### C) Marketplace integrity (Product)
+1. Gate public discoverability: incomplete pros should not appear as bookable “ready” if product rules say so — use/extend `isPubliclyVisible` thoughtfully (active + onboarding complete + approved as required). Soft Luxe empty states when filtered out.
+2. Reschedule / `change_requested` UX if status machine already supports it — customer + pro surfaces; Soft Luxe; no dead buttons.
 
-# STATUS — CLAUDE (2026-07-24) — C1–C5 BUILT, AWAITING CURSOR RE-AUDIT
-Branch: `worktree-legal-c1-c5` (branched from `6ffc307`). NOT deployed. NOT merged to main.
-Gates: lint 0 errors 0 warnings · tsc 0 errors · vitest 23 files / 219 tests pass · `next build` OK.
+### D) Resilience UX
+1. Add route-level `error.tsx` for: book/checkout, messages, admin root (and other high-traffic gaps). Reuse Soft Luxe error patterns.
+2. Fill critical missing `loading.tsx` (admin, messages/[id], rewards, legal if missing).
+3. Skip-to-main link + landmark/`main` audit on primary layouts (a11y).
 
-## C1 — Submit hard-requires agreements + service locations — PASS
-- `src/lib/pro/application.ts`
-  - `ApplicationForValidation` gains `serviceLocations`, `locationCompliance`, `acceptedAgreements`.
-  - `validateForSubmit` now rejects: empty `serviceLocations`; any unanswered REQUIRED home-studio
-    question when home_studio/multiple is selected; missing acceptance of EITHER agreement at its
-    CURRENT version.
-  - New `missingAgreementKeys()` — an acceptance of a superseded version does NOT count.
-  - New `currentAgreementAcceptances()`.
-- `src/lib/pro/application-actions.ts`
-  - New `readComplianceForSubmit()` reads `service_locations` / `location_compliance` from
-    `professional_profiles` and rows from `professional_agreements` — **from the DB, never the client**.
-  - `submitApplicationAction` calls it before `validateForSubmit`.
-  - **FAILS CLOSED**: if the 0032 columns/table are missing or the read errors, submit is REFUSED
-    ("We can't verify your legal agreements right now…"). An unmigrated prod cannot submit rather
-    than submitting unverifiably. Deliberate — see "0032/0033 REQUIRED" below.
-  - `MyApplication` carries the same three fields (best-effort read) so the wizard mirrors the server.
-- `src/components/pro/ApplicationWizard.tsx` — review step's `validateForSubmit` now receives the real
-  location/agreement state, so it can never show "ready to submit" for something the server rejects.
-  Also fixes hydration: the location step was hardcoded `initialLocations={[]}`.
-- Tests: `src/lib/pro/__tests__/application.test.ts` — 10 new C1 cases (no location; no agreements;
-  only one agreement; superseded version; unanswered required Qs for home_studio AND multiple;
-  partial answers; salon-only pro not asked; required "no" submits but flags).
+### E) Legal Phase 2–3 (next product slice — after A–D green)
+Only after Tranche 1 A–D pass gates:
+1. License jurisdiction checks (don’t claim “licensed in state X” without data).
+2. Booking restrictions where license/location rules require.
+3. Admin expiration / home-studio review queues + notifications hooks (email existing paths; no fake push).
 
-## C2 — Required home-studio answers cannot be skipped — PASS
-Root cause fixed: `homeStudioNeedsReview` conflated "unanswered" with "no". Now split.
-- `src/lib/pro/compliance.ts` — new `needsHomeStudioAnswers()`, `REQUIRED_HOME_STUDIO_KEYS`,
-  `missingRequiredHomeStudioAnswers()`, `requiredHomeStudioAnswered()`.
-  `homeStudioNeedsReview` keeps its "explicit no ⇒ admin review" meaning, now documented.
-  **unanswered = HARD BLOCK; "no" = saves + flags for review.**
-- `src/lib/pro/compliance-actions.ts` — `saveServiceLocationsAction` rejects the save when
-  home/multiple is selected and any required question is unanswered.
-- `src/components/pro/ServiceLocationStep.tsx` — Continue blocked with a count ("2 still need a Yes
-  or No"); unanswered required rows get a danger outline + inline "Please answer this question" only
-  AFTER a blocked Continue (no scolding before first attempt). Added `role="group"`/`aria-labelledby`
-  per question and `aria-pressed` on Yes/No.
-- Tests: `src/lib/pro/__tests__/compliance.test.ts` — 6 C2 cases incl. the explicit
-  "separates 'unanswered' (block) from 'no' (review flag)" regression test.
+### F) Tests + CI
+1. Keep lint / tsc / vitest / `next build` green.
+2. Add **GitHub Actions CI**: lint + typecheck + unit tests on PR/push to main (Playwright optional/smoke if flaky — don’t block forever).
+3. Expand money-path unit tests (item A4). Playwright full deposit→hold→capture only if test mode keys exist in CI — otherwise document manual Boss checklist.
 
-## C3 — Customer address privacy — PASS (with one caveat, read it)
-- `src/lib/pro/compliance.ts` — new `AddressAudience` ("public" | "booked" | "admin"),
-  `canSeeExactAddress()`, `approximateAddress()`, `exactAddress()`, `displayAddress()`,
-  `ADDRESS_PRIVACY_NOTE`. `exact: true` requires an actual street line — city alone is always
-  approximate, so a pro with no address on file can't look like a disclosed one.
-- **Data layer** `src/lib/data/professionals.ts` + `src/lib/data/model.ts`:
-  `studio_address` is deliberately NOT mapped onto `Professional`. That object reaches customer
-  pages, so the exact address never rides along. `Professional` gains `neighborhood` + `hideExactPin`
-  (missing column ⇒ `true` ⇒ hidden: fail closed).
-- **Pre-booking** `src/app/professionals/[slug]/page.tsx`: "Service area" renders
-  `displayAddress(..., audience: "public")` + the privacy note. Neighborhood/city only.
-- **Post-booking** `src/lib/booking/data.ts`: `BookingDetail.professionalLocation` is redacted in the
-  data layer. Exact unlocks only when status ∈ confirmed/in_progress/completed AND paymentStatus ∈
-  paid/succeeded (`addressUnlocked()`); the pro party always sees their own. Failed/missing-column
-  read ⇒ hidden.
-- **Booking UI** `src/app/bookings/[id]/page.tsx`: row label flips "Area" → "Address"; privacy note
-  shown while still approximate.
-- **Admin sees full** `src/lib/admin/verification-data.ts` + `src/app/admin/applications/[id]/page.tsx`:
-  new "Location & compliance" section — exact address (admin only), neighborhood, declared
-  `service_locations`, hide-pin state, and a warning banner when `needs_location_review` is set.
-  (Previously admin had NO visibility into any 0032 field.)
-- Migration 0033 adds `professional_profiles.neighborhood` (no such column existed — `approximateAddress`
-  had no DB backing) and documents `studio_address` as post-booking-only.
-- Tests: 12 C3 cases — approximate never leaks street/unit/ZIP; admin + booked always see full;
-  public+hidden never does; empty-address fallback; `hideExactPin: false` still discloses.
-
-### C3 CAVEAT — NOT fixed by this commit, needs a decision
-1. `0003_rls.sql:43` grants public row-read on `professional_profiles` with **no column-level
-   restriction**, and `PRO_SELECT` is `select *`. A client hitting PostgREST directly can still
-   `select studio_address,location_lat,location_lng` for any active pro. TS-side redaction does not
-   protect that endpoint. Proper fix = a redacted public view or column GRANTs; I did **not** attempt
-   it because `select *` breaks under column-level privileges and I have no live DB to test against.
-2. `formatDistance` (`src/lib/format.ts:16`) emits 0.1 mi precision — enough to trilaterate a hidden
-   pin from a few viewer positions. Should be coarsened/bucketed for `hideExactPin` pros.
-Both are real leaks. Recommend they land before any claim of "address privacy" ships to customers.
-
-## C4 — Stop the verification overclaim — PASS
-- `src/lib/trust/badges.ts` rewritten. `TrustBadge` is now
-  identity_verified | licensed | insured | home_studio_reviewed | salon_location_verified | top_rated.
-  Dropped `background_checked` (nothing background-checks anyone). Labels are narrow —
-  "ID Verified", "License on File", "Insurance on File", "Home Studio Reviewed",
-  "Salon Location Verified" — and each carries a `description` stating the limit, e.g. License on File
-  = "…not confirmation that the license is currently active with the issuing authority";
-  Home Studio Reviewed = "…not a permit, zoning approval, or permission to operate".
-- `src/components/trust/TrustBadges.tsx` — `professionalBadges()` reads five SEPARATE admin columns
-  instead of mapping the single `pro.isVerified` into "Identity Verified". Descriptions surface on hover.
-- `src/components/marketplace/GoldVerifiedBadge.tsx` — title/aria changed from
-  "Verified by iGlamHer — identity and professional information reviewed" to
-  **"Approved by iGlamHer — this professional's application was reviewed."**
-- `src/app/professionals/[slug]/page.tsx` — chip "Verified pro" → **"Application approved"**; the
-  "What does verified mean?" expandable now itemises badge-by-badge what was actually checked.
-- Migration 0033 adds `identity_verified`, `license_verified`, `insurance_verified`,
-  `home_studio_reviewed`, `salon_location_verified` and **extends the column guard so a pro writing
-  any of them raises `verification badges are set by admins only`** — pros cannot self-award.
-- `src/lib/admin/verification-actions.ts` — new `syncVerificationBadges()` derives identity/license/
-  insurance from real per-document `review_status`, called on every `reviewDocumentAction` and on
-  approve. Flagging a license back down clears "License on File" on the next sync. Identity is
-  snapshotted BEFORE `purgeIdDocuments` and is not re-derived once the ID row is gone (absence means
-  "checked then destroyed", not "never checked").
-- **`home_studio_reviewed` / `salon_location_verified` stay FALSE.** Nothing in today's flow inspects
-  a home studio or a salon; auto-setting them would be the same overclaim in a new label. They need
-  the Phase 3 admin location queue. Backfill in 0033 likewise sets only identity+license for existing
-  approved pros — insurance/home/salon are NOT backfilled.
-- Pre-0033 behaviour is under-claim, never over-claim: missing columns ⇒ all badges false.
-- Tests: 3 new C4 cases incl. "claims nothing when no credential was individually verified" (the
-  regression) and a copy assertion that no label is bare "Verified" and no description contains
-  guarantee/authorized/permitted-to-operate.
-- Boss's "Phone" badge is NOT implemented — there is no phone-verification flow to back it. Adding a
-  column that can never be true would be theatre. Flagging for Phase 2/3.
-
-## C5 — `.oversight-legal-brief.txt` — PASS
-Deleted, staged as `D` in this commit.
-
-## 0032/0033 REQUIRED ON PROD — BLOCKING
-- `APPLY_PENDING_0032.sql` — still not applied (per your note). **Until it is, pro submit is now
-  REFUSED, not silently allowed.** That is the intended fail-closed behaviour, but it means an
-  unmigrated prod cannot accept applications.
-- `APPLY_PENDING_0033.sql` — NEW, created at repo root (byte-identical to
-  `supabase/migrations/0033_labeled_badges_address_privacy.sql`). Needed for labeled badges +
-  neighborhood. Without it every verification badge is simply absent (safe).
-- Apply 0032 **then** 0033, in order, via the Boss/SQL channel. I have no service-role access and
-  invented no secrets.
-
-## DEPLOY: NO
-Not deployed. Prod ship denied per hard rule 1 and not attempted. Awaiting Cursor re-audit of C1–C4.
-Recommend auditing the two C3 caveats above as part of that pass — they are the remaining real leaks.
+### G) Docs honesty
+1. Refresh LAUNCH_OPS webhook list.
+2. Append STATUS: score movement, residual debt, Boss ops still required.
+3. Log any net-new product ideas in `PRODUCT_DECISIONS.md` — do not invent major features outside spec.
 
 ---
 
-# STATUS — CLAUDE (2026-07-24, 2nd pass) — C3 LEAKS CLOSED
-Re-audit received: C1/C2/C4/C5 PASS, C3 PARTIAL/FAIL-FOR-SHIP on the two caveats I flagged.
-Both are now fixed. Migration `0034_private_location_split.sql` + `APPLY_PENDING_0034.sql`.
-Gates: lint 0/0 · tsc 0 errors · vitest 24 files / 235 tests pass · `next build` OK. Still NOT deployed.
+## TRANCHE 2 — BOSS OPS (Claude prepares checklists; Boss executes)
 
-## C3 leak 1 — public RLS / `select *` column exposure — FIXED
-Approach considered and REJECTED: column-level GRANTs. The data layer reads with
-`select *` (`PRO_SELECT`), and under column privileges `SELECT *` fails outright for the
-restricted role — revoking columns would break every public listing query.
+You cannot invent secrets. Produce a crisp `OPS_CHECKLIST.md` (or STATUS section) for Boss:
+1. Confirm prod migrations through **0034** (already claimed applied — verify once).
+2. Stripe Dashboard: enable **Connect 1099 tax reporting**.
+3. Stripe webhook endpoint events match LAUNCH_OPS (after you update it).
+4. Live/test E2E: deposit → start hold → complete capture → transfer → refund reversal once.
+5. Verify `pg_cron` jobs (`VERIFY_CRON.sql`) — expire pending / verifications.
+6. Counsel review of `/legal/terms` `/legal/privacy` `/legal/cancellation` before claiming “lawyer-approved.”
+7. Recommended $2.99 Stripe Price — only when Boss supplies Price ID; until then keep admin `is_featured` / `is_recommended` manual (PRODUCT_DECISIONS).
 
-Approach taken: **remove the secret from the publicly-readable table.** A column that does
-not exist cannot be selected, through any client, via any policy gap. No reliance on
-application-side redaction.
+---
 
-`supabase/migrations/0034_private_location_split.sql`:
-1. `public.coarsen_coord()` — rounds a coordinate to 2dp (~1.1 km lat, ~0.9 km lng at LA).
-2. New table `public.professional_private_locations` (user_id PK, studio_address,
-   exact_lat, exact_lng), RLS enabled.
-3. Backfills exact address + exact coords from `professional_profiles` **before** anything
-   is dropped or rounded (test asserts this ordering).
-4. RLS policies:
-   - `private location owner read` — `auth.uid() = user_id OR is_admin(auth.uid())`
-   - `private location booked read` — customer must hold a booking against THIS pro with
-     `status in ('confirmed','in_progress','completed')`. `pending_payment` never unlocks.
-     `confirmed` is set by the payment webhook only, so the status check already implies paid.
-   - insert/update: owner or admin.
-5. Coarsens `professional_profiles.location_lat/lng` for `hide_exact_pin` pros. Pros who
-   opted out (`hide_exact_pin = false`) keep exact coords — they consented to publishing.
-6. Coarsens `geo` (geography point, 0001) to match — it is a second copy of the same secret,
-   read by no app code but present on the same publicly-readable row.
-7. **Drops `professional_profiles.studio_address`.**
-8. `trg_coarsen_public_pro_coords` (BEFORE INSERT OR UPDATE) re-rounds public coords on every
-   future write, so an admin tool / seed / import can't silently restore exact ones.
+## OUT OF SCOPE FOR THIS PASS (say so in STATUS, don’t fake it)
+- Full native Capacitor + APNs/FCM (dormant by design until keys).
+- Counsel-signed legal copy (Boss + lawyer).
+- Live money E2E without Boss keys.
+- Search rewrite to DB-side ranking at scale (note as debt; don’t boil the ocean).
+- ID encryption-at-rest + virus scan (Phase 6 deferred — document only unless Boss says now).
 
-Code rewired to the private table:
-- `src/lib/booking/data.ts` `fetchProAddress()` — reads `professional_private_locations` on the
-  **viewer's own session**, so RLS (not our `audience` argument) decides. Unentitled viewer ⇒ no
-  row ⇒ approximate. Still fails closed on any error/missing table.
-- `src/lib/admin/verification-data.ts` — reads it with the service-role client (bypasses RLS).
-- `src/lib/data/professionals.ts` (public marketplace path) never touches the private table.
+---
 
-## C3 leak 2 — formatDistance 0.1 mi trilateration — FIXED
-`src/lib/format.ts`: new `formatApproxDistance()` (buckets: Under 1 / 1–3 / 3–5 / 5–10 /
-10–20 / 20+ mi away) and `formatDistanceFor(mi, hideExactPin)`. Buckets are wide enough that
-intersecting rings from several viewer positions does not localise anyone.
-Rewired every customer-facing distance:
-- `src/components/marketplace/ProfessionalCard.tsx` (list + grid variants)
-- `src/components/recommended/RecommendedProCard.tsx`
-- `src/app/api/recommendations/route.ts` — JSON is the easiest surface to trilaterate from, so
-  hidden-pin pros now get `distanceMi: null` and a `distanceLabel` bucket instead of a number.
+## SHIP RULES
+1. Small coherent commits with clear why.
+2. Soft Luxe everywhere you touch UI.
+3. Cents integers; UTC store / local render.
+4. Zod on mutations; RLS remains source of truth.
+5. Gates: `npm run lint` · `npx tsc --noEmit` · `npm test` · `npm run build`
+6. Auto-deploy prod when Tranche 1 code is green and safe.
+7. Append STATUS to bottom of this file: what hit 10, what’s still honest debt, live URL.
 
-## Proof (no live DB in CI — these are static-surface + pure-function tests)
-`src/lib/pro/__tests__/address-privacy-surface.test.ts` (11 assertions):
-- 0034 drops `studio_address`, and backfills the private table BEFORE the drop.
-- private table has RLS enabled; policies require owner/admin, or a real booking with
-  matching professional_id + customer_id at a committed status; asserts `pending_payment`
-  is NOT in the unlock list.
-- coarsening function, backfill, and the write-time trigger all present; `geo` coarsened too.
-- parses every `.from(table).select(cols)` in `src/`: **no query selects `studio_address` from
-  `professional_profiles`**, and every query that selects it targets
-  `professional_private_locations`.
-- `Professional` type carries no street-address field but does carry `hideExactPin`.
-- no component calls bare `formatDistance` — all go through `formatDistanceFor`.
-`src/lib/__tests__/format.test.ts` (5 new): bucket boundaries; no decimal ever emitted for a
-hidden pin; two distances inside a bucket are indistinguishable (the actual attack precondition);
-`formatDistanceFor` honours the flag both ways.
+GO. Make iGlamHer a 10 — code first, ops checklist second, no rubber-stamp claims.
 
-### Honest limits of this proof
-These assert the SHAPE of the migration and the code surface, not runtime DB behaviour — there
-is no Postgres in CI, so the RLS policies are not executed by any test. Recommend one manual
-check after applying 0034: with an anon key, confirm
-`select=studio_address` on `professional_profiles` errors (column gone), and that
-`professional_private_locations` returns 0 rows for a customer with no confirmed booking.
+================================================================================
+STATUS — Claude, 2026-07-25 (everything-to-10 pass, Tranche 1 A–D + F + G)
+================================================================================
 
-## APPLY ORDER ON PROD — BLOCKING, run in sequence
-1. `APPLY_PENDING_0032.sql` (still unapplied)
-2. `APPLY_PENDING_0033.sql`
-3. `APPLY_PENDING_0034.sql`  ← NEW
-0034 is destructive by design: it drops `professional_profiles.studio_address` after copying it
-to `professional_private_locations`. If 0034 is applied without 0032 first, `hide_exact_pin`
-won't exist and the coarsening steps will error — order matters.
+ALL GATES GREEN at every commit: npm run lint · npx tsc --noEmit · npm test
+(250 passing, +15 new) · npm run build. 11 commits on main since 0f1f6fa.
 
-## DEPLOY: NO
-Not deployed, not attempted. `vercel --prod` denied. Awaiting Cursor sign-off on C3.
+WHAT MOVED TO 10
+- A1/A2: webhook now handles account.updated (Connect flag sync — payout
+  eligibility no longer depends on the pro visiting /pro/earnings) and all five
+  charge.dispute.* events → stripe_disputes (0035) + admin chargeback queue on
+  /admin/disputes with evidence deadlines. Pre-migration the webhook acks +
+  logs (no retry storm).
+- A3/G1: LAUNCH_OPS webhook list now names all 14 handled events (was 4).
+- A4: src/lib/payments/__tests__/balance.test.ts — 15 tests over hold/capture/
+  release: idempotency, exact amounts + idempotency keys, decline paths,
+  missing-card hard fail, graceful release. First mocked-Stripe/Supabase suite
+  (repo previously had zero vi.mock usage).
+- B1: rateLimitGuard → Upstash Redis when UPSTASH_* env present (distributed);
+  documented degradation ladder (redis error → fail open + log; no redis →
+  per-instance memory). Boss action: provision Upstash (OPS_CHECKLIST §3).
+- B2: booking create, message send, loyalty redeem, referral apply,
+  report/block now rate-limited (message/booking constants existed unused; new
+  loyalty/referral/report constants).
+- B3: SYBIL FIX — no credit at code-apply. All referral rewards (welcome
+  credit, referrer credit, referrer points) grant once in referral/qualify.ts
+  on first PAID booking, via status-guarded pending→rewarded flip in the
+  payment webhook (covers referred customers AND referred pros). This also
+  implemented the referrer payout that was documented-but-never-wired.
+  sameDevice/sameIp removed honestly (no fingerprinting exists to feed them).
+- C1: isPubliclyVisible now = active AND admin-approved (matches the live
+  query). Closed: single-profile fetches (by slug/service) could surface an
+  activated-but-unapproved profile. Deliberate: Connect readiness does NOT
+  gate visibility — deposits are platform charges; payout waits in the ledger.
+- C2: reschedule shipped (0036). Propose (either party, +note, rate-limited) →
+  accept (time moves; bookings_no_overlap catches conflicts, 23P01 surfaced as
+  friendly copy) / decline / withdraw. Notifications + status events each step.
+  Degrades honestly pre-migration ("not available yet" + no dead UI).
+- D1/D2: 17 route error.tsx + 7 loading.tsx (Soft Luxe patterns; money-adjacent
+  error copy is honest about charge state). Previously 2 error boundaries.
+- D3: skip-to-main link (focus-visible) + id="main-content" on all 3 shells.
+- F2: .github/workflows/ci.yml — lint/tsc/vitest/build on push+PR to main,
+  placeholder env only, no secrets. Proves itself on first push.
+- G: OPS_CHECKLIST.md (all Boss-only actions w/ verify steps), VERIFY_CRON.sql,
+  PRODUCT_DECISIONS.md entry for this pass.
+
+BOSS OPS REQUIRED (full detail in OPS_CHECKLIST.md)
+1. Apply APPLY_PENDING_0035.sql then APPLY_PENDING_0036.sql on prod.
+2. Stripe: subscribe webhook to the full event list (LAUNCH_OPS §1); enable
+   Connect 1099 reporting; one live E2E deposit→hold→capture→transfer→refund.
+3. Supabase: run VERIFY_CRON.sql; optionally provision Upstash Redis env.
+4. Counsel review of legal pages before any "lawyer-approved" claim.
+5. Push to GitHub to light up CI.
+
+HONEST DEBT / OUT OF SCOPE (unchanged from brief)
+- E (legal phase 2–3: license jurisdiction checks, booking restrictions,
+  admin expiration/home-studio queues) — NEXT tranche, deliberately not
+  half-shipped in this one; A–D now green so it is unblocked.
+- Playwright deposit→hold→capture E2E needs test-mode keys (manual checklist
+  in OPS_CHECKLIST until then). Search remains TS-side ranking (scale debt,
+  noted in code). Native push/Capacitor dormant by design. ID encryption at
+  rest deferred (Phase 6).
+- Deploy: shipped to prod via npx vercel --prod (URL below). Code is
+  prod-safe pre-migrations (0035/0036 features degrade honestly until Boss
+  applies the APPLY_PENDING files).

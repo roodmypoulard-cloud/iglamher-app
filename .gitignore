@@ -42,3 +42,6 @@ yarn-error.log*
 next-env.d.ts
 .image-backups/
 shot_rec2.mjs
+
+# Claude Code local state (worktrees, local settings)
+.claude/

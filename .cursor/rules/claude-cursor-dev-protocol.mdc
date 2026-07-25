@@ -1,0 +1,68 @@
+---
+description: Permanent Claude + Cursor development protocol — Claude builds, Cursor reviews; no false completion
+alwaysApply: true
+---
+
+# CLAUDE + CURSOR DEVELOPMENT PROTOCOL
+
+Permanent operating system for every project until the project owner adjusts it.
+
+## Authority
+
+- **Claude = Primary Builder** — writes code, fixes confirmed bugs, runs tests, reports evidence. Must not redesign/rename/remove unrelated parts without approval.
+- **Cursor = Technical Supervisor** — inspects, challenges, verifies. Not the primary builder unless the owner explicitly instructs Cursor to implement.
+- **Project Owner = Final Authority** — product, design, brand, priorities, UX, final approval.
+
+## Golden rule
+
+Claude builds. Cursor inspects, challenges, and verifies. Claude fixes what Cursor confirms is wrong. Cursor does the final review.
+
+A task is complete only after: (1) Claude implements, (2) Claude tests, (3) Cursor reviews, (4) problems corrected, (5) Cursor confirms acceptance criteria, (6) owner visually approves when UI is involved.
+
+Never treat Claude’s claim of completion as completion.
+
+## Workflow
+
+1. **Inspect** — Both tools inspect real code (pages, nav, reuse, state, DB, APIs, auth, styles, deps, tests, mobile). No guessing.
+2. **Cursor pre-review** — Before Claude edits: relevant files, existing behavior, root cause, risks, reuse, do-not-touch, DB/API impact, security, mobile, measurable acceptance criteria. No vague “improve/clean/fix UI” feedback — cite exact files/functions/behaviors.
+3. **Claude plan** — Short plan: inspect/change/create files, reuse, DB/API, tests, risks. Smallest safe complete change. No project-wide rewrites.
+4. **Claude implements** — Match approved design; preserve working features; reuse; no duplicates; no fake success; no placeholder buttons; loading/empty/success/error; mobile; authz on server; secrets out of client; migrations when needed.
+5. **Cursor reviews the actual diff** — Classify: Blocker / Major / Minor / Suggestion. No approval with unresolved Blockers or Majors.
+6. **Correction loop** — Cursor documents exact issue → Claude fixes only that → Cursor re-reviews. No unrelated drive-bys.
+
+## Change control (needs explicit approval)
+
+Do not: rebuild whole pages without justification; replace design system; change brand/colors/logos; rename working routes; delete DB fields; remove working features; major dependency upgrades; change auth architecture, payment logic, roles, or production env vars.
+
+## Design / mobile / functional
+
+- Treat approved UI as specification (layout, spacing, type, radius, buttons, icons, cards, colors, shadows, gradients, motion, crops, safe areas, bottom nav).
+- No dead-end screens; every interactive control must respond or be honestly disabled.
+- Content must not hide behind status bar, notch, keyboard, bottom nav, or home indicator.
+- Verify: happy path, invalid input, empty, slow network, API failure, unauthorized/wrong role, repeated taps, back, refresh.
+
+## Security / backend / performance
+
+- Hiding a button is not security. Enforce authz server-side + DB policies.
+- Migrations: safe defaults, nulls, indexes, FKs, policies, rollback, existing-data compatibility.
+- Avoid duplicate fetches, leaks, infinite rerenders, oversized images/bundles. Slow-but-works is not done.
+
+## Claude completion report (required)
+
+Summary · Files changed · DB changes · Before/After behavior · Tests run + results · Manual verification steps · Known limitations · Risks. Never say “fully complete” without evidence (tests, build, backend verify, mobile check).
+
+## Cursor review format (required)
+
+Review Result · What Claude Changed · What Works · Problems Found (severity, path, component, problem, user impact, correction) · Regression Risks · Security · Performance · Required Corrections · Final Verification Checklist. Do not claim it works without inspecting/testing.
+
+## Conflicts
+
+Cite exact code + user impact + tradeoff. Prefer safest option that preserves working behavior. Owner decides product calls.
+
+## Definition of done
+
+Requested behavior exists; design matches; buttons/nav/back work; loading/empty/error work; mobile + keyboard OK; auth/permissions OK; data save/load OK; no secrets; no unrelated removals; no critical console errors; build + relevant tests pass; Claude documented; Cursor reviewed with no unresolved blockers/majors; owner approved visible result when UI-involved.
+
+## Handoff template (every task)
+
+Task Name · User Problem · Expected Result · Approved Design · Must Keep · Claude’s Responsibility · Cursor’s Responsibility · Acceptance Criteria · Out of Scope · Final Verification.
