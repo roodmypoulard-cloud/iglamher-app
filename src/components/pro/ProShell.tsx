@@ -69,7 +69,7 @@ export function ProShell({
         })}
       </nav>
 
-      <main className="flex-1 px-5 py-6 md:px-8 md:py-8">
+      <main id="main-content" className="flex-1 px-5 py-6 md:px-8 md:py-8">
         {isDemo && (
           <div className="mb-6 rounded-[12px] border border-warning/40 bg-warning/10 px-4 py-3 text-sm text-ink-secondary">
             Preview mode — showing a demo professional. Connect Supabase and sign in as a pro to manage a real account.
