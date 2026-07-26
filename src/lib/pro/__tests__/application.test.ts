@@ -1,7 +1,10 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import {
   isValidHandle, isValidUrl, normalizeUrl, normalizeHandle, hasAtLeastOneLink,
   validateForSubmit, magicBytesMatch, missingAgreementKeys, currentAgreementAcceptances,
+  sectionEditable, APPLICATION_SECTIONS,
 } from "../application";
 import {
   PRO_AGREEMENTS, PRO_AGREEMENT_KEYS, REQUIRED_HOME_STUDIO_KEYS,
@@ -156,5 +159,118 @@ describe("magicBytesMatch (anti-spoof)", () => {
     // an .exe / script renamed to .pdf — MZ header, not %PDF
     expect(magicBytesMatch("application/pdf", new Uint8Array([0x4d, 0x5a, 0x90, 0x00]))).toBe(false);
     expect(magicBytesMatch("image/png", new Uint8Array([0x25, 0x50, 0x44, 0x46]))).toBe(false);
+  });
+});
+
+describe("sectionEditable (application lifecycle)", () => {
+  const ALL = APPLICATION_SECTIONS;
+
+  it("draft: every section is editable", () => {
+    for (const s of ALL) expect(sectionEditable("draft", [], s)).toBe(true);
+  });
+  it("rejected: every section is editable (fix + resubmit, 0037)", () => {
+    for (const s of ALL) expect(sectionEditable("rejected", [], s)).toBe(true);
+  });
+  it("needs_more_info: only the admin-flagged sections are editable", () => {
+    expect(sectionEditable("needs_more_info", ["portfolio", "identity"], "portfolio")).toBe(true);
+    expect(sectionEditable("needs_more_info", ["portfolio", "identity"], "identity")).toBe(true);
+    expect(sectionEditable("needs_more_info", ["portfolio", "identity"], "basics")).toBe(false);
+    expect(sectionEditable("needs_more_info", [], "basics")).toBe(false);
+  });
+  it("in-flight and decided-approved applications are fully locked", () => {
+    for (const status of ["pending_review", "under_review", "approved"] as const) {
+      for (const s of ALL) expect(sectionEditable(status, [...ALL], s)).toBe(false);
+    }
+  });
+});
+
+describe("migration 0037 — rejected applicants can resubmit", () => {
+  // Static-surface assertions (no DB in CI), following the 0034 test pattern.
+  const ROOT = join(__dirname, "../../../..");
+  const sql = readFileSync(join(ROOT, "supabase/migrations/0037_resubmit_after_rejection.sql"), "utf8");
+
+  it("guard whitelists draft, needs_more_info AND rejected -> pending_review, only while active", () => {
+    expect(sql).toMatch(/old\.review_status in \('draft', 'needs_more_info', 'rejected'\)/);
+    expect(sql).toMatch(/new\.review_status = 'pending_review'/);
+    expect(sql).toMatch(/coalesce\(old\.account_status::text, 'active'\) = 'active'/);
+    expect(sql).toContain("submit_professional_application");
+    expect(sql).toContain("d.created_at > coalesce(v_profile.reviewed_at");
+    expect(sql).toContain('drop policy if exists "verif docs owner rw"');
+  });
+
+  it("was built from the CURRENT guard baseline — `create or replace` swaps the whole body, so a stale baseline silently drops later guards", () => {
+    // Review blocker B2: an earlier draft copied 0025's body, which would have
+    // reopened self-award of badges / Recommended placement. These columns come
+    // from 0033, 0028 and 0032 respectively and must ALL survive in 0037 —
+    // asserted in their EXECUTABLE `new.x is distinct from old.x` form (several
+    // names also appear in comments, where toContain would pass vacuously).
+    for (const guarded of [
+      "identity_verified", "license_verified", "insurance_verified",
+      "home_studio_reviewed", "salon_location_verified",
+      "is_recommended", "recommended_at", "recommended_until",
+      "needs_location_review",
+      "account_status", "is_verified", "is_active", "take_rate_bps",
+    ]) {
+      expect(sql, `0037 must retain the guard clause on ${guarded}`).toMatch(
+        new RegExp(String.raw`new\.${guarded}\s+is distinct from old\.${guarded}`),
+      );
+    }
+  });
+
+  it("review metadata is guarded: forgeable only via the submit transition, with canonical values (round-2 M3)", () => {
+    // Queue-jump / forgery columns: outside the whitelisted submit transition
+    // these must be rejected for non-privileged writers…
+    for (const col of ["submitted_at", "resubmission_count", "needs_info_note", "needs_info_sections", "rejection_reason"]) {
+      expect(sql, `0037 must guard ${col}`).toMatch(
+        new RegExp(String.raw`new\.${col}\s+is distinct from old\.${col}`),
+      );
+    }
+    // …reviewed_at/reviewed_by are NEVER owner-writable (nulling reviewed_at
+    // would defeat the fresh-ID recency check on rejected resubmits)…
+    expect(sql).toMatch(/new\.reviewed_at\s+is distinct from old\.reviewed_at/);
+    expect(sql).toMatch(/new\.reviewed_by\s+is distinct from old\.reviewed_by/);
+    // …and during the transition, submitted_at must be ~now (no backdated
+    // FIFO queue-jump) and the counter may only step by one.
+    expect(sql).toMatch(/new\.submitted_at < now\(\) - interval '5 minutes'/);
+    expect(sql).toMatch(/old\.resubmission_count \+ 1/);
+  });
+
+  it("owner-inserted document rows are forced pristine (round-2 M2: no self-verified docs)", () => {
+    expect(sql).toMatch(/create or replace function public\.guard_professional_document_insert\(\)/);
+    expect(sql).toMatch(/new\.review_status := 'pending'/);
+    expect(sql).toMatch(/new\.reviewed_by\s+:= null/);
+    expect(sql).toMatch(/new\.created_at\s+:= now\(\)/);
+    expect(sql).toMatch(/create trigger trg_pro_document_insert_guard\s+before insert on public\.professional_documents/);
+  });
+
+  it("APPLY_PENDING_0037.sql (the prod copy) matches the migration byte-for-byte after its paste header", () => {
+    const applyPending = readFileSync(join(ROOT, "APPLY_PENDING_0037.sql"), "utf8");
+    const [header, ...rest] = applyPending.split("\n");
+    expect(header).toMatch(/paste this into the supabase sql editor/i);
+    expect(rest.join("\n")).toBe(sql);
+  });
+
+  it("the applicant server actions accept the rejected status (blocker B1 regression)", () => {
+    // saveApplicationDraftAction's early status guard bypassed sectionEditable and
+    // silently discarded every edit a rejected pro made. Assert both actions'
+    // lifecycle checks include 'rejected' so the wizard never renders editable
+    // fields the server refuses to save.
+    const actions = readFileSync(join(ROOT, "src/lib/pro/application-actions.ts"), "utf8");
+    expect(actions).toMatch(/status !== "draft" && status !== "needs_more_info" && status !== "rejected"/);
+    expect(actions).toMatch(/app\.status !== "draft" && app\.status !== "needs_more_info" && app\.status !== "rejected"/);
+  });
+
+  it("missing 0037 RPC falls back to the legacy submit path — a pending migration never takes down first-time submits", () => {
+    const actions = readFileSync(join(ROOT, "src/lib/pro/application-actions.ts"), "utf8");
+    expect(actions).toMatch(/legacySubmitFallback\(supabase, user\.id, app\.status\)/);
+    expect(actions).toMatch(/async function legacySubmitFallback/);
+    // Rejected-resubmit genuinely needs 0037 (old trigger refuses it) → honest copy.
+    expect(actions).toContain("Resubmitting after a rejection isn't available just yet.");
+  });
+
+  it("missing 0037 RPC fails with customer-safe copy, not PostgREST internals", () => {
+    const actions = readFileSync(join(ROOT, "src/lib/pro/application-actions.ts"), "utf8");
+    expect(actions).toContain('error.code === "PGRST202"');
+    expect(actions).toContain('error.code === "42883"');
   });
 });

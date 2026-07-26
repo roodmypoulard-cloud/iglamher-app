@@ -12,7 +12,7 @@ const CONFIG: Record<string, { label: string; tone: string; body: string }> = {
   pending_review: { label: "Pending", tone: "text-rose", body: "Your application is in the queue. Our team reviews every applicant — you'll get an email with the decision, usually within a day." },
   under_review: { label: "Under review", tone: "text-gold", body: "A reviewer is looking at your application right now. Hang tight — we'll email you shortly." },
   approved: { label: "Approved", tone: "text-success", body: "You're approved and live in the marketplace! You can now receive bookings." },
-  rejected: { label: "Not approved", tone: "text-danger", body: "Unfortunately your application wasn't approved this time." },
+  rejected: { label: "Not approved", tone: "text-danger", body: "Unfortunately your application wasn't approved this time. You can fix what was flagged and resubmit — the reason is below." },
   needs_more_info: { label: "Needs more info", tone: "text-gold", body: "We need a few things updated before we can approve you. Update the flagged sections and resubmit." },
 };
 
@@ -45,10 +45,18 @@ export default async function MyApplicationPage() {
           </div>
         )}
 
-        {app.status === "rejected" && app.rejectionReason && (
+        {app.status === "rejected" && (
           <div className="mt-4 rounded-[12px] border border-danger/40 bg-danger/10 p-4">
-            <p className="text-sm font-semibold text-danger">Reason</p>
-            <p className="mt-1 text-sm text-ink-secondary">{app.rejectionReason}</p>
+            {app.rejectionReason && (
+              <>
+                <p className="text-sm font-semibold text-danger">Reason</p>
+                <p className="mt-1 text-sm text-ink-secondary break-words">{app.rejectionReason}</p>
+              </>
+            )}
+            <p className={`text-sm text-ink-secondary ${app.rejectionReason ? "mt-3" : ""}`}>
+              To resubmit: {app.rejectionReason ? "update what the reason above calls out" : "review and update your application"}, re-upload your government ID (it was deleted after review — we never keep IDs on file), then hit <strong>Resubmit application</strong> on the review step.
+            </p>
+            <div className="mt-4"><LinkButton href="/pro/apply">Update &amp; resubmit</LinkButton></div>
           </div>
         )}
 

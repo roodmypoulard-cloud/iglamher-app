@@ -11,7 +11,7 @@ import { AvailabilityPreview } from "@/components/marketplace/AvailabilityPrevie
 import { TrackView } from "@/components/marketplace/TrackView";
 import { Rating } from "@/components/ui/Rating";
 import { TrustBadges, professionalBadges } from "@/components/trust/TrustBadges";
-import { VerifiedIcon } from "@/components/ui/icons";
+import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import { LinkButton } from "@/components/ui/Button";
 import { getProfessionalBySlug } from "@/lib/data/professionals";
 import { getFavoriteProfessionalIds } from "@/lib/data/favorites";
@@ -116,7 +116,7 @@ export default async function ProfessionalProfilePage({ params }: { params: Prom
               <h1 className="font-display text-[28px] font-bold leading-[1.12] tracking-[-0.01em]">
                 <span className="align-middle">{pro.displayName}</span>
                 {pro.isVerified && (
-                  <VerifiedIcon width={18} height={18} className="ml-1.5 inline-block align-middle text-rose" />
+                  <span className="ml-1.5 inline-block align-middle"><GoldVerifiedBadge size={18} /></span>
                 )}
               </h1>
               <p className="mt-0.5 text-sm text-ink-secondary">{pro.primarySpecialty}</p>

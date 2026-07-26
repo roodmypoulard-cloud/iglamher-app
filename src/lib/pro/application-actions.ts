@@ -14,6 +14,7 @@ type ServerClient = Awaited<ReturnType<typeof createSupabaseServerClient>>;
 import {
   DOC_MIME_TYPES, DOC_EXT, DOC_MAX_BYTES, DOC_MAX_COUNT, magicBytesMatch,
   normalizeHandle, normalizeUrl, isValidHandle, isValidUrl, validateForSubmit, isCredentialKind,
+  sectionEditable,
   type ReviewStatus, type ApplicationSection, type DocMime, type AcceptedAgreement,
 } from "./application";
 import type { LocationCompliance } from "./compliance";
@@ -30,16 +31,31 @@ async function gate(): Promise<{ error: string } | { supabase: ServerClient; use
   return { supabase, user: data.user };
 }
 
-/** A section is editable in draft (any), or in needs_more_info (only flagged sections). */
-function sectionEditable(status: ReviewStatus, flagged: string[], section: ApplicationSection): boolean {
-  if (status === "draft") return true;
-  if (status === "needs_more_info") return flagged.includes(section);
-  return false;
+// Not exported: "use server" modules may only export async functions.
+const BANNED_MESSAGE =
+  "This account has been banned and can no longer apply to become a pro. Contact support@iglamher.com if you believe this is a mistake.";
+const SUSPENDED_MESSAGE =
+  "This account is temporarily suspended, so your application can't be edited or submitted right now. Contact support@iglamher.com.";
+
+/** Refusal message when the applicant's account may not write (banned or
+ *  suspended), or null when writes are allowed. Both states must be refused
+ *  HERE with honest copy: 0037's RLS restricts owner writes to active accounts,
+ *  and an RLS-filtered update matches zero rows without erroring — which the UI
+ *  would otherwise show as success. review_status alone doesn't say (a rejected
+ *  pro may also be banned; 0024's ban doesn't touch review_status). Best-effort:
+ *  pre-0024 the column doesn't exist and this reports writable. */
+async function accountWriteBlock(supabase: ServerClient, userId: string): Promise<string | null> {
+  const { data } = await supabase.from("professional_profiles").select("account_status").eq("user_id", userId).maybeSingle();
+  const status = (data as { account_status?: string } | null)?.account_status;
+  if (status === "banned") return BANNED_MESSAGE;
+  if (status === "suspended") return SUSPENDED_MESSAGE;
+  return null;
 }
 
 export interface MyApplication {
   exists: boolean;
   status: ReviewStatus;
+  businessName: string;
   primarySpecialty: string;
   city: string;
   yearsExperience: number | null;
@@ -70,13 +86,13 @@ export async function getMyApplicationAction(): Promise<MyApplication | null> {
   const { supabase, user } = g;
   const { data } = await supabase
     .from("professional_profiles")
-    .select("primary_specialty,city,years_experience,bio,instagram_handle,tiktok_handle,website_url,portfolio_url,review_status,needs_info_note,needs_info_sections,rejection_reason,submitted_at,professional_portfolio_items(id),professional_documents(id,kind,file_name,created_at)")
+    .select("business_name,primary_specialty,city,years_experience,bio,instagram_handle,tiktok_handle,website_url,portfolio_url,review_status,needs_info_note,needs_info_sections,rejection_reason,submitted_at,professional_portfolio_items(id),professional_documents(id,kind,file_name,created_at)")
     .eq("user_id", user.id)
     .maybeSingle();
   // school is from migration 0024 — read best-effort so a missing column never breaks the wizard.
   const { data: schoolRow } = await supabase.from("professional_profiles").select("school").eq("user_id", user.id).maybeSingle();
   const school = (schoolRow as { school?: string } | null)?.school ?? "";
-  if (!data) return { exists: false, status: "draft", primarySpecialty: "", city: "", yearsExperience: null, school: "", bio: "", instagramHandle: "", tiktokHandle: "", websiteUrl: "", portfolioUrl: "", portfolioCount: 0, documents: [], needsInfoNote: "", needsInfoSections: [], rejectionReason: "", submittedAt: null, ...EMPTY_COMPLIANCE };
+  if (!data) return { exists: false, status: "draft", businessName: "", primarySpecialty: "", city: "", yearsExperience: null, school: "", bio: "", instagramHandle: "", tiktokHandle: "", websiteUrl: "", portfolioUrl: "", portfolioCount: 0, documents: [], needsInfoNote: "", needsInfoSections: [], rejectionReason: "", submittedAt: null, ...EMPTY_COMPLIANCE };
   // Compliance + agreements are from migration 0032 — read best-effort in their own
   // queries so a missing column/table degrades to "not accepted yet" (which the
   // review step reports as a blocker) instead of breaking the whole wizard.
@@ -87,6 +103,7 @@ export async function getMyApplicationAction(): Promise<MyApplication | null> {
   return {
     exists: true,
     status: (r.review_status as ReviewStatus) ?? "draft",
+    businessName: (r.business_name as string) ?? "",
     primarySpecialty: (r.primary_specialty as string) ?? "",
     city: (r.city as string) ?? "",
     yearsExperience: (r.years_experience as number) ?? null,
@@ -123,11 +140,12 @@ export async function ensureApplicationRowAction(): Promise<ActionResult> {
   // depends on migration 0024's account_status being present yet.
   const { data: existing } = await supabase.from("professional_profiles").select("user_id").eq("user_id", user.id).maybeSingle();
   if (existing) {
-    // Best-effort ban check: harmless no-op until account_status exists (0024).
-    const { data: acct } = await supabase.from("professional_profiles").select("account_status").eq("user_id", user.id).maybeSingle();
-    if ((acct as { account_status?: string } | null)?.account_status === "banned") {
-      return { ok: false, error: "This account has been banned and can no longer apply to become a pro. Contact support@iglamher.com if you believe this is a mistake." };
-    }
+    // Best-effort moderation check: harmless no-op until account_status exists
+    // (0024). Suspended is refused too — 0037's RLS makes every owner write a
+    // silent zero-row no-op for non-active accounts, so rendering the wizard
+    // would be a page of fake-success inputs.
+    const blocked = await accountWriteBlock(supabase, user.id);
+    if (blocked) return { ok: false, error: blocked };
     await supabase.from("profiles").update({ role: "professional" }).eq("id", user.id).eq("role", "customer");
     // Align with onboarding: an applying customer becomes account_type 'both' in
     // professional mode. Without this the mode switcher never rendered for pros
@@ -146,9 +164,11 @@ export async function ensureApplicationRowAction(): Promise<ActionResult> {
 }
 
 const draftSchema = z.object({
+  businessName: z.string().max(120).optional(),
   primarySpecialty: z.string().max(60).optional(),
   city: z.string().max(120).optional(),
-  yearsExperience: z.coerce.number().int().min(0).max(70).optional(),
+  // null = explicit clear (the input was emptied); absent = untouched.
+  yearsExperience: z.union([z.null(), z.coerce.number().int().min(0).max(70)]).optional(),
   school: z.string().max(160).optional(),
   bio: z.string().max(2000).optional(),
   instagramHandle: z.string().max(40).optional(),
@@ -157,8 +177,11 @@ const draftSchema = z.object({
   portfolioUrl: z.string().max(300).optional(),
 });
 
-/** Autosave the editable fields. Silently ignores fields whose section is locked. */
-export async function saveApplicationDraftAction(input: unknown): Promise<ActionResult> {
+/** Autosave the editable fields. Silently ignores fields whose section is locked.
+ *  Sent-but-empty strings are explicit clears (saved as such); a cleared
+ *  business name resolves to the profile name, returned in `data` so the client
+ *  can reflect what was actually stored. */
+export async function saveApplicationDraftAction(input: unknown): Promise<ActionResult<{ businessName?: string }>> {
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   const { supabase, user } = g;
@@ -166,11 +189,19 @@ export async function saveApplicationDraftAction(input: unknown): Promise<Action
   if (!parsed.success) return { ok: false, error: "Invalid input." };
   const v = parsed.data;
 
+  const blocked = await accountWriteBlock(supabase, user.id);
+  if (blocked) return { ok: false, error: blocked };
+
   // Ensure a profile row exists (mark role professional).
   const { data: existing } = await supabase.from("professional_profiles").select("review_status,needs_info_sections").eq("user_id", user.id).maybeSingle();
   const status = ((existing as { review_status?: ReviewStatus } | null)?.review_status ?? "draft") as ReviewStatus;
   const flagged = ((existing as { needs_info_sections?: string[] } | null)?.needs_info_sections ?? []) as string[];
-  if (status !== "draft" && status !== "needs_more_info") return { ok: false, error: "This application is locked while under review." };
+  // Same lifecycle rule as sectionEditable: draft, needs_more_info (per-section,
+  // enforced below) and rejected (fix + resubmit, 0037) may write; in-flight and
+  // approved applications are locked.
+  if (status !== "draft" && status !== "needs_more_info" && status !== "rejected") {
+    return { ok: false, error: "This application is locked while under review." };
+  }
 
   // Field-level format checks (reject clearly-bad values; empty is allowed for autosave)
   if (v.instagramHandle && v.instagramHandle.trim() && !isValidHandle(v.instagramHandle)) return { ok: false, error: "Instagram handle looks invalid." };
@@ -181,6 +212,11 @@ export async function saveApplicationDraftAction(input: unknown): Promise<Action
   const patch: Record<string, unknown> = {};
   const setIf = (section: ApplicationSection, apply: () => void) => { if (sectionEditable(status, flagged, section)) apply(); };
   setIf("basics", () => {
+    // Business name is optional. "" (cleared) is resolved to the applicant's own
+    // profile name below — the admin queue and public profile rely on
+    // business_name always having a value, and the placeholder promises that
+    // leaving it blank uses their own name.
+    if (v.businessName !== undefined) patch.business_name = v.businessName.trim();
     if (v.primarySpecialty !== undefined) patch.primary_specialty = v.primarySpecialty.trim();
     if (v.city !== undefined) patch.city = v.city.trim();
     if (v.yearsExperience !== undefined) patch.years_experience = v.yearsExperience;
@@ -195,18 +231,35 @@ export async function saveApplicationDraftAction(input: unknown): Promise<Action
     if (v.portfolioUrl !== undefined) patch.portfolio_url = v.portfolioUrl.trim() ? normalizeUrl(v.portfolioUrl) : null;
   });
 
-  // school (migration 0024) is written in a separate best-effort update so a missing
-  // column can never break the whole save. Applied only when the basics section is editable.
-  const schoolVal = sectionEditable(status, flagged, "basics") && v.school !== undefined ? v.school.trim() : undefined;
+  if (sectionEditable(status, flagged, "basics") && v.school !== undefined) {
+    patch.school = v.school.trim();
+  }
 
-  if (Object.keys(patch).length === 0 && schoolVal === undefined) return { ok: true };
+  if (Object.keys(patch).length === 0) return { ok: true };
+
+  // Cleared business name -> revert to the applicant's own profile name (same
+  // default the row is created with), so "leave blank to use your own name" is
+  // literally what happens — never a silent keep, never an empty display name.
+  if (patch.business_name === "") {
+    const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
+    patch.business_name = (prof as { full_name?: string } | null)?.full_name?.trim() || "My studio";
+  }
+
+  const resolvedBusinessName = typeof patch.business_name === "string" && v.businessName?.trim() === ""
+    ? patch.business_name
+    : undefined;
 
   if (existing) {
-    if (Object.keys(patch).length > 0) {
-      const { error } = await supabase.from("professional_profiles").update(patch).eq("user_id", user.id);
-      if (error) return { ok: false, error: error.message };
-    }
-    if (schoolVal !== undefined) await supabase.from("professional_profiles").update({ school: schoolVal }).eq("user_id", user.id);
+    // The status predicate closes the check-then-write race with submit: once
+    // another request locks the row, this update affects zero rows.
+    const { data: updated, error } = await supabase
+      .from("professional_profiles")
+      .update(patch)
+      .eq("user_id", user.id)
+      .in("review_status", ["draft", "needs_more_info", "rejected"])
+      .select("user_id");
+    if (error) return { ok: false, error: error.message };
+    if (!updated?.length) return { ok: false, error: "This application is locked while under review." };
   } else {
     // First save creates the row. business_name defaults to the profile name.
     const { data: prof } = await supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle();
@@ -216,9 +269,8 @@ export async function saveApplicationDraftAction(input: unknown): Promise<Action
     const slug = `${name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40)}-${user.id.slice(0, 8)}`;
     const { error } = await supabase.from("professional_profiles").insert({ user_id: user.id, business_name: name, slug, ...patch });
     if (error) return { ok: false, error: error.message };
-    if (schoolVal !== undefined) await supabase.from("professional_profiles").update({ school: schoolVal }).eq("user_id", user.id);
   }
-  return { ok: true };
+  return { ok: true, data: resolvedBusinessName ? { businessName: resolvedBusinessName } : undefined };
 }
 
 /** Upload one document to the PRIVATE bucket after validating type/size/magic-bytes. */
@@ -226,6 +278,9 @@ export async function uploadDocumentAction(formData: FormData): Promise<ActionRe
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   const { supabase, user } = g;
+
+  const blocked = await accountWriteBlock(supabase, user.id);
+  if (blocked) return { ok: false, error: blocked };
 
   const kind = z.enum(["certification", "license", "id_document"]).safeParse(formData.get("kind"));
   if (!kind.success) return { ok: false, error: "Invalid document type." };
@@ -272,6 +327,8 @@ export async function removeDocumentAction(documentId: string): Promise<ActionRe
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   const { supabase, user } = g;
+  const blocked = await accountWriteBlock(supabase, user.id);
+  if (blocked) return { ok: false, error: blocked };
   const { data: doc } = await supabase.from("professional_documents").select("file_path,kind").eq("id", documentId).eq("professional_id", user.id).maybeSingle();
   if (!doc) return { ok: false, error: "Document not found." };
   const { data: prof } = await supabase.from("professional_profiles").select("review_status,needs_info_sections").eq("user_id", user.id).maybeSingle();
@@ -331,20 +388,30 @@ async function readComplianceForSubmit(
   };
 }
 
-/** Submit (or resubmit after needs_more_info). Validates, locks, writes an immutable event. */
+/** Submit (or resubmit after needs_more_info / rejected). Validates, locks, writes an immutable event. */
 export async function submitApplicationAction(): Promise<ActionResult> {
   const g = await gate();
   if ("error" in g) return { ok: false, error: g.error };
   const { supabase, user } = g;
 
   const { data: acct } = await supabase.from("professional_profiles").select("account_status,resubmission_count").eq("user_id", user.id).maybeSingle();
-  if ((acct as { account_status?: string } | null)?.account_status === "banned") {
+  const accountStatus = (acct as { account_status?: string } | null)?.account_status;
+  if (accountStatus === "banned") {
     return { ok: false, error: "This account has been banned and can no longer apply. Contact support@iglamher.com if you believe this is a mistake." };
+  }
+  // Suspension blocks pro features, including re-entering the review queue —
+  // an admin lifts it via Reactivate, which is the moment resubmission opens up.
+  if (accountStatus === "suspended") {
+    return { ok: false, error: "This account is temporarily suspended, so the application can't be submitted right now. Contact support@iglamher.com." };
   }
 
   const app = await getMyApplicationAction();
   if (!app || !app.exists) return { ok: false, error: "Fill out your application first." };
-  if (app.status !== "draft" && app.status !== "needs_more_info") return { ok: false, error: "Your application is already submitted." };
+  // Rejected applicants may fix things and resubmit (0037 permits the transition);
+  // banned accounts were already turned away above.
+  if (app.status !== "draft" && app.status !== "needs_more_info" && app.status !== "rejected") {
+    return { ok: false, error: "Your application is already submitted." };
+  }
 
   // Legal gate (C1): service locations, home-studio answers, and both current
   // agreement versions are read from the DB — never trusted from the client.
@@ -362,41 +429,71 @@ export async function submitApplicationAction(): Promise<ActionResult> {
   });
   if (errors.length) return { ok: false, error: errors[0] };
 
-  const resubmit = app.status === "needs_more_info";
-  const nextCount = ((acct as { resubmission_count?: number } | null)?.resubmission_count ?? 0) + (resubmit ? 1 : 0);
-  const { error } = await supabase
-    .from("professional_profiles")
-    .update({ review_status: "pending_review", submitted_at: new Date().toISOString(), needs_info_note: null, needs_info_sections: [], rejection_reason: null })
-    .eq("user_id", user.id);
-  if (error) return { ok: false, error: error.message };
-  // Increment the resubmission counter separately + best-effort: the column arrives
-  // in migration 0024, so a pre-migration deploy simply no-ops here instead of failing.
-  if (resubmit) {
-    await supabase.from("professional_profiles").update({ resubmission_count: nextCount }).eq("user_id", user.id);
-  }
-  // On resubmit, previously-flagged documents go back to pending so an admin re-reviews
-  // them. Done with the service-role client because owners deliberately have no UPDATE
-  // policy on professional_documents (they must never be able to self-verify a document).
-  if (resubmit) {
-    await createAdminClient()
-      .from("professional_documents")
-      .update({ review_status: "pending", flag_reason: null })
-      .eq("professional_id", user.id)
-      .eq("review_status", "flagged");
-  }
-  // Immutable audit event. Applicants have NO insert policy on verification_events
-  // (they must never be able to forge audit rows), so the applicant's own session
-  // silently fails RLS here. Insert with the service-role client instead and inspect
-  // the result: a missing table/column on an older deploy degrades gracefully, but a
-  // real failure on a present table is surfaced in the logs rather than pretended-away.
-  const { error: eventErr } = await createAdminClient()
-    .from("verification_events")
-    .insert({ professional_id: user.id, actor_id: user.id, action: resubmit ? "resubmitted" : "submitted", visible_to_applicant: false });
-  if (eventErr) {
-    const schemaGap = /does not exist|schema cache|could not find/i.test(eventErr.message);
-    if (!schemaGap) console.error("[application.submit] audit event insert failed", eventErr.message);
+  // 0037 performs the expected-state transition, resubmission count, document
+  // reset and audit event in one transaction. It also requires an ACTIVE account
+  // and a freshly uploaded pending ID after rejection.
+  const { error } = await supabase.rpc("submit_professional_application", {
+    p_expected_status: app.status,
+  });
+  if (error) {
+    // The RPC ships in migration 0037; in this repo code deploys ahead of the
+    // SQL (Boss applies APPLY_PENDING files). First-time submission worked
+    // before 0037 and must not break while the migration is pending: fall back
+    // to the pre-0037 direct-update path for the transitions the OLD trigger
+    // permits (draft / needs_more_info). Rejected-resubmit genuinely requires
+    // 0037 — the old trigger refuses that transition — so it fails honestly.
+    // Never leak PostgREST/SQL internals either way.
+    const migrationMissing =
+      error.code === "PGRST202"
+      || error.code === "42883"
+      || /submit_professional_application|schema cache|could not find the function/i.test(error.message);
+    if (!migrationMissing) return { ok: false, error: error.message };
+    if (app.status === "rejected") {
+      return { ok: false, error: "Resubmitting after a rejection isn't available just yet. Your work is saved — please try again later or contact support@iglamher.com." };
+    }
+    const legacy = await legacySubmitFallback(supabase, user.id, app.status);
+    if (!legacy.ok) return legacy;
   }
   revalidatePath("/pro/application");
   revalidatePath("/admin/applications");
+  return { ok: true };
+}
+
+/** Pre-0037 submit path (draft / needs_more_info only): the same non-atomic
+ *  sequence that shipped before the RPC existed. Runs ONLY when the RPC is
+ *  missing — i.e. against the old trigger, which permits exactly these
+ *  transitions — so a pending migration never takes down first-time submits. */
+async function legacySubmitFallback(
+  supabase: ServerClient,
+  userId: string,
+  status: "draft" | "needs_more_info",
+): Promise<ActionResult> {
+  const resubmit = status === "needs_more_info";
+  const { data: acct } = await supabase.from("professional_profiles").select("resubmission_count").eq("user_id", userId).maybeSingle();
+  const nextCount = ((acct as { resubmission_count?: number } | null)?.resubmission_count ?? 0) + 1;
+  const { data: updated, error } = await supabase
+    .from("professional_profiles")
+    .update({ review_status: "pending_review", submitted_at: new Date().toISOString(), needs_info_note: null, needs_info_sections: [], rejection_reason: null })
+    .eq("user_id", userId)
+    .eq("review_status", status)
+    .select("user_id");
+  if (error) return { ok: false, error: error.message };
+  if (!updated?.length) return { ok: false, error: "Application state changed; refresh and try again." };
+  const admin = createAdminClient();
+  if (resubmit) {
+    // Counter increment + flagged-doc reset, same best-effort semantics as the
+    // pre-0037 code. Doc reset uses the service role: owners deliberately have
+    // no UPDATE policy on professional_documents.
+    await supabase.from("professional_profiles").update({ resubmission_count: nextCount }).eq("user_id", userId);
+    await admin.from("professional_documents").update({ review_status: "pending", flag_reason: null }).eq("professional_id", userId).eq("review_status", "flagged");
+  }
+  // Applicants have no insert policy on verification_events (they must never be
+  // able to forge audit rows) — the event is written with the service role.
+  const { error: eventErr } = await admin
+    .from("verification_events")
+    .insert({ professional_id: userId, actor_id: userId, action: resubmit ? "resubmitted" : "submitted", visible_to_applicant: false });
+  if (eventErr && !/does not exist|schema cache|could not find/i.test(eventErr.message)) {
+    console.error("[application.submit] audit event insert failed", eventErr.message);
+  }
   return { ok: true };
 }

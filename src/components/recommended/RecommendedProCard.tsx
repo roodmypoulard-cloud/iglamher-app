@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { SmartImage } from "@/components/ui/SmartImage";
-import { VerifiedIcon } from "@/components/ui/icons";
+import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import { FavoriteButton } from "@/components/marketplace/FavoriteButton";
 import { CardMenu } from "@/components/recommended/CardMenu";
 import { formatPrice, formatDistanceFor } from "@/lib/format";
@@ -49,7 +49,7 @@ export function RecommendedProCard({
             {/* Rose-gold serif name, like the mock */}
             <h3 className="flex min-w-0 items-center gap-1.5 font-display text-[14px] font-bold leading-tight text-rose-light">
               <Link href={profileHref} className="truncate">{pro.businessName || pro.displayName}</Link>
-              {pro.isVerified && <VerifiedIcon width={13} height={13} className="flex-none text-gold" />}
+              {pro.isVerified && <GoldVerifiedBadge size={13} />}
             </h3>
             <CardMenu slug={pro.slug} name={pro.businessName || pro.displayName} />
           </div>

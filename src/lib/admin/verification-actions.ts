@@ -68,12 +68,16 @@ async function applicant(admin: ReturnType<typeof createAdminClient>, proId: str
 
 /** Delete the applicant's government-ID files + rows. We promise not to store IDs,
  *  so they're purged the moment a decision is made — verification only, never kept. */
-async function purgeIdDocuments(admin: ReturnType<typeof createAdminClient>, proId: string): Promise<void> {
-  const { data } = await admin.from("professional_documents").select("id,file_path").eq("professional_id", proId).eq("kind", "id_document");
+async function purgeIdDocuments(admin: ReturnType<typeof createAdminClient>, proId: string): Promise<AdminResult> {
+  const { data, error: readError } = await admin.from("professional_documents").select("id,file_path").eq("professional_id", proId).eq("kind", "id_document");
+  if (readError) return { ok: false, error: `Could not inspect government ID records: ${readError.message}` };
   const rows = (data as Array<{ id: string; file_path: string }> | null) ?? [];
-  if (rows.length === 0) return;
-  await admin.storage.from("verification-docs").remove(rows.map((r) => r.file_path)).catch(() => {});
-  await admin.from("professional_documents").delete().eq("professional_id", proId).eq("kind", "id_document");
+  if (rows.length === 0) return { ok: true };
+  const { error: storageError } = await admin.storage.from("verification-docs").remove(rows.map((r) => r.file_path));
+  if (storageError) return { ok: false, error: `Government ID file deletion failed: ${storageError.message}` };
+  const { error: rowError } = await admin.from("professional_documents").delete().eq("professional_id", proId).eq("kind", "id_document");
+  if (rowError) return { ok: false, error: `Government ID record deletion failed: ${rowError.message}` };
+  return { ok: true };
 }
 
 /** Mark a submitted application as under review (when an admin opens it). */
@@ -114,7 +118,8 @@ export async function approveApplicationAction(proId: string): Promise<AdminResu
   // Snapshot the labeled badges BEFORE purging the ID doc — purging removes the
   // id_document row, and deriving after would silently drop "ID Verified".
   await syncVerificationBadges(admin, proId);
-  await purgeIdDocuments(admin, proId); // ID used only for verification — never stored
+  const purged = await purgeIdDocuments(admin, proId); // ID used only for verification — never stored
+  if (!purged.ok) return purged;
   await logEvent(admin, { proId, actorId: gate.adminId, action: "approved", visibleToApplicant: true });
   const { email, name } = await applicant(admin, proId);
   if (email) { const t = approvedEmail(name); await sendEmail(email, t.subject, t.html, t.text); }
@@ -134,7 +139,8 @@ export async function rejectApplicationAction(proId: string, reason: string): Pr
     .update({ review_status: "rejected", is_active: false, is_verified: false, reviewed_at: new Date().toISOString(), reviewed_by: gate.adminId, rejection_reason: r.data })
     .eq("user_id", proId);
   if (error) return { ok: false, error: error.message };
-  await purgeIdDocuments(admin, proId);
+  const purged = await purgeIdDocuments(admin, proId);
+  if (!purged.ok) return purged;
   await admin.from("verification_events").insert({ professional_id: proId, actor_id: gate.adminId, action: "rejected", body: r.data, visible_to_applicant: true });
   const { email, name } = await applicant(admin, proId);
   if (email) { const t = rejectedEmail(name, r.data); await sendEmail(email, t.subject, t.html, t.text); }
@@ -159,7 +165,10 @@ export async function needsMoreInfoAction(proId: string, note: string, sections:
   // that's the only case where they can re-upload it (identity is locked otherwise).
   // Purging it for an unrelated needs-info request would delete the one ID doc while
   // leaving the section un-editable, permanently blocking a later approve.
-  if (secs.includes("identity")) await purgeIdDocuments(admin, proId);
+  if (secs.includes("identity")) {
+    const purged = await purgeIdDocuments(admin, proId);
+    if (!purged.ok) return purged;
+  }
   await admin.from("verification_events").insert({ professional_id: proId, actor_id: gate.adminId, action: "needs_more_info", body: n.data, visible_to_applicant: true });
   const { email, name } = await applicant(admin, proId);
   if (email) { const t = needsInfoEmail(name, n.data, secs); await sendEmail(email, t.subject, t.html, t.text); }
@@ -265,7 +274,8 @@ export async function banProfessionalAction(proId: string, reason: string): Prom
     .update({ account_status: "banned", banned_at: new Date().toISOString(), banned_by: gate.adminId, ban_reason: r.data, is_active: false, is_verified: false, is_featured: false })
     .eq("user_id", proId);
   if (error) return { ok: false, error: error.message };
-  await purgeIdDocuments(admin, proId);
+  const purged = await purgeIdDocuments(admin, proId);
+  if (!purged.ok) return purged;
   await logEvent(admin, { proId, actorId: gate.adminId, action: "banned", body: r.data, targetType: "professional" });
   revalidatePath("/admin/applications");
   revalidatePath("/admin/professionals");

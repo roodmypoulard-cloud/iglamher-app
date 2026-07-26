@@ -19,6 +19,17 @@ export const SECTION_LABELS: Record<ApplicationSection, string> = {
   identity: "ID (verification only — not stored)",
 };
 
+/** A section is editable in draft (any), in needs_more_info (only the flagged
+ *  sections), or after a rejection (any — the applicant fixes everything and
+ *  resubmits; 0037 permits the rejected -> pending_review transition). Single
+ *  source of truth for the wizard AND the server actions, so the UI can never
+ *  offer an edit the server would refuse. */
+export function sectionEditable(status: ReviewStatus, flagged: readonly string[], section: ApplicationSection): boolean {
+  if (status === "draft" || status === "rejected") return true;
+  if (status === "needs_more_info") return flagged.includes(section);
+  return false;
+}
+
 // ---- Document upload constraints (correction #5) ---------------------------
 export const DOC_MIME_TYPES = ["application/pdf", "image/jpeg", "image/png"] as const;
 export type DocMime = (typeof DOC_MIME_TYPES)[number];

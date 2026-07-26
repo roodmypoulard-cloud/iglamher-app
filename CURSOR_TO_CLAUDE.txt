@@ -156,3 +156,165 @@ HONEST DEBT / OUT OF SCOPE (unchanged from brief)
 - Deploy: shipped to prod via npx vercel --prod (URL below). Code is
   prod-safe pre-migrations (0035/0036 features degrade honestly until Boss
   applies the APPLY_PENDING files).
+
+================================================================================
+STATUS — Claude, 2026-07-25 (Professional Verification System task)
+================================================================================
+Boss task: "Build a complete professional verification system." AUDIT FIRST:
+~95% already existed (0023/0024/0032/0033: wizard w/ gov ID + license + portfolio
++ years + category, statuses persisted, admin queue w/ tabs + signed-URL files +
+approve/reject/needs-info + internal notes + audit log, role+passcode admin gate,
+gold seal, loading/empty/error states). Built ONLY the real gaps — no duplication:
+
+1. Business name (optional) field added to wizard Basics step. Autosaves via
+   draftSchema (max 120); empty keeps the existing default (admin queue and
+   public profile rely on business_name always having a value).
+2. REJECTED → RESUBMIT path (was a dead end):
+   - NEW MIGRATION 0037_resubmit_after_rejection.sql + APPLY_PENDING_0037.sql —
+     extends the 0025 column guard to allow owner transition
+     rejected -> pending_review (everything else stays admin-only).
+     >>> BOSS/CURSOR: apply APPLY_PENDING_0037.sql on prod. Until applied,
+     every submit path returns a friendly temporary-update message and remains
+     editable until the atomic RPC is installed (no data harm).
+   - sectionEditable moved to src/lib/pro/application.ts (pure, shared by wizard
+     + server actions; rejected = all sections editable). Unit-tested.
+   - submitApplicationAction accepts rejected (counts as resubmission, resets
+     flagged docs, clears rejection_reason). Banned still blocked.
+   - /pro/apply no longer bounces rejected to the status page; wizard shows a
+     rejected banner (reason + "re-upload ID" note, since IDs are purged).
+   - /pro/application rejected card now has explicit resubmit instructions +
+     "Update & resubmit" button.
+3. /pro/profile banner is now status-aware: Verification pending / not submitted
+   (link to finish) / needs more info (link to update) / not approved (link to
+   reason & resubmit). Was one generic "pending" text for every unverified state.
+4. Gold Verified badge consistency: ProfessionalCard (list+grid) and
+   /professionals/[slug] header now use the branded GoldVerifiedBadge instead of
+   the rose VerifiedIcon (matches LuxeProCard/TrendingStrip/RecommendedCarousel).
+
+GATES: tsc clean · eslint clean · vitest 255/255 (added sectionEditable + 0037
+static-surface tests) · next build clean. Not deployed, not committed — awaiting
+Cursor review per protocol.
+FILES: supabase/migrations/0037_resubmit_after_rejection.sql,
+APPLY_PENDING_0037.sql, src/lib/pro/application.ts,
+src/lib/pro/application-actions.ts, src/components/pro/ApplicationWizard.tsx,
+src/app/pro/apply/page.tsx, src/app/pro/application/page.tsx,
+src/app/pro/profile/page.tsx, src/components/marketplace/ProfessionalCard.tsx,
+src/app/professionals/[slug]/page.tsx, src/lib/pro/__tests__/application.test.ts
+
+CORRECTION LOOP — Cursor review 1 + 2 (2026-07-25)
+- Review 1 rejected with moderation/RLS, autosave race, signed-out redirect, and
+  non-atomic resubmission findings. All corrected:
+  - 0037 now requires account_status=active in the trigger; profile/document/
+    verification-storage owner mutations are active-only at RLS.
+  - submit_professional_application RPC atomically locks expected state, changes
+    status, increments resubmission count, resets flagged docs, and inserts the
+    audit event; rejected resubmission requires a fresh pending ID newer than the
+    rejection decision.
+  - Wizard drains autosave and saves the latest snapshot before submit; server
+    autosave UPDATE is conditional on an editable status.
+  - Signed-out /pro/apply redirects to /signin?next=/pro/apply.
+  - Government-ID purge failures are returned to admins instead of ignored.
+  - Authenticated local RLS cases cover active resubmit, suspended profile/RPC
+    denial, and banned document insert/delete denial.
+- Review 2 cleared those issues and found one deploy-order Major: ALL submit
+  paths now depend on the 0037 RPC. Corrected the user surface so missing
+  migration errors return friendly "updates are being installed; work is
+  saved" copy instead of raw PostgREST/SQL text.
+- HARD DEPLOY GATE: apply APPLY_PENDING_0037.sql to production FIRST, then deploy
+  this code. Do not auto-deploy code before migration confirmation. There is no
+  unsafe inline fallback because it would reintroduce the race the RPC fixes.
+
+--------------------------------------------------------------------------------
+CORRECTION LOOP — Claude, 2026-07-25 (independent fresh-context review round 1)
+--------------------------------------------------------------------------------
+Two independent reviewer agents (security/correctness + UX/regression) reviewed
+the verification-task diff. Findings + fixes (all verified, gates re-run):
+
+FIXED BLOCKERS
+B1  saveApplicationDraftAction still refused status 'rejected' (early guard ran
+    before sectionEditable) → rejected pros' edits silently never saved while
+    the wizard showed editable fields; review step could resubmit UNCHANGED
+    data. Fixed: guard now allows draft|needs_more_info|rejected; autosave
+    errors now surfaced as a visible role="alert" line (not just "Save failed").
+B2  CRITICAL: 0037 was rebuilt from the 0025 guard baseline — `create or
+    replace` would have DROPPED the 0028 (is_recommended/recommended_at/until),
+    0032 (needs_location_review) and 0033 (identity/license/insurance/
+    home_studio/salon badge) guards, letting any pro self-award badges and
+    Recommended placement via PostgREST. Rebuilt from the 0033 body + the one
+    transition change + active-account requirement
+    (coalesce(old.account_status::text,'active') = 'active').
+    APPLY_PENDING_0037.sql regenerated to match byte-for-byte.
+
+FIXED MAJORS
+M1  Banned+rejected accounts could edit/upload docs (only submit was gated).
+    Added isBanned() gate to saveApplicationDraftAction / uploadDocumentAction /
+    removeDocumentAction; /pro/apply now ACTS on ensureApplicationRowAction's
+    refusal (renders the ban message instead of a wizard that can't save).
+M2  Business-name clear was fake-success (kept old value, showed "Saved ✓").
+    Now "" is sent explicitly and the server reverts to the profile full name —
+    the placeholder promise ("leave blank to use your own name") is now literal.
+M3  Three surfaces still used the old VerifiedIcon: services/[id],
+    RecommendedProCard, /profile (own). All now GoldVerifiedBadge; /profile's
+    customer ID-star kept as distinct glyph, comment corrected.
+
+FIXED MINORS
+- Suspended accounts now blocked at submit (decision logged in
+  PRODUCT_DECISIONS.md: rejection invites a fix; suspension/ban do not).
+- /pro/application rejected copy no longer references a reason that isn't there.
+- Long rejection reasons: min-w-0 + break-words on profile banner / wizard
+  banner / application reason block.
+- /pro/profile needs-info banner links to /pro/application (shows the admin
+  note) instead of straight to the wizard; null application read now falls back
+  to neutral "pending" copy instead of "not submitted".
+- bizname input: autoComplete="organization".
+
+TESTS: 258/258 (added: 0037 baseline-drift assertions for every guarded column,
+APPLY_PENDING byte-parity check, action-level rejected-status regression
+assertions). tsc clean · eslint clean · next build clean.
+NOTE: one build break was introduced+fixed during corrections ("use server"
+modules may not export consts — BANNED_MESSAGE un-exported).
+Still not committed / not deployed — awaiting Cursor re-review + Boss.
+>>> UNCHANGED BOSS ACTION: apply APPLY_PENDING_0037.sql (the REBUILT version).
+
+--------------------------------------------------------------------------------
+CORRECTION LOOP ROUND 2 — Claude, 2026-07-25 (supersedes stale claims above)
+--------------------------------------------------------------------------------
+NOTE: a concurrent session hardened the tree mid-review (0037 RLS active-only
+owner policies + atomic submit_professional_application RPC w/ fresh-ID rule;
+wizard save-draining; /pro/apply sign-in guard). Round-2 findings below are
+against THAT tree; earlier STATUS text describing app-side resubmission_count
+and '<> banned' trigger copy is superseded.
+
+FIXED (round-2 findings):
+B   Pre-0037 prod regression: submit hard-depended on the 0037 RPC → ALL
+    submissions (incl. first-time drafts) would fail until Boss ran the SQL.
+    Now: schema-gap → legacySubmitFallback() (the exact pre-0037 path, only for
+    draft/needs_more_info which the old trigger permits); rejected-resubmit
+    pre-0037 fails with honest "not available just yet" copy.
+M1  Suspended fake-success writes: 0037 RLS filters non-active owners to ZERO
+    rows with no error. Added accountWriteBlock() (banned+suspended, honest
+    copy) to draft-save/upload/remove/ensure, and zero-row .select() checks to
+    saveProfileAction, saveAvailabilityAction, saveServiceLocationsAction.
+    /pro/apply now refuses suspended accounts with the honest card too.
+M2  professional_documents forgery: owner could POST review_status='verified'
+    rows via PostgREST → satisfied the approval gate, minted 0033 badges via
+    syncVerificationBadges, defeated the RPC fresh-ID check. NEW
+    trg_pro_document_insert_guard forces owner inserts pristine
+    (pending/null verdict fields/created_at=now()).
+M3  Review-metadata forgery / FIFO queue-jump: submitted_at, resubmission_count,
+    needs_info_note/sections, rejection_reason now guarded — changeable ONLY
+    together with the whitelisted submit transition and only to canonical
+    values (submitted_at ≈ now(), counter +0/+1, notes cleared-never-set);
+    reviewed_at/reviewed_by never owner-writable. Written to admit exactly what
+    the RPC sets (it is SECURITY DEFINER but NOT a privileged writer).
+MINORS: storage.objects policy DDL wrapped (insufficient_privilege → NOTICE with
+dashboard instructions, rest of paste survives); guard-drift tests pinned to
+executable `new.x is distinct from old.x` form (comment mentions no longer
+satisfy them); text-field clears now honest (empty string persists; cleared
+years → null; cleared business name reverts to own name AND is reflected back
+into the input); /pro/apply reuses the pre-ensure read (was double-fetching) and
+non-moderation ensure failures get friendly copy + Try again; RPC-copy test
+updated for the fallback.
+GATES: tsc clean · eslint clean · vitest 262/262 · next build clean.
+APPLY_PENDING_0037.sql REGENERATED again — byte-parity test enforces it.
+Not committed / not deployed. Boss action unchanged: apply APPLY_PENDING_0037.

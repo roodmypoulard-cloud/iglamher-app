@@ -3,7 +3,7 @@ import Image from "next/image";
 import { SmartImage } from "@/components/ui/SmartImage";
 import type { ProfessionalCardView } from "@/lib/data/model";
 import { formatPrice, formatDistanceFor, cn } from "@/lib/format";
-import { VerifiedIcon } from "@/components/ui/icons";
+import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import { Rating } from "@/components/ui/Rating";
 import { FavoriteButton } from "./FavoriteButton";
 
@@ -43,7 +43,7 @@ export function ProfessionalCard({
         <div className="flex min-w-0 flex-1 flex-col justify-center">
           <p className="flex items-center gap-1.5 font-display text-[17px] font-semibold leading-tight">
             <span className="truncate">{pro.displayName}</span>
-            {pro.isVerified && <VerifiedIcon width={14} height={14} className="flex-none text-rose" />}
+            {pro.isVerified && <GoldVerifiedBadge size={14} />}
           </p>
           <p className="mt-0.5 truncate text-xs text-ink-muted">{pro.primarySpecialty || pro.headline}</p>
           <p className="mt-1.5 flex items-center gap-x-2 truncate text-[11.5px] text-ink-muted">
@@ -90,7 +90,7 @@ export function ProfessionalCard({
       <div className="flex flex-1 flex-col gap-1 px-4 py-5">
         <p className="flex items-center gap-1.5 font-display text-lg font-semibold leading-tight">
           {pro.displayName}
-          {pro.isVerified && <VerifiedIcon width={14} height={14} className="text-rose" />}
+          {pro.isVerified && <GoldVerifiedBadge size={14} />}
         </p>
         <p className="truncate text-xs text-ink-muted">{pro.primarySpecialty || pro.headline}</p>
         <p className="mt-1 flex items-center gap-2 text-[12px]">

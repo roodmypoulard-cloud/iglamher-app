@@ -6,6 +6,7 @@ import { SupportLink } from "@/components/support/SupportLink";
 import { ProfileModeCard } from "@/components/profile/ProfileModeCard";
 import { SignOutConfirm } from "@/components/auth/SignOutConfirm";
 import { NotifCount } from "@/components/profile/NotifCount";
+import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import {
   HeartIcon, CalendarIcon, ChatIcon, BellIcon, StarIcon, CreditCardIcon,
   ChevronRight, VerifiedIcon,
@@ -102,8 +103,8 @@ export default async function ProfilePage() {
                   <h1 className="truncate text-lg font-bold leading-tight text-ink">{name}</h1>
                   <p className="mt-0.5 flex items-center gap-1.5 text-[13px] font-semibold text-rose">
                     {accountTypeLabel(o?.account?.accountType)}
-                    {o?.isVerified && <VerifiedIcon width={15} height={15} className="flex-none" />}
-                    {/* Gold check = ID-verified customer (distinct from the rose pro badge). */}
+                    {o?.isVerified && <GoldVerifiedBadge size={15} />}
+                    {/* Gold STAR = ID-verified customer — distinct glyph from the gold pro SEAL above. */}
                     {o?.idVerified && !o?.isVerified && (
                       <VerifiedIcon width={15} height={15} className="flex-none text-gold" aria-label="Identity verified" />
                     )}

@@ -8,7 +8,7 @@ import {
   saveApplicationDraftAction, submitApplicationAction, type MyApplication,
 } from "@/lib/pro/application-actions";
 import {
-  SECTION_LABELS, validateForSubmit, isCredentialKind, currentAgreementAcceptances,
+  SECTION_LABELS, validateForSubmit, isCredentialKind, currentAgreementAcceptances, sectionEditable,
   type ApplicationSection, type ReviewStatus, type AcceptedAgreement,
 } from "@/lib/pro/application";
 import type { LocationCompliance } from "@/lib/pro/compliance";
@@ -32,6 +32,7 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
   const router = useRouter();
   const [step, setStep] = useState(0);
   const [data, setData] = useState({
+    businessName: initial.businessName,
     primarySpecialty: initial.primarySpecialty,
     city: initial.city,
     yearsExperience: initial.yearsExperience?.toString() ?? "",
@@ -52,36 +53,59 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
     agreements: initial.acceptedAgreements,
   });
   const [savedAt, setSavedAt] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const [submitErr, setSubmitErr] = useState<string | null>(null);
   const [submitting, startSubmit] = useTransition();
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingSave = useRef<Promise<boolean>>(Promise.resolve(true));
 
   const status = initial.status as ReviewStatus;
   const flagged = initial.needsInfoSections;
+  // Mirrors the server's rule exactly (draft + rejected: everything; needs_more_info:
+  // flagged sections only) so the UI never offers an edit the server would refuse.
   const editable = useCallback(
-    (s: ApplicationSection) => status === "draft" || (status === "needs_more_info" && flagged.includes(s)),
+    (s: ApplicationSection) => sectionEditable(status, flagged, s),
     [status, flagged],
   );
 
-  // Debounced autosave whenever the form data changes.
-  const persist = useCallback((next: typeof data) => {
-    if (timer.current) clearTimeout(timer.current);
+  const save = useCallback((next: typeof data): Promise<boolean> => {
     setSavedAt("saving");
-    timer.current = setTimeout(async () => {
+    const request = (async () => {
       const r = await saveApplicationDraftAction({
+        // Text fields are sent even when empty — "" is an explicit clear the
+        // server persists (a cleared business name reverts to the pro's own
+        // name; cleared years become null). `undefined` would silently keep the
+        // old value while the UI says "Saved ✓".
+        businessName: next.businessName,
         primarySpecialty: next.primarySpecialty || undefined,
-        city: next.city || undefined,
-        yearsExperience: next.yearsExperience ? Number(next.yearsExperience) : undefined,
-        school: next.school || undefined,
-        bio: next.bio || undefined,
+        city: next.city,
+        yearsExperience: next.yearsExperience === "" ? null : Number(next.yearsExperience),
+        school: next.school,
+        bio: next.bio,
         instagramHandle: next.instagramHandle,
         tiktokHandle: next.tiktokHandle,
         websiteUrl: next.websiteUrl,
         portfolioUrl: next.portfolioUrl,
       });
       setSavedAt(r.ok ? "saved" : "error");
-    }, 800);
+      setSaveErr(r.ok ? null : r.error);
+      // A cleared business name is stored as the pro's own name — reflect what
+      // was actually saved, unless they've typed something new meanwhile.
+      if (r.ok && r.data?.businessName) {
+        const resolved = r.data.businessName;
+        setData((d) => (d.businessName === "" ? { ...d, businessName: resolved } : d));
+      }
+      return r.ok;
+    })();
+    pendingSave.current = request;
+    return request;
   }, []);
+
+  // Debounced autosave whenever the form data changes.
+  const persist = useCallback((next: typeof data) => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => { void save(next); }, 800);
+  }, [save]);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
 
   function set<K extends keyof typeof data>(k: K, v: string) {
@@ -107,6 +131,18 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
   function submit() {
     setSubmitErr(null);
     startSubmit(async () => {
+      // Drain an already-started save, cancel the debounce, then persist the
+      // latest snapshot before validation/transition. This prevents slow saves
+      // from landing after the application locks.
+      if (timer.current) {
+        clearTimeout(timer.current);
+        timer.current = null;
+      }
+      await pendingSave.current;
+      if (!(await save(data))) {
+        setSubmitErr("Save your changes before submitting.");
+        return;
+      }
       const r = await submitApplicationAction();
       if (r.ok) router.push("/pro/application");
       else setSubmitErr(r.error);
@@ -136,9 +172,21 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
         </span>
       </div>
 
+      {savedAt === "error" && saveErr && (
+        <p role="alert" className="mb-3 rounded-[10px] border border-danger/40 bg-danger/10 px-3 py-2 text-[13px] text-danger break-words">
+          Couldn&apos;t save your changes: {saveErr}
+        </p>
+      )}
+
       {status === "needs_more_info" && (
         <div className="mb-4 rounded-[12px] border border-gold/40 bg-gold/10 px-4 py-3 text-sm text-ink-secondary">
           An admin asked for changes. You can only edit: <strong>{flagged.map((s) => SECTION_LABELS[s as ApplicationSection] ?? s).join(", ")}</strong>.
+        </div>
+      )}
+      {status === "rejected" && (
+        <div className="mb-4 rounded-[12px] border border-danger/40 bg-danger/10 px-4 py-3 text-sm text-ink-secondary break-words">
+          <p><strong className="text-danger">Your previous application wasn&apos;t approved.</strong>{initial.rejectionReason ? <> Reason: {initial.rejectionReason}</> : null}</p>
+          <p className="mt-1.5">You can update any section and resubmit. Your ID was deleted after review, so you&apos;ll need to upload it again in the Identity step.</p>
         </div>
       )}
 
@@ -149,6 +197,10 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
 
         {cur?.key === "basics" && (
           <div className="space-y-4">
+            <div>
+              <label className={label} htmlFor="bizname">Business name <span className="font-normal text-ink-muted">(optional)</span></label>
+              <input id="bizname" disabled={locked} value={data.businessName} onChange={(e) => set("businessName", e.target.value)} maxLength={120} autoComplete="organization" className={input} placeholder="e.g. Glow Studio LA — leave blank to use your own name" />
+            </div>
             <div>
               <label className={label} htmlFor="cat">Main service category</label>
               <select id="cat" disabled={locked} value={data.primarySpecialty} onChange={(e) => set("primarySpecialty", e.target.value)} className={input}>
@@ -224,8 +276,8 @@ export function ApplicationWizard({ initial, portfolio }: { initial: MyApplicati
               <p className="rounded-[12px] border border-success/40 bg-success/10 px-4 py-3 text-sm text-success">Everything looks good. Submit for review — you&apos;ll hear back by email.</p>
             )}
             {submitErr && <p role="alert" className="text-sm text-danger">{submitErr}</p>}
-            <button type="button" disabled={errors.length > 0 || submitting} onClick={submit} className="min-h-[48px] w-full rounded-full rose-gradient py-3 text-sm font-semibold text-[#2A1712] disabled:opacity-50">
-              {submitting ? "Submitting…" : status === "needs_more_info" ? "Resubmit application" : "Submit application"}
+            <button type="button" disabled={errors.length > 0 || submitting || savedAt === "saving"} onClick={submit} className="min-h-[48px] w-full rounded-full rose-gradient py-3 text-sm font-semibold text-[#2A1712] disabled:opacity-50">
+              {submitting ? "Submitting…" : status === "needs_more_info" || status === "rejected" ? "Resubmit application" : "Submit application"}
             </button>
           </div>
         )}

@@ -6,7 +6,7 @@ import { ServiceCard } from "@/components/marketplace/ServiceCard";
 import { TrackView } from "@/components/marketplace/TrackView";
 import { Rating } from "@/components/ui/Rating";
 import { LinkButton } from "@/components/ui/Button";
-import { VerifiedIcon } from "@/components/ui/icons";
+import { GoldVerifiedBadge } from "@/components/marketplace/GoldVerifiedBadge";
 import { getServiceWithProfessional } from "@/lib/data/professionals";
 import { formatPrice, formatDuration } from "@/lib/format";
 
@@ -77,7 +77,7 @@ export default async function ServiceDetailPage({ params }: { params: Promise<{ 
           <div className="min-w-0 flex-1">
             <p className="flex items-center gap-1.5 font-display text-lg font-semibold">
               {pro.displayName}
-              {pro.isVerified && <VerifiedIcon width={14} height={14} className="text-rose" />}
+              {pro.isVerified && <GoldVerifiedBadge size={14} />}
             </p>
             <p className="text-xs text-ink-muted">{pro.primarySpecialty}</p>
             <Rating average={pro.ratingAverage} count={pro.reviewCount} className="mt-1 text-[12px]" />

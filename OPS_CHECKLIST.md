@@ -8,6 +8,9 @@ Updated 2026-07-25. Work through top to bottom; each item says how to verify it.
       chargeback queue shows empty.
 - [ ] Apply `APPLY_PENDING_0036.sql` (reschedule columns). Until applied, the
       "Request a time change" action returns an honest "not available yet" message.
+- [ ] Apply `APPLY_PENDING_0037.sql` **before deploying the professional
+      verification code**. This installs active-only moderation RLS and the
+      atomic application-submit RPC used by every submit/resubmit path.
 - [ ] Verify migrations 0032–0034 really are applied (claimed but verify once):
       `select column_name from information_schema.columns where table_name='professional_profiles' and column_name in ('neighborhood','hide_exact_pin');`
       and `select 1 from information_schema.tables where table_name='professional_private_locations';`

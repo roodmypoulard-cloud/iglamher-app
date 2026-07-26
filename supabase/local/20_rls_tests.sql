@@ -229,6 +229,64 @@ select tst.check_write('professional', 'CAN edit own service (not over-blocked)'
       where id='aaaaaaaa-0000-0000-0000-000000000001' $s$, 'allowed');
 
 -- ============================================================
+-- APPLICATION MODERATION / RESUBMISSION (0037)
+-- ============================================================
+reset role;
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+update public.professional_profiles
+set account_status='active', review_status='rejected', reviewed_at=now() - interval '1 minute'
+where user_id='66666666-6666-6666-6666-666666666666';
+insert into public.professional_documents(
+  professional_id, kind, file_path, file_name, mime_type, size_bytes, review_status, created_at
+) values (
+  '66666666-6666-6666-6666-666666666666', 'id_document',
+  '66666666-6666-6666-6666-666666666666/id_document/rls-test.jpg',
+  'rls-test.jpg', 'image/jpeg', 3, 'pending', now()
+);
+
+set role authenticated;
+set request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
+select tst.check_write('application-0037', 'active rejected owner can atomically resubmit',
+  $s$ select public.submit_professional_application('rejected') $s$, 'allowed');
+
+reset role;
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+update public.professional_profiles
+set account_status='suspended', review_status='rejected'
+where user_id='66666666-6666-6666-6666-666666666666';
+
+set role authenticated;
+set request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
+select tst.check_write('application-0037', 'suspended owner cannot edit profile directly',
+  $s$ update public.professional_profiles set business_name='Suspended edit'
+      where user_id='66666666-6666-6666-6666-666666666666' $s$, 'blocked');
+select tst.check_write('application-0037', 'suspended owner cannot resubmit through RPC',
+  $s$ select public.submit_professional_application('rejected') $s$, 'blocked');
+
+reset role;
+set role service_role;
+set request.jwt.claims = '{"role":"service_role"}';
+update public.professional_profiles
+set account_status='banned'
+where user_id='66666666-6666-6666-6666-666666666666';
+
+set role authenticated;
+set request.jwt.claims = '{"sub":"66666666-6666-6666-6666-666666666666","role":"authenticated"}';
+select tst.check_write('application-0037', 'banned owner cannot insert document rows',
+  $s$ insert into public.professional_documents(
+        professional_id, kind, file_path, file_name, mime_type, size_bytes
+      ) values (
+        '66666666-6666-6666-6666-666666666666', 'id_document',
+        '66666666-6666-6666-6666-666666666666/id_document/banned.jpg',
+        'banned.jpg', 'image/jpeg', 3
+      ) $s$, 'blocked');
+select tst.check_write('application-0037', 'banned owner cannot delete document rows',
+  $s$ delete from public.professional_documents
+      where professional_id='66666666-6666-6666-6666-666666666666' $s$, 'blocked');
+
+-- ============================================================
 -- GUEST (anon)
 -- ============================================================
 reset role;

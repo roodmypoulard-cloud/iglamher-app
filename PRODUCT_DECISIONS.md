@@ -222,3 +222,12 @@ Each: interface + env-gated wrapper + working local fallback + documented integr
 - **Rate limiting**: Upstash Redis (distributed) when configured, else
   per-instance memory — documented degradation, never silent. New limits on
   booking create / messages / loyalty / referral / report+block.
+- **Rejected verification applications are resubmittable** (2026-07-25):
+  rejected pros keep full edit access and may resubmit (0037 permits
+  rejected → pending_review); admins see a resubmission counter. **Suspended
+  accounts cannot submit/resubmit** while suspended (reversible — admin
+  Reactivate reopens it), and **banned accounts cannot edit, upload, or
+  submit at all** (app-layer gates + the 0037 trigger refuses the transition
+  for banned rows). Rationale: rejection is a quality verdict inviting a
+  fixed application; suspension/ban are moderation verdicts that must not be
+  bypassable through the application flow.
