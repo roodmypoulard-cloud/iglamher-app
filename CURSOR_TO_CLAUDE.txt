@@ -318,3 +318,96 @@ updated for the fallback.
 GATES: tsc clean · eslint clean · vitest 262/262 · next build clean.
 APPLY_PENDING_0037.sql REGENERATED again — byte-parity test enforces it.
 Not committed / not deployed. Boss action unchanged: apply APPLY_PENDING_0037.
+
+--------------------------------------------------------------------------------
+CORRECTION LOOP ROUND 3 — Claude, 2026-07-29 (closes round-2 M1; protocol run)
+--------------------------------------------------------------------------------
+SCOPE: finish the round-2 M1 tranche that was left UNCOMMITTED in the working
+tree (zero-row .select() guards on the three owner-session writes to
+professional_profiles), verify it, and run every gate. No new features.
+
+WHAT WAS ALREADY IN THE TREE (uncommitted, from round 2)
+- saveProfileAction / saveAvailabilityAction (src/lib/pro/actions.ts) and
+  saveServiceLocationsAction (src/lib/pro/compliance-actions.ts) now .select()
+  after the owner UPDATE and return honest copy when zero rows come back
+  (0037 RLS filters suspended/banned owners to zero rows WITHOUT an error).
+
+WHAT THIS ROUND ADDED
+1. FIX (minor, real): saveAvailabilityAction discarded the PostgREST `error`, so
+   a genuine write failure (constraint, network, PostgREST fault) rendered as
+   "this account may be suspended" — a wrong diagnosis shown to an innocent pro.
+   Now `error: settingsError` is destructured and returned first; the zero-row
+   guard only fires when there was no error. Matches saveProfileAction's shape.
+2. TEST (new file): src/lib/pro/__tests__/owner-write-honesty.test.ts — 4 tests
+   pinning the invariant so a future refactor can't silently reintroduce fake
+   success:
+   - every owner-session professional_profiles UPDATE .select()s, guards
+     `!rows?.length`, and returns the honest suspension copy (service-role
+     `admin.` writes correctly exempt); asserts exactly 3 such writes were
+     inspected, so the test cannot pass vacuously if detection breaks.
+   - saveAvailabilityAction separates DB error from zero-row.
+   - the zero-row guard precedes every `success:` return in both actions.
+   - saveAvailabilityAction bails BEFORE the destructive
+     `availability_rules` delete — a suspended pro must not lose their schedule
+     to a write they were never allowed to make.
+
+GATES (exact results, run on this tree)
+- npm run typecheck  → tsc --noEmit, clean, no output.
+- npm run lint       → eslint, clean, no output.
+- npm test           → vitest run: 26 files, 266/266 passed (was 262; +4 new).
+- npm run build      → next build: "✓ Compiled successfully", no errors, no
+                       warnings; full route table rendered.
+
+BEHAVIOR BEFORE → AFTER
+- Before: a suspended/banned pro editing profile, availability settings, or
+  service locations saw "Profile saved." / "Availability updated." / the wizard
+  advancing, while the database wrote nothing. Availability also deleted the
+  existing weekly rules before discovering it couldn't write.
+- After: all three refuse with "Your changes couldn't be saved — this account
+  may be suspended. Contact support@iglamher.com." Availability refuses before
+  touching availability_rules. A real DB error now reports itself instead of
+  being mislabeled as suspension.
+
+SURFACES VERIFIED (error copy actually reaches the user)
+- ProfileForm.tsx:35 and AvailabilityEditor.tsx:71 render `state.error` in a
+  role="alert" danger panel; ServiceLocationStep.tsx:202 renders `error` in a
+  role="alert" line. All plain <p> — the sentence wraps at 390px, no truncate
+  or nowrap, no layout break. Existing loading/disabled states untouched.
+
+SOURCE/PLATFORM PARITY
+- Server-action change only; the Capacitor shell (capacitor.config.ts) loads the
+  same deployed web app and no native project is generated yet, so web/iOS/
+  Android see identical behavior by construction. No client bundle surface added.
+
+SECURITY: strictly tightening — closes a fake-success write path against
+suspended/banned accounts. No policy, auth, validation, or secret touched. RLS
+remains the enforcement point; this only reports its verdict truthfully.
+PERFORMANCE: `.select("user_id")` returns one narrow column on an existing
+UPDATE round-trip — no extra query. Availability now performs FEWER writes in
+the refusal path.
+ACCESSIBILITY: reuses existing role="alert" regions; message is plain text,
+no new controls, no focus changes.
+
+KNOWN LIMITATIONS / RISKS
+- The zero-row branch also fires if a professional_profiles row is genuinely
+  missing (pre-onboarding edge). Copy is hedged ("may be suspended") plus a
+  support address, so it is not a false claim, but Cursor should decide whether
+  a distinct "finish onboarding" branch is wanted.
+- No authenticated integration test exercises a live suspended session against
+  prod RLS; coverage here is source-invariant + the existing
+  supabase/local/20_rls_tests.sql cases. A live suspended-account pass belongs
+  in Boss's OPS run.
+- UNCHANGED HARD GATE: APPLY_PENDING_0037.sql must be applied to production
+  BEFORE this code deploys. Pre-0037 these guards are inert (no active-only RLS
+  yet) and harmless.
+
+FILES CHANGED THIS ROUND
+- src/lib/pro/actions.ts (error-vs-zero-row split in saveAvailabilityAction)
+- src/lib/pro/__tests__/owner-write-honesty.test.ts (new, 4 tests)
+- CURSOR_TO_CLAUDE.txt (this report)
+STILL UNCOMMITTED from round 2 and included in this review:
+- src/lib/pro/actions.ts, src/lib/pro/compliance-actions.ts (the .select() guards)
+
+DATABASE CHANGES: none this round. 0037 unchanged; byte-parity test still green.
+
+Not committed. Not deployed. Waiting for Cursor review.

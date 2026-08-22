@@ -107,10 +107,19 @@ export async function saveAvailabilityAction(_prev: ActionState, formData: FormD
   const v = parsed.data;
 
   const supabase = await createSupabaseServerClient();
-  await supabase
+  // .select() so an RLS-filtered zero-row update (0037: suspended/banned owners
+  // can't write) is reported honestly instead of showing success.
+  const { data: settingsRows, error: settingsError } = await supabase
     .from("professional_profiles")
     .update({ timezone: v.timezone, min_notice_minutes: v.minNoticeMinutes, max_window_days: v.maxWindowDays })
-    .eq("user_id", gate.userId);
+    .eq("user_id", gate.userId)
+    .select("user_id");
+  // A real DB error is a different failure from the RLS zero-row case — don't
+  // blame suspension for it.
+  if (settingsError) return { error: settingsError.message };
+  if (!settingsRows?.length) {
+    return { error: "Your changes couldn't be saved — this account may be suspended. Contact support@iglamher.com." };
+  }
 
   // Replace weekly rules atomically-ish (delete then insert own rows).
   await supabase.from("availability_rules").delete().eq("professional_id", gate.userId);
@@ -140,7 +149,7 @@ export async function saveProfileAction(_prev: ActionState, formData: FormData):
   const supabase = await createSupabaseServerClient();
   // NOTE: is_active / is_verified are intentionally NOT settable here — a pro
   // cannot activate or verify themselves. Only admins/service-role can.
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("professional_profiles")
     .update({
       business_name: v.businessName,
@@ -159,8 +168,14 @@ export async function saveProfileAction(_prev: ActionState, formData: FormData):
       // pro provides text, wrapped as a JSON value (never null → not-null violation).
       ...(v.cancellationPolicy ? { cancellation_policy: { text: v.cancellationPolicy } } : {}),
     })
-    .eq("user_id", gate.userId);
+    .eq("user_id", gate.userId)
+    .select("user_id");
   if (error) return { error: error.message };
+  // 0037's RLS filters non-active owners to zero rows WITHOUT an error — that
+  // must never render as "Profile saved."
+  if (!updatedRows?.length) {
+    return { error: "Your changes couldn't be saved — this account may be suspended. Contact support@iglamher.com." };
+  }
   revalidatePath("/pro/profile");
   return { success: "Profile saved." };
 }

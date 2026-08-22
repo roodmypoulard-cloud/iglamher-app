@@ -55,11 +55,17 @@ export async function saveServiceLocationsAction(input: {
 
   // Owner-editable declaration fields via the user's client (RLS: own row).
   const supabase = await createSupabaseServerClient();
-  const { error } = await supabase
+  const { data: updatedRows, error } = await supabase
     .from("professional_profiles")
     .update({ service_locations: locations, location_compliance: compliance, hide_exact_pin: input.hideExactPin ?? true })
-    .eq("user_id", gate.userId);
+    .eq("user_id", gate.userId)
+    .select("user_id");
   if (error) return { ok: false, error: "Couldn't save your locations. Please try again." };
+  // 0037's RLS filters suspended/banned owners to zero rows without erroring —
+  // report it instead of continuing as if the declaration saved.
+  if (!updatedRows?.length) {
+    return { ok: false, error: "Your changes couldn't be saved — this account may be suspended. Contact support@iglamher.com." };
+  }
 
   // needs_location_review is platform-only (column guard) → service-role write.
   const admin = createAdminClient();
